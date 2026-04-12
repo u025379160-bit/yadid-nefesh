@@ -1,0 +1,111 @@
+/* פלטת צבעים מינימליסטית - סגנון הייטק נקי (SaaS) */
+:root {
+  --bg-main: #f8fafc; /* רקע אפור-כחלחל סופר בהיר ומרגיע */
+  --card-bg: #ffffff;
+  --text-main: #1e293b; /* אפור פחם כהה במקום שחור חזק */
+  --text-muted: #64748b; /* טקסט משני עדין */
+  --border-color: #e2e8f0; /* גבולות סופר עדינים */
+  --primary-accent: #2563eb; /* כחול מודרני לפעולות */
+}
+
+body {
+  font-family: 'Assistant', sans-serif !important;
+  background-color: var(--bg-main) !important;
+  color: var(--text-main);
+  direction: rtl;
+  letter-spacing: 0.2px;
+}
+
+/* --- כרטיסיות (Cards) נקיות --- */
+.card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px !important;
+  /* צללית רכה וכמעט בלתי נראית */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important; 
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+.card-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-main) !important;
+  font-weight: 700;
+  font-size: 1.15rem;
+  padding: 1.25rem 1.5rem !important;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+/* --- תפריט עליון מודרני --- */
+.navbar {
+  background-color: #0f172a !important; /* אפור-פחם עמוק במקום כחול צועק */
+  border-bottom: 1px solid #1e293b !important;
+  box-shadow: none !important;
+}
+
+/* --- כפתורים נקיים בלי ברק --- */
+.btn {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s !important;
+  box-shadow: none !important;
+  padding: 0.5rem 1.25rem !important;
+}
+
+.btn-primary {
+  background-color: var(--primary-accent) !important;
+  border-color: var(--primary-accent) !important;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* כפתורי מתאר (כמו הוסף תלמיד במסך הבית) */
+.btn-outline-primary {
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color) !important;
+  background-color: white !important;
+}
+
+.btn-outline-primary:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* --- טבלאות נקיות ומינימליסטיות --- */
+.table {
+  background-color: transparent !important;
+  margin-bottom: 0 !important;
+}
+
+.table thead th {
+  background-color: #f1f5f9 !important; /* כותרת טבלה אפרפרה עדינה */
+  color: var(--text-muted) !important;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 1rem !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.table tbody td {
+  padding: 1rem !important;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+/* --- תגים (Badges) --- */
+.badge {
+  padding: 0.5em 0.8em !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+}
