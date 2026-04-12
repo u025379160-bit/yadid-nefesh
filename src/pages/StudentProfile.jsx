@@ -29,13 +29,13 @@ function StudentProfile() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const studentRes = await fetch(`http://localhost:5000/api/students/${id}`);
+        const studentRes = await fetch(`https://yadid-nefesh-server.onrender.com/api/students/${id}`);
         if (studentRes.ok) setStudent(await studentRes.json());
 
-        const tasksRes = await fetch(`http://localhost:5000/api/students/${id}/tasks`);
+        const tasksRes = await fetch(`https://yadid-nefesh-server.onrender.com/api/students/${id}/tasks`);
         if (tasksRes.ok) setTasks(await tasksRes.json());
         
-        const placementsRes = await fetch(`http://localhost:5000/api/placements`);
+        const placementsRes = await fetch(`https://yadid-nefesh-server.onrender.com/api/placements`);
         if (placementsRes.ok) {
           const allPlacements = await placementsRes.json();
           const myPlacements = allPlacements.filter(p => p.student && p.student._id === id);
@@ -81,7 +81,7 @@ function StudentProfile() {
   const handleUpdateStudent = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:5000/api/students/${id}`, {
+      const response = await fetch(`https://yadid-nefesh-server.onrender.com/api/students/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -106,7 +106,7 @@ function StudentProfile() {
   const handleAddTask = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/tasks', {
+      const response = await fetch('https://yadid-nefesh-server.onrender.com/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taskData),
@@ -125,7 +125,7 @@ function StudentProfile() {
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm('האם אתה בטוח שברצונך למחוק משימה זו?')) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, { method: 'DELETE' });
+      const response = await fetch(`https://yadid-nefesh-server.onrender.com/api/tasks/${taskId}`, { method: 'DELETE' });
       if (response.ok) setTasks(tasks.filter(task => task._id !== taskId));
     } catch (error) {
       alert('שגיאה במחיקת משימה');

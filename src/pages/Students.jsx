@@ -15,7 +15,7 @@ function Students() {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/students');
+      const response = await fetch('https://yadid-nefesh-server.onrender.com/api/students');
       const data = await response.json();
       setStudents(data);
     } catch (error) {
@@ -29,7 +29,7 @@ function Students() {
     if (!window.confirm(`האם אתה בטוח שברצונך למחוק את ${name}?`)) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/students/${id}`, {
+      const response = await fetch(`https://yadid-nefesh-server.onrender.com/api/students/${id}`, {
         method: 'DELETE',
       });
 
@@ -67,7 +67,7 @@ function Students() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/students', {
+      const response = await fetch('https://yadid-nefesh-server.onrender.com/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
