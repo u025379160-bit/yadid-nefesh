@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Card, Form, Button } from 'react-bootstrap';
 import { FiLock, FiUser } from 'react-icons/fi'; // אייקונים יוקרתיים למסך התחברות
 
@@ -7,6 +7,18 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('manager');
   const [error, setError] = useState(''); // משתנה חדש להצגת הודעת שגיאה
+
+  // 🧹 --- השואב אבק שלנו! מנקה רקעים אפורים שנתקעו --- 🧹
+  useEffect(() => {
+    // 1. מבטל את הנעילה של הגלילה
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = 'auto';
+    document.body.style.paddingRight = '0px';
+    
+    // 2. מוחק את כל הרקעים האפורים (Backdrops) שנתקעו
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => backdrop.remove());
+  }, []);
 
   const handleLogin = (e) => {
     e.preventDefault();
