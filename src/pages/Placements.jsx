@@ -26,9 +26,9 @@ function Placements() {
     const fetchData = async () => {
       try {
         const [placementsRes, studentsRes, tutorsRes] = await Promise.all([
-          fetch('https://yadid-nefesh-server.onrender.com/api/placements'),
-          fetch('https://yadid-nefesh-server.onrender.com/api/students'),
-          fetch('https://yadid-nefesh-server.onrender.com/api/tutors')
+          fetch(import.meta.env.VITE_API_URL + '/api/placements'),
+          fetch(import.meta.env.VITE_API_URL + '/api/students'),
+          fetch(import.meta.env.VITE_API_URL + '/api/tutors')
         ]);
 
         if (placementsRes.ok && studentsRes.ok && tutorsRes.ok) {
@@ -70,13 +70,13 @@ function Placements() {
       return;
     }
     try {
-      const response = await fetch('https://yadid-nefesh-server.onrender.com/api/placements', {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/placements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPlacement),
       });
       if (response.ok) {
-        const placementsRes = await fetch('https://yadid-nefesh-server.onrender.com/api/placements');
+        const placementsRes = await fetch(import.meta.env.VITE_API_URL + '/api/placements');
         setPlacements(await placementsRes.json());
         handleCloseAdd();
       } else {
@@ -129,14 +129,14 @@ function Placements() {
     };
 
     try {
-      const response = await fetch(`https://yadid-nefesh-server.onrender.com/api/placements/${selectedPlacement._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/placements/${selectedPlacement._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cleanPayload),
       });
 
       if (response.ok) {
-        const placementsRes = await fetch('https://yadid-nefesh-server.onrender.com/api/placements');
+        const placementsRes = await fetch(import.meta.env.VITE_API_URL + '/api/placements');
         setPlacements(await placementsRes.json());
         handleCloseDetails();
       } else {
@@ -152,7 +152,7 @@ function Placements() {
   const handleDelete = async (placementId) => {
     if (!window.confirm('האם אתה בטוח שברצונך למחוק שיבוץ זה?')) return;
     try {
-      const response = await fetch(`https://yadid-nefesh-server.onrender.com/api/placements/${placementId}`, { method: 'DELETE' });
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/placements/${placementId}`, { method: 'DELETE' });
       if (response.ok) {
         setPlacements(placements.filter(p => p._id !== placementId));
         if (showDetailsModal && selectedPlacement && selectedPlacement._id === placementId) {

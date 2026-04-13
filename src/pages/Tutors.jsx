@@ -24,7 +24,7 @@ function Tutors() {
   useEffect(() => {
     const fetchTutors = async () => {
       try {
-        const response = await fetch('https://yadid-nefesh-server.onrender.com/api/tutors');
+        const response = await fetch(import.meta.env.VITE_API_URL + '/api/tutors');
         if (response.ok) {
           const data = await response.json();
           setTutors(data);
@@ -65,7 +65,7 @@ function Tutors() {
     };
 
     try {
-      const response = await fetch('https://yadid-nefesh-server.onrender.com/api/tutors', {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/tutors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -88,7 +88,7 @@ function Tutors() {
     e.stopPropagation();
     if (!window.confirm(`האם אתה בטוח שברצונך למחוק את החונך ${name}? (פעולה זו לא ניתנת לביטול)`)) return;
     try {
-      const response = await fetch(`https://yadid-nefesh-server.onrender.com/api/tutors/${tutorId}`, { method: 'DELETE' });
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tutors/${tutorId}`, { method: 'DELETE' });
       if (response.ok) setTutors(tutors.filter(t => t._id !== tutorId));
     } catch (error) {
       alert('שגיאה במחיקת החונך');

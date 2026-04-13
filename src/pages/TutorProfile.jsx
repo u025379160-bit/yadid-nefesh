@@ -23,12 +23,12 @@ function TutorProfile() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const tutorResponse = await fetch(`https://yadid-nefesh-server.onrender.com/api/tutors/${id}`);
+        const tutorResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/tutors/${id}`);
         if (tutorResponse.ok) {
           setTutor(await tutorResponse.json());
         }
 
-        const placementsResponse = await fetch(`https://yadid-nefesh-server.onrender.com/api/placements`);
+        const placementsResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/placements`);
         if (placementsResponse.ok) {
           const allPlacements = await placementsResponse.json();
           const tutorPlacements = allPlacements.filter(p => p.tutor && p.tutor._id === id);
@@ -73,7 +73,7 @@ function TutorProfile() {
   const handleUpdateTutor = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`https://yadid-nefesh-server.onrender.com/api/tutors/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tutors/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
