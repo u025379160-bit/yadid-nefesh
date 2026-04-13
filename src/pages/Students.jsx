@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUser, FiMoreHorizontal, FiTrash2, FiFileText } from 'react-icons/fi';
+import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner } from 'react-bootstrap';
+import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2 } from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // --- משתנה חדש שאחראי על מצב הטעינה ---
+  const [isLoading, setIsLoading] = useState(true);
 
   // --- לוגיקה מקורית שלך: שליפה מהשרת ---
   useEffect(() => {
@@ -14,18 +17,21 @@ function Students() {
   }, []);
 
   const fetchStudents = async () => {
+    setIsLoading(true); // מתחילים טעינה
     try {
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/students');
       const data = await response.json();
       setStudents(data);
     } catch (error) {
       console.error('שגיאה בשליפת תלמידים:', error);
+    } finally {
+      setIsLoading(false); // מסיימים טעינה, גם אם הייתה שגיאה
     }
   };
 
   // --- לוגיקה מקורית שלך: מחיקת תלמיד ---
   const handleDelete = async (e, id, name) => {
-    e.stopPropagation(); // מונע מעבר לפרופיל בעת לחיצה על כפתור המחיקה
+    e.stopPropagation();
     if (!window.confirm(`האם אתה בטוח שברצונך למחוק את ${name}?`)) return;
 
     try {
@@ -90,7 +96,7 @@ function Students() {
   return (
     <Container className="mt-4" dir="rtl">
       
-      {/* כותרת העמוד - העיצוב החדש והנקי */}
+      {/* כותרת העמוד */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h3 style={{ color: 'var(--text-main)', fontWeight: '700' }} className="mb-1">
@@ -105,11 +111,9 @@ function Students() {
         </Button>
       </div>
 
-      {/* אזור החיפוש והטבלה על גבי כרטיסייה לבנה ונקייה */}
       <Card className="border-0">
         <Card.Body className="p-4">
           
-          {/* שורת חיפוש מודרנית */}
           <div className="mb-4" style={{ maxWidth: '350px' }}>
             <InputGroup>
               <InputGroup.Text style={{ backgroundColor: '#f8fafc', border: '1px solid var(--border-color)', borderLeft: 'none' }}>
@@ -124,7 +128,6 @@ function Students() {
             </InputGroup>
           </div>
 
-          {/* הטבלה המעוצבת */}
           <div className="table-responsive">
             <Table hover className="align-middle">
               <thead>
@@ -137,7 +140,15 @@ function Students() {
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.length > 0 ? (
+                {/* התניה חדשה: אם טוען מציג ספינר, אם סיים טעינה ואין נתונים מציג שגיאה, אחרת מציג רשימה */}
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-5">
+                      <Spinner animation="border" variant="primary" role="status" />
+                      <div className="mt-2 text-muted fw-bold">טוען נתונים מהענן...</div>
+                    </td>
+                  </tr>
+                ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => (
                     <tr key={student._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/student/${student._id}`)}>
                       <td className="fw-bold" style={{ color: 'var(--primary-accent)' }}>{student.firstName} {student.lastName}</td>
@@ -170,7 +181,7 @@ function Students() {
         </Card.Body>
       </Card>
 
-      {/* --- המודל המקורי שלך (טופס ההוספה) --- */}
+      {/* מודל טופס ההוספה */}
       <Modal show={showModal} onHide={handleClose} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>הוספת תלמיד חדש</Modal.Title>
