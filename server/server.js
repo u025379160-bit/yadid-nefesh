@@ -8,7 +8,7 @@ const cors = require('cors');
 const Student = require('./models/Student');
 const Task = require('./models/Task'); 
 const Tutor = require('./models/Tutor'); 
-const Placement = require('./models/Placement'); // <-- הוספנו את הייבוא של מודל השיבוצים!
+const Placement = require('./models/Placement');
 
 const app = express();
 app.use(cors());
@@ -18,6 +18,16 @@ app.use(express.json());
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('🟢 מחובר בהצלחה למסד הנתונים MongoDB בענן!'))
   .catch((err) => console.log('🔴 שגיאה בחיבור:', err));
+
+
+// ==========================================
+// --- חיבור הראוטרים החיצוניים ---
+// ==========================================
+
+// מחבר את הקובץ של המשלמים (שיושב בתיקיית routes) אל השרת הראשי
+const payersRouter = require('./routes/payers');
+app.use('/api/payers', payersRouter);
+
 
 // ==========================================
 // --- ניהול תלמידים ---
@@ -172,9 +182,8 @@ app.delete('/api/tutors/:id', async (req, res) => {
   }
 });
 
-
 // ==========================================
-// --- ניהול שיבוצים (התוספת החדשה!) ---
+// --- ניהול שיבוצים ---
 // ==========================================
 
 // יצירת שיבוץ חדש
@@ -211,7 +220,7 @@ app.delete('/api/placements/:id', async (req, res) => {
   }
 });
 
-// --- התוספת שלנו: עדכון שיבוץ ---
+// עדכון שיבוץ
 app.put('/api/placements/:id', async (req, res) => {
   try {
     const updatedPlacement = await Placement.findByIdAndUpdate(

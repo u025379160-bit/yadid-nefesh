@@ -16,6 +16,7 @@ const studentSchema = new mongoose.Schema({
   zipCode: { type: Number },
   contacts: { type: mongoose.Schema.Types.Mixed }, // שמירת אנשי קשר כ-JSON גמיש
   institution: { type: mongoose.Schema.Types.ObjectId, ref: 'Yeshiva' },
+  payer: { type: mongoose.Schema.Types.ObjectId, ref: 'Payer' },
   relatedDocuments: [{ type: String }] // קישורים לקבצים
 }, { timestamps: true });
 

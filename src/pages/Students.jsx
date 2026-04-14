@@ -6,6 +6,7 @@ import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2 } from 'react-icons/fi';
 function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
+  const [payers, setPayers] = useState([]); // --- תוספת: שומר את רשימת המשלמים מהשרת ---
   const [searchTerm, setSearchTerm] = useState('');
   
   // --- משתנה חדש שאחראי על מצב הטעינה ---
@@ -14,6 +15,7 @@ function Students() {
   // --- לוגיקה מקורית שלך: שליפה מהשרת + ניקוי רקעים אפורים ---
   useEffect(() => {
     fetchStudents();
+    fetchPayers(); // --- תוספת: קורא לפונקציה שמושכת את המשלמים ---
 
     // 🧹 שואב אבק: מנקה רקעים אפורים שנתקעו במעבר בין עמודים
     document.body.classList.remove('modal-open');
@@ -42,6 +44,19 @@ function Students() {
       console.error('שגיאה בשליפת תלמידים:', error);
     } finally {
       setIsLoading(false); // מסיימים טעינה, גם אם הייתה שגיאה
+    }
+  };
+
+  // --- תוספת: פונקציה לשליפת כל המשלמים למען תיבת הבחירה ---
+  const fetchPayers = async () => {
+    try {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/payers');
+      if (response.ok) {
+        const data = await response.json();
+        setPayers(data);
+      }
+    } catch (error) {
+      console.error('שגיאה בשליפת משלמים:', error);
     }
   };
 
@@ -76,9 +91,10 @@ function Students() {
   const handleClose = () => setShowModal(false);
   const handleShow = () => setShowModal(true);
 
+  // --- תוספת: הוספנו את השדה payer ריק כברירת מחדל ---
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', idNumber: '', birthDate: '',
-    phone1: '', fatherName: '', motherName: '', address: '',
+    phone1: '', fatherName: '', motherName: '', address: '', payer: '',
     city: '507f1f77bcf86cd799439011'
   });
 
@@ -98,7 +114,8 @@ function Students() {
       if (response.ok) {
         alert('🎉 התלמיד נשמר בהצלחה!');
         setShowModal(false);
-        setFormData({ firstName: '', lastName: '', idNumber: '', birthDate: '', phone1: '', fatherName: '', motherName: '', address: '', city: '507f1f77bcf86cd799439011' });
+        // --- תוספת: מנקים גם את ה-payer ---
+        setFormData({ firstName: '', lastName: '', idNumber: '', birthDate: '', phone1: '', fatherName: '', motherName: '', address: '', payer: '', city: '507f1f77bcf86cd799439011' });
         fetchStudents();
       } else {
         const data = await response.json();
@@ -206,6 +223,29 @@ function Students() {
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <Form onSubmit={handleSubmit}>
+
+                {/* --- התוספת שלנו: שיוך למשלם (מופיע ראשון בולט בטופס) --- */}
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Group className="p-3 bg-white border rounded" style={{ borderColor: 'var(--primary-blue)' }}>
+                      <Form.Label className="fw-bold text-primary small mb-2 d-flex align-items-center gap-2">
+                        <FiUser /> שיוך למשלם קבוע (הורה/ארגון שאחראי על הגבייה)
+                      </Form.Label>
+                      <Form.Select name="payer" value={formData.payer} onChange={handleChange} style={{ borderRadius: '8px' }}>
+                        <option value="">-- ללא משלם קבוע כרגע (ניתן לעדכן מאוחר יותר) --</option>
+                        {payers.map(payer => (
+                          <option key={payer._id} value={payer._id}>
+                            {payer.name} ({payer.identifier}) - {payer.payerType === 'individual' ? 'אדם פרטי' : 'מוסד'}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Text className="text-muted small mt-1 d-block">בחר מתוך רשימת המשלמים מי ישלם את המלגות עבור תלמיד זה.</Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <hr className="text-muted opacity-25 mb-4"/>
+                {/* --- סוף התוספת --- */}
+
                 <Row>
                   <Col md={6}><Form.Group className="mb-3"><Form.Label className="fw-bold text-muted small">שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} /></Form.Group></Col>
                   <Col md={6}><Form.Group className="mb-3"><Form.Label className="fw-bold text-muted small">שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} /></Form.Group></Col>
