@@ -11,9 +11,10 @@ function StudentProfile() {
   const [student, setStudent] = useState(null);
   const [tasks, setTasks] = useState([]); 
   const [placements, setPlacements] = useState([]); 
+  const [payers, setPayers] = useState([]); // --- תוספת: שומר את כל המשלמים
   const [loading, setLoading] = useState(true);
 
-  // --- תוספת: משתנה לבחירת חודש ושנה ---
+  // משתנה לבחירת חודש ושנה
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -26,21 +27,36 @@ function StudentProfile() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskData, setTaskData] = useState({ title: '', description: '', urgency: 'רגיל', studentId: id });
 
+  // 🧹 שואב אבק גלובלי (למקרה שהמודלים נתקעים)
+  useEffect(() => {
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = 'auto';
+    document.body.style.paddingRight = '0px';
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => backdrop.remove());
+  }, [showEditModal, showTaskModal]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const studentRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`);
-        if (studentRes.ok) setStudent(await studentRes.json());
+        // משיכת נתוני תלמיד, משימות, שיבוצים ומשלמים במקביל!
+        const [studentRes, tasksRes, placementsRes, payersRes] = await Promise.all([
+          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/payers`)
+        ]);
 
-        const tasksRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`);
+        if (studentRes.ok) setStudent(await studentRes.json());
         if (tasksRes.ok) setTasks(await tasksRes.json());
         
-        const placementsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/placements`);
         if (placementsRes.ok) {
           const allPlacements = await placementsRes.json();
           const myPlacements = allPlacements.filter(p => p.student && p.student._id === id);
           setPlacements(myPlacements);
         }
+
+        if (payersRes.ok) setPayers(await payersRes.json());
 
       } catch (error) {
         console.error('שגיאה בשליפת נתונים:', error);
@@ -51,7 +67,7 @@ function StudentProfile() {
     fetchData();
   }, [id]);
 
-  // --- תוספת: סינון השיבוצים לפי החודש שנבחר ---
+  // סינון השיבוצים לפי החודש שנבחר
   const filteredPlacements = placements.filter(p => {
     if (!p.startDate) return false;
     
@@ -63,7 +79,7 @@ function StudentProfile() {
     return isStartedBySelectedMonth && p.status !== 'לא פעיל';
   });
 
-  // --- תוספת: סיכום העלויות ---
+  // סיכום העלויות
   const totalMonthlyCost = filteredPlacements.reduce((sum, placement) => {
     return sum + (Number(placement.paymentAmount) || 0);
   }, 0);
@@ -72,7 +88,13 @@ function StudentProfile() {
   const handleOpenEdit = () => {
     let formattedDate = '';
     if (student.birthDate) formattedDate = new Date(student.birthDate).toISOString().split('T')[0];
-    setFormData({ ...student, birthDate: formattedDate });
+    
+    // מעבירים את הנתונים לטופס, כולל ה-ID של המשלם אם קיים
+    setFormData({ 
+      ...student, 
+      birthDate: formattedDate,
+      payer: student.payer || '' 
+    });
     setShowEditModal(true);
   };
   const handleCloseEdit = () => setShowEditModal(false);
@@ -89,9 +111,11 @@ function StudentProfile() {
       if (response.ok) {
         setStudent(await response.json());
         setShowEditModal(false);
+      } else {
+        alert('שגיאה מהשרת בעדכון התלמיד');
       }
     } catch (error) {
-      alert('שגיאה בעדכון התלמיד');
+      alert('שגיאת תקשורת: לא ניתן לעדכן את התלמיד');
     }
   };
 
@@ -135,6 +159,10 @@ function StudentProfile() {
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: 'var(--primary-accent)'}} /></Container>;
   if (!student) return <Container className="mt-5 text-center"><h3>תלמיד לא נמצא 😕</h3></Container>;
 
+  // מציאת שם המשלם לתצוגה בכרטיס
+  const activePayerObj = payers.find(p => p._id === student.payer);
+  const activePayerName = activePayerObj ? activePayerObj.name : 'ללא שיוך';
+
   return (
     <Container className="mt-4 mb-5" dir="rtl">
       
@@ -152,7 +180,7 @@ function StudentProfile() {
           </div>
         </div>
         <Button variant="primary" className="d-flex align-items-center gap-2 px-4 shadow-sm fw-bold" onClick={handleOpenEdit}>
-          <FiEdit2 /> ערוך פרטים
+          <FiEdit2 /> ערוך פרטים וגביה
         </Button>
       </div>
 
@@ -169,17 +197,26 @@ function StudentProfile() {
                   </h6>
                   <div className="d-flex flex-column gap-3">
                     <div><small className="text-muted d-block">תעודת זהות</small><span className="fw-bold" style={{ color: 'var(--text-main)' }}>{student.idNumber}</span></div>
+                    <div><small className="text-muted d-block">הורים</small><span className="fw-bold">{student.fatherName} ו{student.motherName}</span></div>
                     <div><small className="text-muted d-block">טלפון ראשי</small><span dir="ltr" className="fw-bold text-primary">{student.phone1}</span></div>
+                    <div><small className="text-muted d-block">תאריך לידה</small><span className="fw-bold">{student.birthDate ? new Date(student.birthDate).toLocaleDateString('he-IL') : '-'}</span></div>
                   </div>
                 </Col>
 
                 <Col md={6}>
                   <h6 className="fw-bold text-muted mb-4 d-flex align-items-center gap-2 border-bottom pb-2">
-                    <FiMapPin /> פרטי מגורים
+                    <FiMapPin /> פרטי מגורים וגביה
                   </h6>
                   <div className="d-flex flex-column gap-3">
                     <div><small className="text-muted d-block">כתובת</small><span className="fw-bold">{student.address || 'לא צוינה כתובת'}</span></div>
-                    <div>
+                    
+                    {/* תצוגת הארנק המשלם בכרטיס התלמיד */}
+                    <div className="p-2 bg-light rounded border mt-2">
+                      <small className="text-muted d-block fw-bold"><FiCreditCard className="me-1"/> משלם קבוע (ארנק חיוב)</small>
+                      <span className="fw-bold text-success">{activePayerName}</span>
+                    </div>
+
+                    <div className="mt-2">
                       <small className="text-muted d-block mb-1">סטטוס</small>
                       <Badge bg="success" className="px-3 py-2 rounded-pill">פעיל במערכת</Badge>
                     </div>
@@ -191,7 +228,7 @@ function StudentProfile() {
           </Card>
         </Col>
 
-        {/* --- תוספת: כרטיס סיכום עלויות חודשי (עם הבורר) --- */}
+        {/* כרטיס סיכום עלויות חודשי (עם הבורר) */}
         <Col lg={4}>
           <Card className="border-0 shadow-sm h-100" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)' }}>
             <Card.Body className="p-4 d-flex flex-column justify-content-center text-center">
@@ -222,7 +259,7 @@ function StudentProfile() {
 
       <Row className="g-4">
         
-        {/* אזור שיבוצים (מעודכן עם סינון לפי חודש ועמודת סכום) */}
+        {/* אזור שיבוצים */}
         <Col lg={7}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4">
@@ -237,7 +274,6 @@ function StudentProfile() {
                     <tr>
                       <th className="text-muted fw-bold border-0 rounded-start">שם החונך</th>
                       <th className="text-muted fw-bold border-0">סטטוס</th>
-                      {/* תוספת: עמודת עלות */}
                       <th className="text-muted fw-bold border-0">עלות שוטפת</th>
                       <th className="text-muted fw-bold border-0 rounded-end text-end">פעולות</th>
                     </tr>
@@ -258,7 +294,6 @@ function StudentProfile() {
                               {placement.status || 'פעיל'}
                             </Badge>
                           </td>
-                          {/* תוספת: הצגת הסכום */}
                           <td className="fw-bold text-primary">₪{Number(placement.paymentAmount || 0).toLocaleString()}</td>
                           <td className="text-end">
                             <Button 
@@ -280,7 +315,7 @@ function StudentProfile() {
           </Card>
         </Col>
 
-        {/* אזור משימות (נשאר ללא שינוי) */}
+        {/* אזור משימות */}
         <Col lg={5}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
@@ -325,30 +360,59 @@ function StudentProfile() {
         </Col>
       </Row>
 
-      {/* חלון עריכת תלמיד */}
+      {/* --- חלון עריכת תלמיד (מעודכן עם שיוך גבייה ופרטים מלאים) --- */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד</Modal.Title>
+          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד וגבייה</Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light p-4">
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <Form onSubmit={handleUpdateStudent}>
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-2">פרטים בסיסיים</h6>
+                
+                {/* אזור שיוך הגבייה החדש */}
                 <Row className="mb-3">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">שם פרטי</Form.Label><Form.Control type="text" name="firstName" value={formData.firstName || ''} onChange={handleChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">שם משפחה</Form.Label><Form.Control type="text" name="lastName" value={formData.lastName || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={12}>
+                    <Form.Group className="p-3 bg-white border rounded" style={{ borderColor: 'var(--primary-blue)' }}>
+                      <Form.Label className="fw-bold text-primary small mb-2 d-flex align-items-center gap-2">
+                        <FiUser /> שיוך למשלם קבוע (ארנק חיוב)
+                      </Form.Label>
+                      <Form.Select name="payer" value={formData.payer || ''} onChange={handleChange} style={{ borderRadius: '8px' }}>
+                        <option value="">-- ללא משלם משויך כרגע --</option>
+                        {payers.map(payer => (
+                          <option key={payer._id} value={payer._id}>
+                            {payer.name} ({payer.identifier}) - {payer.payerType === 'individual' ? 'אדם פרטי' : 'מוסד'}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Text className="text-muted small">בחר איזה גורם יחויב אוטומטית על שיבוצים של תלמיד זה.</Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <hr className="text-muted opacity-25 mb-4"/>
+
+                {/* פרטים אישיים מלאים */}
+                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטים בסיסיים</h6>
+                <Row className="mb-3">
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם פרטי</Form.Label><Form.Control type="text" name="firstName" value={formData.firstName || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם משפחה</Form.Label><Form.Control type="text" name="lastName" value={formData.lastName || ''} onChange={handleChange} required /></Form.Group></Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">תעודת זהות</Form.Label><Form.Control type="text" name="idNumber" value={formData.idNumber || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">תאריך לידה</Form.Label><Form.Control type="date" name="birthDate" value={formData.birthDate || ''} onChange={handleChange} required /></Form.Group></Col>
+                </Row>
+                <Row className="mb-3">
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} /></Form.Group></Col>
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName || ''} onChange={handleChange} /></Form.Group></Col>
                 </Row>
                 <Row className="mb-4">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">תעודת זהות</Form.Label><Form.Control type="text" name="idNumber" value={formData.idNumber || ''} onChange={handleChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">טלפון</Form.Label><Form.Control type="text" name="phone1" value={formData.phone1 || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">טלפון</Form.Label><Form.Control type="text" name="phone1" value={formData.phone1 || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">כתובת מגורים</Form.Label><Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} /></Form.Group></Col>
                 </Row>
-                <Row className="mb-4">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">כתובת מגורים</Form.Label><Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} /></Form.Group></Col>
-                </Row>
+
                 <div className="d-flex justify-content-end pt-3 border-top">
                   <Button variant="light" onClick={handleCloseEdit} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים</Button>
+                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים בענן</Button>
                 </div>
               </Form>
             </Card.Body>
