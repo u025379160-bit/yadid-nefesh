@@ -1,9 +1,27 @@
+import { useEffect } from 'react';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { FiUsers, FiUserCheck, FiBriefcase, FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 function Home() {
   const navigate = useNavigate();
+
+  // 🧹 שואב אבק: מוודא שהמסך נקי מרקעים אפורים של מודלים כשחוזרים לעמוד הראשי
+  useEffect(() => {
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = 'auto';
+    document.body.style.paddingRight = '0px';
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => backdrop.remove());
+
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+      document.body.style.paddingRight = '0px';
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      backdrops.forEach(backdrop => backdrop.remove());
+    };
+  }, []);
 
   return (
     <Container className="mt-5" dir="rtl">
