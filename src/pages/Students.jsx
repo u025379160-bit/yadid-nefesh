@@ -11,9 +11,25 @@ function Students() {
   // --- משתנה חדש שאחראי על מצב הטעינה ---
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- לוגיקה מקורית שלך: שליפה מהשרת ---
+  // --- לוגיקה מקורית שלך: שליפה מהשרת + ניקוי רקעים אפורים ---
   useEffect(() => {
     fetchStudents();
+
+    // 🧹 שואב אבק: מנקה רקעים אפורים שנתקעו במעבר בין עמודים
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = 'auto';
+    document.body.style.paddingRight = '0px';
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => backdrop.remove());
+
+    // מנקה את המסך גם כשאתה עוזב את עמוד התלמידים והולך לעמוד אחר
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+      document.body.style.paddingRight = '0px';
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      backdrops.forEach(backdrop => backdrop.remove());
+    };
   }, []);
 
   const fetchStudents = async () => {
