@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col } from 'react-bootstrap';
+import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col, Badge } from 'react-bootstrap';
 import { FiSearch, FiPlus, FiUserCheck, FiMoreHorizontal, FiTrash2, FiFileText } from 'react-icons/fi';
 
 function Tutors() {
   const navigate = useNavigate();
 
   const [tutors, setTutors] = useState([]);
+  const [placements, setPlacements] = useState([]); // --- תוספת: שומר את השיבוצים לצורך בדיקת סטטוס
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -20,28 +21,44 @@ function Tutors() {
     bankName: '', branch: '', accountNumber: '' 
   });
 
-  // שליפת הנתונים מהשרת (לא נגעתי)
+  // שליפת הנתונים מהשרת
   useEffect(() => {
-    const fetchTutors = async () => {
+    const fetchTutorsAndPlacements = async () => {
       try {
-        const response = await fetch(import.meta.env.VITE_API_URL + '/api/tutors');
-        if (response.ok) {
-          const data = await response.json();
-          setTutors(data);
-        }
+        // מושכים גם את החונכים וגם את השיבוצים יחד
+        const [tutorsRes, placementsRes] = await Promise.all([
+          fetch(import.meta.env.VITE_API_URL + '/api/tutors'),
+          fetch(import.meta.env.VITE_API_URL + '/api/placements')
+        ]);
+
+        if (tutorsRes.ok) setTutors(await tutorsRes.json());
+        if (placementsRes.ok) setPlacements(await placementsRes.json());
+
       } catch (error) {
         console.error('שגיאה בשליפת חונכים:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchTutors();
+    fetchTutorsAndPlacements();
   }, []);
 
   const filteredTutors = tutors.filter(tutor => {
     const fullName = `${tutor.firstName} ${tutor.lastName}`;
     return fullName.includes(searchTerm) || tutor.idNumber?.includes(searchTerm);
   });
+
+  // --- תוספת: פונקציה חכמה שבודקת אם החונך משובץ כרגע ---
+  const getPlacementStatus = (tutorId) => {
+    // בודק אם יש לפחות שיבוץ אחד פעיל שהחונך הזה מחובר אליו
+    const isActivePlaced = placements.some(p => p.tutor && p.tutor._id === tutorId && p.status === 'פעיל');
+    
+    if (isActivePlaced) {
+      return { text: 'משובץ', bg: 'success' };
+    } else {
+      return { text: 'פנוי לשיבוץ', bg: 'warning' };
+    }
+  };
 
   const handleOpenAdd = () => setShowAddModal(true);
   const handleCloseAdd = () => {
@@ -141,7 +158,7 @@ function Tutors() {
                   <th>ת.ז.</th>
                   <th>טלפון</th>
                   <th>עיר</th>
-                  <th>סטטוס</th>
+                  <th>סטטוס שיבוץ</th> {/* --- שינוי כותרת --- */}
                   <th className="text-end">פעולות</th>
                 </tr>
               </thead>
@@ -149,27 +166,33 @@ function Tutors() {
                 {filteredTutors.length === 0 ? (
                   <tr><td colSpan="6" className="text-center py-4 text-muted">לא נמצאו חונכים התואמים לחיפוש.</td></tr>
                 ) : (
-                  filteredTutors.map((tutor) => (
-                    <tr key={tutor._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/tutor/${tutor._id}`)}>
-                      <td className="fw-bold" style={{ color: 'var(--primary-accent)' }}>{tutor.firstName} {tutor.lastName}</td>
-                      <td className="text-muted">{tutor.idNumber}</td>
-                      <td className="text-muted" dir="ltr" style={{ textAlign: 'right' }}>{tutor.phone1}</td>
-                      <td className="text-muted">{tutor.city?.name || tutor.city || '-'}</td>
-                      <td>
-                        <span className={`badge ${tutor.status === 'לא פעיל' ? 'bg-secondary' : 'bg-success'}`} style={{ opacity: '0.9', padding: '6px 12px' }}>
-                          {tutor.status || 'פעיל'}
-                        </span>
-                      </td>
-                      <td className="text-end" onClick={(e) => e.stopPropagation()}>
-                         <Button variant="light" size="sm" className="me-2 text-primary border" onClick={(e) => { e.stopPropagation(); navigate(`/tutor/${tutor._id}`); }}>
-                           <FiFileText className="me-1" /> כרטיס
-                         </Button>
-                         <Button variant="light" size="sm" className="text-danger border" onClick={(e) => handleDelete(e, tutor._id, tutor.firstName)}>
-                           <FiTrash2 className="me-1" /> מחק
-                         </Button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredTutors.map((tutor) => {
+                    // --- תוספת: חישוב הסטטוס לכל חונך ---
+                    const status = getPlacementStatus(tutor._id);
+
+                    return (
+                      <tr key={tutor._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/tutor/${tutor._id}`)}>
+                        <td className="fw-bold" style={{ color: 'var(--primary-accent)' }}>{tutor.firstName} {tutor.lastName}</td>
+                        <td className="text-muted">{tutor.idNumber}</td>
+                        <td className="text-muted" dir="ltr" style={{ textAlign: 'right' }}>{tutor.phone1}</td>
+                        <td className="text-muted">{tutor.city?.name || tutor.city || '-'}</td>
+                        <td>
+                          {/* --- תוספת: הצגת התגית עם הצבע המתאים --- */}
+                          <Badge bg={status.bg} style={{ opacity: '0.9', padding: '6px 12px', minWidth: '100px' }}>
+                            {status.text}
+                          </Badge>
+                        </td>
+                        <td className="text-end" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="light" size="sm" className="me-2 text-primary border" onClick={(e) => { e.stopPropagation(); navigate(`/tutor/${tutor._id}`); }}>
+                             <FiFileText className="me-1" /> כרטיס
+                           </Button>
+                           <Button variant="light" size="sm" className="text-danger border" onClick={(e) => handleDelete(e, tutor._id, tutor.firstName)}>
+                             <FiTrash2 className="me-1" /> מחק
+                           </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </Table>
