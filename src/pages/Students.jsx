@@ -1,30 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner } from 'react-bootstrap';
+import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
 import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2 } from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
-  const [payers, setPayers] = useState([]); // --- תוספת: שומר את רשימת המשלמים מהשרת ---
+  const [payers, setPayers] = useState([]); 
+  const [placements, setPlacements] = useState([]); // --- תוספת: שומר את השיבוצים לבדיקת הסטטוס ---
   const [searchTerm, setSearchTerm] = useState('');
   
-  // --- משתנה חדש שאחראי על מצב הטעינה ---
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- לוגיקה מקורית שלך: שליפה מהשרת + ניקוי רקעים אפורים ---
   useEffect(() => {
-    fetchStudents();
-    fetchPayers(); // --- תוספת: קורא לפונקציה שמושכת את המשלמים ---
+    fetchStudentsAndData(); // --- שינוי: קורא לפונקציה המאוחדת ---
 
-    // 🧹 שואב אבק: מנקה רקעים אפורים שנתקעו במעבר בין עמודים
     document.body.classList.remove('modal-open');
     document.body.style.overflow = 'auto';
     document.body.style.paddingRight = '0px';
     const backdrops = document.querySelectorAll('.modal-backdrop');
     backdrops.forEach(backdrop => backdrop.remove());
 
-    // מנקה את המסך גם כשאתה עוזב את עמוד התלמידים והולך לעמוד אחר
     return () => {
       document.body.classList.remove('modal-open');
       document.body.style.overflow = 'auto';
@@ -34,33 +30,39 @@ function Students() {
     };
   }, []);
 
-  const fetchStudents = async () => {
-    setIsLoading(true); // מתחילים טעינה
+  // --- תוספת: פונקציה מאוחדת שמושכת הכל יחד (תלמידים, משלמים, ושיבוצים) ---
+  const fetchStudentsAndData = async () => {
+    setIsLoading(true); 
     try {
-      const response = await fetch(import.meta.env.VITE_API_URL + '/api/students');
-      const data = await response.json();
-      setStudents(data);
+      const [studentsRes, payersRes, placementsRes] = await Promise.all([
+        fetch(import.meta.env.VITE_API_URL + '/api/students'),
+        fetch(import.meta.env.VITE_API_URL + '/api/payers'),
+        fetch(import.meta.env.VITE_API_URL + '/api/placements')
+      ]);
+
+      if (studentsRes.ok) setStudents(await studentsRes.json());
+      if (payersRes.ok) setPayers(await payersRes.json());
+      if (placementsRes.ok) setPlacements(await placementsRes.json());
+      
     } catch (error) {
-      console.error('שגיאה בשליפת תלמידים:', error);
+      console.error('שגיאה בשליפת נתונים:', error);
     } finally {
-      setIsLoading(false); // מסיימים טעינה, גם אם הייתה שגיאה
+      setIsLoading(false); 
     }
   };
 
-  // --- תוספת: פונקציה לשליפת כל המשלמים למען תיבת הבחירה ---
-  const fetchPayers = async () => {
-    try {
-      const response = await fetch(import.meta.env.VITE_API_URL + '/api/payers');
-      if (response.ok) {
-        const data = await response.json();
-        setPayers(data);
-      }
-    } catch (error) {
-      console.error('שגיאה בשליפת משלמים:', error);
+  // --- תוספת: פונקציה חכמה שבודקת אם התלמיד משובץ עכשיו ---
+  const getPlacementStatus = (studentId) => {
+    // מחפש אם יש לתלמיד הזה שיבוץ שהסטטוס שלו 'פעיל'
+    const isActivePlaced = placements.some(p => p.student && p.student._id === studentId && p.status === 'פעיל');
+    
+    if (isActivePlaced) {
+      return { text: 'משובץ', bg: 'success' };
+    } else {
+      return { text: 'ממתין לשיבוץ', bg: 'warning' }; // צהוב/כתום לממתינים
     }
   };
 
-  // --- לוגיקה מקורית שלך: מחיקת תלמיד ---
   const handleDelete = async (e, id, name) => {
     e.stopPropagation();
     if (!window.confirm(`האם אתה בטוח שברצונך למחוק את ${name}?`)) return;
@@ -80,18 +82,15 @@ function Students() {
     }
   };
 
-  // סינון
   const filteredStudents = students.filter(student => {
     const fullName = `${student.firstName} ${student.lastName}`;
     return fullName.includes(searchTerm) || (student.idNumber && student.idNumber.includes(searchTerm));
   });
 
-  // --- לוגיקה מקורית שלך: ניהול המודל (טופס הוספה) ---
   const [showModal, setShowModal] = useState(false);
   const handleClose = () => setShowModal(false);
   const handleShow = () => setShowModal(true);
 
-  // --- תוספת: הוספנו את השדה payer ריק כברירת מחדל ---
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', idNumber: '', birthDate: '',
     phone1: '', fatherName: '', motherName: '', address: '', payer: '',
@@ -114,9 +113,8 @@ function Students() {
       if (response.ok) {
         alert('🎉 התלמיד נשמר בהצלחה!');
         setShowModal(false);
-        // --- תוספת: מנקים גם את ה-payer ---
         setFormData({ firstName: '', lastName: '', idNumber: '', birthDate: '', phone1: '', fatherName: '', motherName: '', address: '', payer: '', city: '507f1f77bcf86cd799439011' });
-        fetchStudents();
+        fetchStudentsAndData(); // --- שינוי קטן: מרענן את כל הנתונים ---
       } else {
         const data = await response.json();
         alert('🔴 שגיאה מהשרת: ' + (data.details || data.error));
@@ -129,7 +127,6 @@ function Students() {
   return (
     <Container className="mt-4" dir="rtl">
       
-      {/* כותרת העמוד */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h3 style={{ color: 'var(--text-main)', fontWeight: '700' }} className="mb-1">
@@ -168,12 +165,11 @@ function Students() {
                   <th><FiUser className="me-2" /> שם התלמיד</th>
                   <th>ת.ז.</th>
                   <th>כתובת</th>
-                  <th>סטטוס</th>
+                  <th>סטטוס שיבוץ</th> {/* --- שינוי כותרת --- */}
                   <th className="text-end">פעולות</th>
                 </tr>
               </thead>
               <tbody>
-                {/* התניה חדשה: אם טוען מציג ספינר, אם סיים טעינה ואין נתונים מציג שגיאה, אחרת מציג רשימה */}
                 {isLoading ? (
                   <tr>
                     <td colSpan="5" className="text-center py-5">
@@ -182,26 +178,32 @@ function Students() {
                     </td>
                   </tr>
                 ) : filteredStudents.length > 0 ? (
-                  filteredStudents.map((student) => (
-                    <tr key={student._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/student/${student._id}`)}>
-                      <td className="fw-bold" style={{ color: 'var(--primary-accent)' }}>{student.firstName} {student.lastName}</td>
-                      <td className="text-muted">{student.idNumber}</td>
-                      <td className="text-muted">{student.address}</td>
-                      <td>
-                        <span className="badge bg-success" style={{ opacity: '0.9', padding: '6px 12px' }}>
-                          פעיל
-                        </span>
-                      </td>
-                      <td className="text-end" onClick={(e) => e.stopPropagation()}>
-                         <Button variant="light" size="sm" className="me-2 text-primary border" onClick={(e) => { e.stopPropagation(); navigate(`/student/${student._id}`); }}>
-                           <FiFileText className="me-1" /> כרטיס
-                         </Button>
-                         <Button variant="light" size="sm" className="text-danger border" onClick={(e) => handleDelete(e, student._id, student.firstName)}>
-                           <FiTrash2 className="me-1" /> מחק
-                         </Button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredStudents.map((student) => {
+                    // --- תוספת: חישוב הסטטוס לכל תלמיד ---
+                    const status = getPlacementStatus(student._id);
+
+                    return (
+                      <tr key={student._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/student/${student._id}`)}>
+                        <td className="fw-bold" style={{ color: 'var(--primary-accent)' }}>{student.firstName} {student.lastName}</td>
+                        <td className="text-muted">{student.idNumber}</td>
+                        <td className="text-muted">{student.address}</td>
+                        <td>
+                          {/* --- תוספת: הצגת התגית עם הצבע המתאים --- */}
+                          <Badge bg={status.bg} style={{ opacity: '0.9', padding: '6px 12px', minWidth: '100px' }}>
+                            {status.text}
+                          </Badge>
+                        </td>
+                        <td className="text-end" onClick={(e) => e.stopPropagation()}>
+                           <Button variant="light" size="sm" className="me-2 text-primary border" onClick={(e) => { e.stopPropagation(); navigate(`/student/${student._id}`); }}>
+                             <FiFileText className="me-1" /> כרטיס
+                           </Button>
+                           <Button variant="light" size="sm" className="text-danger border" onClick={(e) => handleDelete(e, student._id, student.firstName)}>
+                             <FiTrash2 className="me-1" /> מחק
+                           </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan="5" className="text-center py-4 text-muted">לא נמצאו תלמידים התואמים לחיפוש.</td>
@@ -214,7 +216,7 @@ function Students() {
         </Card.Body>
       </Card>
 
-      {/* מודל טופס ההוספה */}
+      {/* מודל טופס ההוספה (הכל נשאר במקום) */}
       <Modal show={showModal} onHide={handleClose} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>הוספת תלמיד חדש</Modal.Title>
@@ -224,7 +226,6 @@ function Students() {
             <Card.Body>
               <Form onSubmit={handleSubmit}>
 
-                {/* --- התוספת שלנו: שיוך למשלם (מופיע ראשון בולט בטופס) --- */}
                 <Row className="mb-3">
                   <Col md={12}>
                     <Form.Group className="p-3 bg-white border rounded" style={{ borderColor: 'var(--primary-blue)' }}>
@@ -244,7 +245,6 @@ function Students() {
                   </Col>
                 </Row>
                 <hr className="text-muted opacity-25 mb-4"/>
-                {/* --- סוף התוספת --- */}
 
                 <Row>
                   <Col md={6}><Form.Group className="mb-3"><Form.Label className="fw-bold text-muted small">שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} /></Form.Group></Col>
