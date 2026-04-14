@@ -1,7 +1,7 @@
 import { Navbar, Nav, Container } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
-// הוספנו את FiCreditCard לאייקונים
-import { FiUsers, FiUserCheck, FiBriefcase, FiHome, FiLogOut, FiCreditCard } from 'react-icons/fi';
+// הוספנו את FiDollarSign לאייקונים בשביל עמוד הגבייה
+import { FiUsers, FiUserCheck, FiBriefcase, FiHome, FiLogOut, FiCreditCard, FiDollarSign } from 'react-icons/fi';
 
 function AppNavbar({ onLogout, userRole }) {
   const location = useLocation();
@@ -40,9 +40,13 @@ function AppNavbar({ onLogout, userRole }) {
               <FiBriefcase size={18} /> שיבוצים
             </Nav.Link>
 
-            {/* --- הכפתור החדש של עמוד המשלמים --- */}
             <Nav.Link as={Link} to="/payers" className={`d-flex align-items-center gap-2 ${isActive('/payers') ? 'active text-white fw-bold' : 'text-light'}`}>
               <FiCreditCard size={18} /> גביה ומשלמים
+            </Nav.Link>
+
+            {/* --- הכפתור החדש של עמוד חישוב וגביה --- */}
+            <Nav.Link as={Link} to="/billing" className={`d-flex align-items-center gap-2 ${isActive('/billing') ? 'active text-white fw-bold' : 'text-light'}`}>
+              <FiDollarSign size={18} /> חישוב וגביה
             </Nav.Link>
 
           </Nav>

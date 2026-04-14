@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'; // הוספנו פה רק את useLocation
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import MainNavbar from './components/Navbar';
 import Home from './pages/Home';
 import Students from './pages/Students';
@@ -9,6 +9,7 @@ import StudentProfile from './pages/StudentProfile';
 import TutorProfile from './pages/TutorProfile';
 import Login from './pages/Login';
 import Payers from './pages/Payers'; 
+import Billing from './pages/Billing'; // --- הוספנו את הייבוא של עמוד הגבייה ---
 
 // 🧹 המנקה הגלובלי: מוודא שאין רקעים אפורים בכל פעם שאתה עובר עמוד
 function GlobalCleaner() {
@@ -58,6 +59,7 @@ function App() {
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/placements" element={<Placements />} />
             <Route path="/payers" element={<Payers />} /> 
+            <Route path="/billing" element={<Billing />} /> {/* --- הוספנו את הנתיב לעמוד הגבייה --- */}
             <Route path="/student/:id" element={<StudentProfile />} />
             <Route path="/tutor/:id" element={<TutorProfile />} />
             <Route path="*" element={<Navigate to="/" />} />
