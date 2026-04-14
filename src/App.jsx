@@ -8,6 +8,7 @@ import Placements from './pages/Placements';
 import StudentProfile from './pages/StudentProfile';
 import TutorProfile from './pages/TutorProfile';
 import Login from './pages/Login';
+import Payers from './pages/Payers'; // הוספנו את הייבוא של עמוד המשלמים החדש
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -40,6 +41,7 @@ function App() {
             <Route path="/students" element={<Students />} />
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/placements" element={<Placements />} />
+            <Route path="/payers" element={<Payers />} /> {/* הוספנו את הנתיב לעמוד המשלמים */}
             <Route path="/student/:id" element={<StudentProfile />} />
             <Route path="/tutor/:id" element={<TutorProfile />} />
             <Route path="*" element={<Navigate to="/" />} />
