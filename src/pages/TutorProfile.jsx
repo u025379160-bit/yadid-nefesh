@@ -30,14 +30,16 @@ function TutorProfile() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // מנקה רקעים אפורים תקועים
+  // מנקה רקעים אפורים רק כשעוזבים את העמוד לחלוטין (כדי לא לריב עם ריאקט)
   useEffect(() => {
-    document.body.classList.remove('modal-open');
-    document.body.style.overflow = 'auto';
-    document.body.style.paddingRight = '0px';
-    const backdrops = document.querySelectorAll('.modal-backdrop');
-    backdrops.forEach(backdrop => backdrop.remove());
-  }, [showEditModal, showPlacementModal]);
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+      document.body.style.paddingRight = '0px';
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      backdrops.forEach(backdrop => backdrop.remove());
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
