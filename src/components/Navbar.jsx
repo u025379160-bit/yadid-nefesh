@@ -1,7 +1,6 @@
 import { Navbar, Nav, Container } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
-// הוספנו את FiDollarSign לאייקונים בשביל עמוד הגבייה
-import { FiUsers, FiUserCheck, FiBriefcase, FiHome, FiLogOut, FiCreditCard, FiDollarSign } from 'react-icons/fi';
+import { FiUsers, FiUserCheck, FiBriefcase, FiHome, FiLogOut, FiCreditCard, FiDollarSign, FiShield } from 'react-icons/fi';
 
 function AppNavbar({ onLogout, userRole }) {
   const location = useLocation();
@@ -44,9 +43,13 @@ function AppNavbar({ onLogout, userRole }) {
               <FiCreditCard size={18} /> גביה ומשלמים
             </Nav.Link>
 
-            {/* --- הכפתור החדש של עמוד חישוב וגביה --- */}
             <Nav.Link as={Link} to="/billing" className={`d-flex align-items-center gap-2 ${isActive('/billing') ? 'active text-white fw-bold' : 'text-light'}`}>
               <FiDollarSign size={18} /> חישוב וגביה
+            </Nav.Link>
+
+            {/* --- הכפתור החדש של צוות והרשאות --- */}
+            <Nav.Link as={Link} to="/team" className={`d-flex align-items-center gap-2 ${isActive('/team') ? 'active text-white fw-bold' : 'text-light'}`}>
+              <FiShield size={18} /> ניהול צוות
             </Nav.Link>
 
           </Nav>
