@@ -27,7 +27,6 @@ function PayerProfile() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // שינינו כאן: מביאים את כל המשלמים מהשרת (דלת שבטוח פתוחה), ואת שאר הנתונים
       const [payersRes, studentsRes, placementsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
         fetch(`${import.meta.env.VITE_API_URL}/api/students`),
@@ -36,7 +35,6 @@ function PayerProfile() {
 
       if (payersRes.ok) {
         const allPayers = await payersRes.json();
-        // מוצאים את המשלם הספציפי מתוך הרשימה בעזרת ה-ID שלו
         const foundPayer = allPayers.find(p => p._id === id);
         
         if (foundPayer) {
@@ -48,14 +46,12 @@ function PayerProfile() {
       let relevantStudents = [];
       if (studentsRes.ok) {
         const allStudents = await studentsRes.json();
-        // מוצא רק תלמידים שמשויכים למשלם הזה
         relevantStudents = allStudents.filter(s => s.payer?._id === id || s.payer === id);
         setLinkedStudents(relevantStudents);
       }
 
       if (placementsRes.ok) {
         const allPlacements = await placementsRes.json();
-        // מוצא רק שיבוצים של התלמידים שקשורים למשלם הזה
         const studentIds = relevantStudents.map(s => s._id);
         const relevantPlacements = allPlacements.filter(p => p.student && studentIds.includes(p.student._id));
         setPlacements(relevantPlacements);
@@ -66,7 +62,6 @@ function PayerProfile() {
     } finally {
       setLoading(false);
     }
-  };
   };
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -91,7 +86,6 @@ function PayerProfile() {
     }
   };
 
-  // חישוב העלות לכל תלמיד בחודש הנבחר
   const getStudentCostForMonth = (studentId) => {
     const studentPlacements = placements.filter(p => p.student._id === studentId);
     return studentPlacements.reduce((sum, p) => {
@@ -111,7 +105,6 @@ function PayerProfile() {
   return (
     <Container className="mt-4 mb-5" dir="rtl">
       
-      {/* --- כותרת וכפתור חזרה --- */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div className="d-flex align-items-center gap-3">
           <Button variant="light" className="border shadow-sm text-muted p-2" onClick={() => navigate('/payers')} title="חזרה לרשימת משלמים">
@@ -130,7 +123,6 @@ function PayerProfile() {
       </div>
 
       <Row className="g-4 mb-4">
-        {/* --- כרטיס פרטי המשלם --- */}
         <Col lg={8}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body className="p-4 p-md-5">
@@ -171,7 +163,6 @@ function PayerProfile() {
           </Card>
         </Col>
 
-        {/* --- כרטיס סכום חיוב חודשי --- */}
         <Col lg={4}>
           <Card className="border-0 shadow-sm h-100" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)' }}>
             <Card.Body className="p-4 d-flex flex-column justify-content-center text-center">
@@ -198,7 +189,6 @@ function PayerProfile() {
         </Col>
       </Row>
 
-      {/* --- פירוט התלמידים המרכיבים את הסכום --- */}
       <Card className="border-0 shadow-sm">
         <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4">
           <h5 className="fw-bold d-flex align-items-center gap-2 mb-0" style={{ color: 'var(--text-main)' }}>
@@ -249,7 +239,6 @@ function PayerProfile() {
         </Card.Body>
       </Card>
 
-      {/* --- מודל עריכת משלם --- */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700' }}>עריכת פרטי משלם</Modal.Title>
