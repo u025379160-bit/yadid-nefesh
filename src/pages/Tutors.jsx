@@ -40,26 +40,26 @@ function Tutors() {
         setLoading(false);
       }
     };
-    fetchTutorsAndPlacements();
-  }, []);
+    const getPlacementStatus = (tutorId) => {
+    if (!tutorId) return { text: 'פנוי לשיבוץ', bg: 'warning' };
 
-  const filteredTutors = tutors.filter(tutor => {
-    const fullName = `${tutor.firstName} ${tutor.lastName}`;
-    return fullName.includes(searchTerm) || tutor.idNumber?.includes(searchTerm);
-  });
+    const isActivePlaced = placements.some(p => {
+      if (!p.tutor) return false;
 
-  // --- תוספת: פונקציה חכמה שבודקת אם החונך משובץ כרגע ---
-  const getPlacementStatus = (tutorId) => {
-    // בודק אם יש לפחות שיבוץ אחד פעיל שהחונך הזה מחובר אליו
-    const isActivePlaced = placements.some(p => p.tutor && p.tutor._id === tutorId && p.status === 'פעיל');
-    
+      // ממיר את שני ה-IDs לטקסט רגיל כדי שההשוואה תהיה 100% מדויקת
+      const pTutorStr = p.tutor._id ? String(p.tutor._id) : String(p.tutor);
+      const currentTutorStr = String(tutorId);
+
+      // בודק שה-ID זהה, ושהסטטוס הוא לא "לא פעיל"
+      return pTutorStr === currentTutorStr && p.status !== 'לא פעיל';
+    });
+
     if (isActivePlaced) {
       return { text: 'משובץ', bg: 'success' };
     } else {
       return { text: 'פנוי לשיבוץ', bg: 'warning' };
     }
   };
-
   const handleOpenAdd = () => setShowAddModal(true);
   const handleCloseAdd = () => {
     setShowAddModal(false);
