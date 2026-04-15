@@ -7,13 +7,12 @@ function Tutors() {
   const navigate = useNavigate();
 
   const [tutors, setTutors] = useState([]);
-  const [placements, setPlacements] = useState([]); // --- תוספת: שומר את השיבוצים לצורך בדיקת סטטוס
+  const [placements, setPlacements] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [showAddModal, setShowAddModal] = useState(false);
   
-  // השדות של מסד הנתונים נשמרו כפי שהיו
   const [newTutor, setNewTutor] = useState({
     firstName: '', lastName: '', idNumber: '', birthDate: '', 
     phone1: '', phone2: '', email: '', address: '', city: '', sector: '',
@@ -21,11 +20,9 @@ function Tutors() {
     bankName: '', branch: '', accountNumber: '' 
   });
 
-  // שליפת הנתונים מהשרת
   useEffect(() => {
     const fetchTutorsAndPlacements = async () => {
       try {
-        // מושכים גם את החונכים וגם את השיבוצים יחד
         const [tutorsRes, placementsRes] = await Promise.all([
           fetch(import.meta.env.VITE_API_URL + '/api/tutors'),
           fetch(import.meta.env.VITE_API_URL + '/api/placements')
@@ -35,12 +32,20 @@ function Tutors() {
         if (placementsRes.ok) setPlacements(await placementsRes.json());
 
       } catch (error) {
-        console.error('שגיאה בשליפת חונכים:', error);
+        console.error('שגיאה בשליפת נתונים:', error);
       } finally {
         setLoading(false);
       }
     };
-    const getPlacementStatus = (tutorId) => {
+    fetchTutorsAndPlacements();
+  }, []);
+
+  const filteredTutors = tutors.filter(tutor => {
+    const fullName = `${tutor.firstName} ${tutor.lastName}`;
+    return fullName.includes(searchTerm) || tutor.idNumber?.includes(searchTerm);
+  });
+
+  const getPlacementStatus = (tutorId) => {
     if (!tutorId) return { text: 'פנוי לשיבוץ', bg: 'warning' };
 
     const isActivePlaced = placements.some(p => {
@@ -60,6 +65,7 @@ function Tutors() {
       return { text: 'פנוי לשיבוץ', bg: 'warning' };
     }
   };
+
   const handleOpenAdd = () => setShowAddModal(true);
   const handleCloseAdd = () => {
     setShowAddModal(false);
@@ -103,7 +109,7 @@ function Tutors() {
 
   const handleDelete = async (e, tutorId, name) => {
     e.stopPropagation();
-    if (!window.confirm(`האם אתה בטוח שברצונך למחוק את החונך ${name}? (פעולה זו לא ניתנת לביטול)`)) return;
+    if (!window.confirm(`האם אתה בטוח שברצונך למחוק את החונך ${name}?`)) return;
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tutors/${tutorId}`, { method: 'DELETE' });
       if (response.ok) setTutors(tutors.filter(t => t._id !== tutorId));
@@ -117,7 +123,6 @@ function Tutors() {
   return (
     <Container className="mt-4" dir="rtl">
       
-      {/* כותרת העמוד - עיצוב הייטק */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h3 style={{ color: 'var(--text-main)', fontWeight: '700' }} className="mb-1">
@@ -132,7 +137,6 @@ function Tutors() {
         </Button>
       </div>
 
-      {/* אזור החיפוש והטבלה המרחפת */}
       <Card className="border-0">
         <Card.Body className="p-4">
           
@@ -158,7 +162,7 @@ function Tutors() {
                   <th>ת.ז.</th>
                   <th>טלפון</th>
                   <th>עיר</th>
-                  <th>סטטוס שיבוץ</th> {/* --- שינוי כותרת --- */}
+                  <th>סטטוס שיבוץ</th>
                   <th className="text-end">פעולות</th>
                 </tr>
               </thead>
@@ -167,7 +171,6 @@ function Tutors() {
                   <tr><td colSpan="6" className="text-center py-4 text-muted">לא נמצאו חונכים התואמים לחיפוש.</td></tr>
                 ) : (
                   filteredTutors.map((tutor) => {
-                    // --- תוספת: חישוב הסטטוס לכל חונך ---
                     const status = getPlacementStatus(tutor._id);
 
                     return (
@@ -177,7 +180,6 @@ function Tutors() {
                         <td className="text-muted" dir="ltr" style={{ textAlign: 'right' }}>{tutor.phone1}</td>
                         <td className="text-muted">{tutor.city?.name || tutor.city || '-'}</td>
                         <td>
-                          {/* --- תוספת: הצגת התגית עם הצבע המתאים --- */}
                           <Badge bg={status.bg} style={{ opacity: '0.9', padding: '6px 12px', minWidth: '100px' }}>
                             {status.text}
                           </Badge>
@@ -201,7 +203,6 @@ function Tutors() {
         </Card.Body>
       </Card>
 
-      {/* --- חלון ההוספה המעוצב --- */}
       <Modal show={showAddModal} onHide={handleCloseAdd} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>הוספת חונך חדש</Modal.Title>
