@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck } from 'react-icons/fi';
+import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings } from 'react-icons/fi';
 
 function StudentProfile() {
   const { id } = useParams(); 
@@ -21,6 +21,10 @@ function StudentProfile() {
   
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({});
+
+  // --- סטייט חדש לעריכת משלם ---
+  const [showPayerEditModal, setShowPayerEditModal] = useState(false);
+  const [payerFormData, setPayerFormData] = useState({});
 
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskData, setTaskData] = useState({ title: '', description: '', urgency: 'רגיל', studentId: id });
@@ -75,6 +79,39 @@ function StudentProfile() {
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  // --- פונקציות עריכת משלם ---
+  const handleOpenPayerEdit = () => {
+    const activePayer = payers.find(p => p._id === (student.payer?._id || student.payer));
+    if (activePayer) {
+      setPayerFormData(activePayer);
+      setShowPayerEditModal(true);
+    }
+  };
+
+  const handlePayerChange = (e) => {
+    setPayerFormData({ ...payerFormData, [e.target.name]: e.target.value });
+  };
+
+  const handleUpdatePayer = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/payers/${payerFormData._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payerFormData),
+      });
+      if (response.ok) {
+        alert('פרטי המשלם עודכנו בהצלחה!');
+        setShowPayerEditModal(false);
+        fetchData(); 
+      } else {
+        alert('שגיאה בעדכון המשלם');
+      }
+    } catch (error) {
+      alert('שגיאת תקשורת בעדכון המשלם');
+    }
+  };
 
   // --- פונקציית הקסם: הגדרת האבא כמשלם בלחיצה אחת ---
   const handleQuickSetPayer = async () => {
@@ -282,6 +319,12 @@ function StudentProfile() {
                         {!activePayerObj && (
                           <Button variant="link" className="p-0 text-decoration-none small fw-bold" onClick={handleQuickSetPayer} style={{fontSize: '0.75rem'}}>
                             <FiUserCheck className="me-1"/> הגדר אבא כמשלם
+                          </Button>
+                        )}
+                        {/* --- כאן הוספתי את כפתור עריכת המשלם --- */}
+                        {activePayerObj && (
+                          <Button variant="link" className="p-0 text-primary text-decoration-none small fw-bold" onClick={handleOpenPayerEdit} style={{fontSize: '0.75rem'}}>
+                            <FiSettings className="me-1"/> ערוך פרטי משלם
                           </Button>
                         )}
                       </div>
@@ -560,6 +603,41 @@ function StudentProfile() {
                 <div className="d-flex justify-content-end pt-3 border-top">
                   <Button variant="light" onClick={handleCloseTask} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
                   <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">הוסף משימה 📌</Button>
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Modal.Body>
+      </Modal>
+
+      {/* --- חלון עריכת משלם --- */}
+      <Modal show={showPayerEditModal} onHide={() => setShowPayerEditModal(false)} dir="rtl">
+        <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי משלם</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-light p-4">
+          <Card className="border-0 shadow-sm">
+            <Card.Body>
+              <Form onSubmit={handleUpdatePayer}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-muted">שם המשלם (אדם או מוסד)</Form.Label>
+                  <Form.Control type="text" name="name" value={payerFormData.name || ''} onChange={handlePayerChange} required />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-muted">ח"פ / ת.ז של המשלם</Form.Label>
+                  <Form.Control type="text" name="identifier" value={payerFormData.identifier || ''} onChange={handlePayerChange} required />
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-muted">טלפון ליצירת קשר</Form.Label>
+                  <Form.Control type="text" name="phone" value={payerFormData.phone || ''} onChange={handlePayerChange} />
+                </Form.Group>
+                <Form.Group className="mb-4">
+                  <Form.Label className="small fw-bold text-muted">הערות גבייה</Form.Label>
+                  <Form.Control as="textarea" rows={2} name="notes" value={payerFormData.notes || ''} onChange={handlePayerChange} />
+                </Form.Group>
+                <div className="d-flex justify-content-end pt-3 border-top mt-2">
+                  <Button variant="light" onClick={() => setShowPayerEditModal(false)} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
+                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים במשלם</Button>
                 </div>
               </Form>
             </Card.Body>
