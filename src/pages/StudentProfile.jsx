@@ -43,16 +43,16 @@ function StudentProfile() {
     backdrops.forEach(backdrop => backdrop.remove());
   }, [showEditModal, showTaskModal, showPlacementModal]);
 
+  // מנקה רקעים אפורים רק כשעוזבים את העמוד לחלוטין (כדי לא לריב עם ריאקט)
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [studentRes, tasksRes, placementsRes, payersRes, tutorsRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) // מביא את החונכים לטופס
-        ]);
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = 'auto';
+      document.body.style.paddingRight = '0px';
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      backdrops.forEach(backdrop => backdrop.remove());
+    };
+  }, []);
 
         if (studentRes.ok) setStudent(await studentRes.json());
         if (tasksRes.ok) setTasks(await tasksRes.json());
