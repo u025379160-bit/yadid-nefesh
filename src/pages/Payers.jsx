@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiCreditCard, FiTrash2, FiUserCheck } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
+import { FiSearch, FiPlus, FiCreditCard, FiTrash2, FiUserCheck, FiUser } from 'react-icons/fi';
 
 function Payers() {
+  const navigate = useNavigate();
   const [payers, setPayers] = useState([]);
   const [students, setStudents] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,14 +19,6 @@ function Payers() {
 
     fetchPayers();
     fetchStudents();
-
-    return () => {
-      document.body.classList.remove('modal-open');
-      document.body.style.overflow = 'auto';
-      document.body.style.paddingRight = '0px';
-      const backdrops = document.querySelectorAll('.modal-backdrop');
-      backdrops.forEach(backdrop => backdrop.remove());
-    };
   }, []);
 
   const fetchPayers = async () => {
@@ -64,7 +58,7 @@ function Payers() {
 
   const [formData, setFormData] = useState({
     name: '', identifier: '', payerType: 'individual', 
-    phone: '', email: '', paymentMethod: 'credit_card'
+    phone: '', email: '', paymentMethod: 'credit_card', notes: ''
   });
 
   const handleChange = (e) => {
@@ -100,7 +94,7 @@ function Payers() {
       if (response.ok) {
         alert('המשלם נשמר בהצלחה במערכת!');
         handleClose();
-        setFormData({ name: '', identifier: '', payerType: 'individual', phone: '', email: '', paymentMethod: 'credit_card' });
+        setFormData({ name: '', identifier: '', payerType: 'individual', phone: '', email: '', paymentMethod: 'credit_card', notes: '' });
         fetchPayers(); 
       } else {
         const errorData = await response.json();
@@ -127,15 +121,20 @@ function Payers() {
     }
   };
 
+  // פונקציה לבדיקת מספר התלמידים המשויכים לכל משלם
+  const getLinkedStudentsCount = (payerId) => {
+    return students.filter(s => (s.payer?._id === payerId) || (s.payer === payerId)).length;
+  };
+
   return (
-    <Container className="mt-4" dir="rtl">
+    <Container className="mt-4 mb-5" dir="rtl">
       
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h3 style={{ color: 'var(--text-main)', fontWeight: '700' }} className="mb-1">ניהול משלמים</h3>
           <p style={{ color: 'var(--text-muted)' }} className="mb-0">ריכוז כל הגורמים המשלמים - הורים ומוסדות</p>
         </div>
-        <Button variant="primary" className="d-flex align-items-center gap-2 px-4 shadow-sm" onClick={handleShow}>
+        <Button variant="primary" className="d-flex align-items-center gap-2 px-4 shadow-sm fw-bold" onClick={handleShow}>
           <FiPlus /> הוסף משלם חדש
         </Button>
       </div>
@@ -160,31 +159,48 @@ function Payers() {
           <div className="table-responsive">
             <Table hover className="align-middle">
               <thead>
-                <tr>
-                  <th><FiCreditCard className="me-2" /> שם המשלם</th>
-                  <th>ת.ז / ח.פ</th>
-                  <th>סוג</th>
-                  <th>טלפון</th>
-                  <th>אמצעי תשלום</th>
-                  <th className="text-end">פעולות</th>
+                <tr className="bg-light">
+                  <th className="border-0 rounded-start"><FiCreditCard className="me-2" /> שם המשלם</th>
+                  <th className="border-0">ת.ז / ח.פ</th>
+                  <th className="border-0">אמצעי תשלום</th>
+                  <th className="border-0">תלמידים משויכים</th>
+                  <th className="text-end border-0 rounded-end">פעולות</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan="6" className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
+                  <tr><td colSpan="5" className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
                 ) : filteredPayers.length > 0 ? (
                   filteredPayers.map((payer) => (
                     <tr key={payer._id}>
-                      <td className="fw-bold" style={{ color: 'var(--primary-accent)' }}>{payer.name}</td>
+                      <td 
+                        className="fw-bold text-primary" 
+                        style={{ cursor: 'pointer' }} 
+                        onClick={() => navigate(`/payer/${payer._id}`)}
+                        title="לחץ לכניסה לכרטיס המשלם"
+                      >
+                        {payer.name}
+                      </td>
                       <td className="text-muted">{payer.identifier}</td>
-                      <td>{payer.payerType === 'individual' ? 'אדם פרטי' : 'ארגון/מוסד'}</td>
-                      <td className="text-muted">{payer.phone}</td>
                       <td>
                         <span className="badge bg-light text-dark border" style={{ padding: '6px 12px' }}>
-                          {payer.paymentMethod}
+                          {payer.paymentMethod === 'credit_card' ? 'כרטיס אשראי' : payer.paymentMethod === 'bank_transfer' ? 'העברה בנקאית' : payer.paymentMethod}
                         </span>
                       </td>
+                      <td>
+                        <Badge bg="info" className="rounded-pill px-3 py-2">
+                          <FiUser className="me-1"/> {getLinkedStudentsCount(payer._id)} תלמידים
+                        </Badge>
+                      </td>
                       <td className="text-end">
+                        <Button 
+                          variant="light" 
+                          size="sm" 
+                          className="text-primary border fw-bold me-2" 
+                          onClick={() => navigate(`/payer/${payer._id}`)}
+                        >
+                          כרטיס משלם
+                        </Button>
                         <Button variant="light" size="sm" className="text-danger border" onClick={() => handleDelete(payer._id, payer.name)}>
                           <FiTrash2 />
                         </Button>
@@ -192,7 +208,7 @@ function Payers() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="6" className="text-center py-5 text-muted">לא נמצאו משלמים. לחץ על "הוסף משלם חדש".</td></tr>
+                  <tr><td colSpan="5" className="text-center py-5 text-muted">לא נמצאו משלמים. לחץ על "הוסף משלם חדש".</td></tr>
                 )}
               </tbody>
             </Table>
@@ -201,6 +217,7 @@ function Payers() {
       </Card>
 
       <Modal show={showModal} onHide={handleClose} size="lg" dir="rtl">
+        {/* תוכן המודל נשאר זהה למה שהיה לך */}
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700' }}>הוספת משלם חדש</Modal.Title>
         </Modal.Header>
