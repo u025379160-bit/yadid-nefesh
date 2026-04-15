@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus } from 'react-icons/fi';
+import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck } from 'react-icons/fi';
 
 function StudentProfile() {
   const { id } = useParams(); 
@@ -34,7 +34,6 @@ function StudentProfile() {
     status: 'פעיל'
   });
 
-  // --- התיקון של המסך הלבן: מופעל רק כשעוזבים את העמוד לחלוטין ---
   useEffect(() => {
     return () => {
       document.body.classList.remove('modal-open');
@@ -45,36 +44,82 @@ function StudentProfile() {
     };
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [studentRes, tasksRes, placementsRes, payersRes, tutorsRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) 
-        ]);
+  const fetchData = async () => {
+    try {
+      const [studentRes, tasksRes, placementsRes, payersRes, tutorsRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) 
+      ]);
 
-        if (studentRes.ok) setStudent(await studentRes.json());
-        if (tasksRes.ok) setTasks(await tasksRes.json());
-        if (payersRes.ok) setPayers(await payersRes.json());
-        if (tutorsRes.ok) setTutors(await tutorsRes.json());
-        
-        if (placementsRes.ok) {
-          const allPlacements = await placementsRes.json();
-          const myPlacements = allPlacements.filter(p => p.student && p.student._id === id);
-          setPlacements(myPlacements);
-        }
-
-      } catch (error) {
-        console.error('שגיאה בשליפת נתונים:', error);
-      } finally {
-        setLoading(false); 
+      if (studentRes.ok) setStudent(await studentRes.json());
+      if (tasksRes.ok) setTasks(await tasksRes.json());
+      if (payersRes.ok) setPayers(await payersRes.json());
+      if (tutorsRes.ok) setTutors(await tutorsRes.json());
+      
+      if (placementsRes.ok) {
+        const allPlacements = await placementsRes.json();
+        const myPlacements = allPlacements.filter(p => p.student && p.student._id === id);
+        setPlacements(myPlacements);
       }
-    };
+
+    } catch (error) {
+      console.error('שגיאה בשליפת נתונים:', error);
+    } finally {
+      setLoading(false); 
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [id]);
+
+  // --- פונקציית הקסם: הגדרת האבא כמשלם בלחיצה אחת ---
+  const handleQuickSetPayer = async () => {
+    if (!student.fatherName) {
+      alert("יש להזין שם אב בפרטי התלמיד לפני שניתן להגדירו כמשלם.");
+      return;
+    }
+
+    if (!window.confirm(`האם להקים באופן אוטומטי משלם חדש בשם "${student.fatherName}" ולשייך לתלמיד?`)) return;
+
+    try {
+      setLoading(true);
+      // 1. הקמת המשלם בשרת
+      const payerRes = await fetch(`${import.meta.env.VITE_API_URL}/api/payers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: student.fatherName,
+          identifier: student.idNumber + "-P", // מזהה זמני מבוסס ת"ז תלמיד
+          phone: student.phone1,
+          payerType: 'individual',
+          notes: `נוצר אוטומטית עבור התלמיד ${student.firstName}`
+        }),
+      });
+
+      if (!payerRes.ok) throw new Error("שגיאה ביצירת המשלם בשרת");
+      const newPayer = await payerRes.json();
+
+      // 2. עדכון התלמיד עם ה-ID של המשלם החדש
+      const studentUpdateRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payer: newPayer._id }),
+      });
+
+      if (studentUpdateRes.ok) {
+        alert("המשלם נוצר ושויך בהצלחה!");
+        fetchData(); // רענון נתונים
+      }
+    } catch (error) {
+      alert("שגיאה בתהליך: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPlacements = placements.filter(p => {
     if (!p.startDate) return false;
@@ -108,6 +153,7 @@ function StudentProfile() {
       if (response.ok) {
         setStudent(await response.json());
         setShowEditModal(false);
+        fetchData();
       } else {
         alert('שגיאה בעדכון התלמיד');
       }
@@ -159,24 +205,16 @@ function StudentProfile() {
     e.preventDefault();
     try {
       const dataToSend = { ...placementData, student: id }; 
-      
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/placements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
       });
-
       if (response.ok) {
         alert('🎉 השיבוץ נוצר בהצלחה!');
         setShowPlacementModal(false);
         setPlacementData({ tutor: '', startDate: new Date().toISOString().split('T')[0], paymentAmount: '', paymentMethod: 'credit_card', status: 'פעיל' });
-        
-        const placementsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/placements`);
-        if (placementsRes.ok) {
-          const allPlacements = await placementsRes.json();
-          const myPlacements = allPlacements.filter(p => p.student && p.student._id === id);
-          setPlacements(myPlacements);
-        }
+        fetchData();
       } else {
         const err = await response.json();
         alert('🔴 שגיאה ביצירת שיבוץ: ' + err.message);
@@ -190,7 +228,7 @@ function StudentProfile() {
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: 'var(--primary-accent)'}} /></Container>;
   if (!student) return <Container className="mt-5 text-center"><h3>תלמיד לא נמצא 😕</h3></Container>;
 
-  const activePayerObj = payers.find(p => p._id === student.payer);
+  const activePayerObj = payers.find(p => p._id === (student.payer?._id || student.payer));
   const activePayerName = activePayerObj ? activePayerObj.name : 'ללא שיוך';
 
   return (
@@ -238,8 +276,15 @@ function StudentProfile() {
                   <div className="d-flex flex-column gap-3">
                     <div><small className="text-muted d-block">כתובת</small><span className="fw-bold">{student.address || 'לא צוינה כתובת'}</span></div>
                     
-                    <div className="p-2 rounded border mt-2" style={{ backgroundColor: activePayerObj ? '#f0fdf4' : '#fff5f5', borderColor: activePayerObj ? '#bbf7d0' : '#fecaca' }}>
-                      <small className="text-muted d-block fw-bold"><FiCreditCard className="me-1"/> משלם קבוע (ארנק חיוב)</small>
+                    <div className="p-3 rounded border mt-2" style={{ backgroundColor: activePayerObj ? '#f0fdf4' : '#fff5f5', borderColor: activePayerObj ? '#bbf7d0' : '#fecaca' }}>
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <small className="text-muted fw-bold small"><FiCreditCard className="me-1"/> משלם קבוע (ארנק חיוב)</small>
+                        {!activePayerObj && (
+                          <Button variant="link" className="p-0 text-decoration-none small fw-bold" onClick={handleQuickSetPayer} style={{fontSize: '0.75rem'}}>
+                            <FiUserCheck className="me-1"/> הגדר אבא כמשלם
+                          </Button>
+                        )}
+                      </div>
                       <span className={`fw-bold ${activePayerObj ? 'text-success' : 'text-danger'}`}>{activePayerName}</span>
                     </div>
 
