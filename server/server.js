@@ -27,7 +27,9 @@ mongoose.connect(process.env.MONGO_URI)
 // מחבר את הקובץ של המשלמים (שיושב בתיקיית routes) אל השרת הראשי
 const payersRouter = require('./routes/payers');
 app.use('/api/payers', payersRouter);
-
+// חיבור מודול המשתמשים (הצוות)
+const usersRouter = require('./routes/users');
+app.use('/api/users', usersRouter);
 
 // ==========================================
 // --- ניהול תלמידים ---
