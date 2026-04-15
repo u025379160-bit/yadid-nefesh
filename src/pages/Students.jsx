@@ -103,6 +103,34 @@ function Students() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // --- התיקון: מכינים את הנתונים, ואם אין משלם - מוחקים את השדה כדי לא לבלבל את השרת ---
+    const dataToSend = { ...formData };
+    if (!dataToSend.payer || dataToSend.payer === "") {
+      delete dataToSend.payer;
+    }
+
+    try {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend), // כאן אנחנו שולחים את המידע ה"נקי"
+      });
+
+      if (response.ok) {
+        alert('🎉 התלמיד נשמר בהצלחה!');
+        setShowModal(false);
+        setFormData({ firstName: '', lastName: '', idNumber: '', birthDate: '', phone1: '', fatherName: '', motherName: '', address: '', payer: '', city: '507f1f77bcf86cd799439011' });
+        fetchStudentsAndData(); 
+      } else {
+        const data = await response.json();
+        alert('🔴 שגיאה מהשרת: ' + (data.details || data.error || data.message));
+      }
+    } catch (error) {
+      alert('🔴 שגיאה בתקשורת מול השרת');
+    }
+  };
+    e.preventDefault();
     try {
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/students', {
         method: 'POST',
