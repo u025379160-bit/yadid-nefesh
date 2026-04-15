@@ -7,13 +7,13 @@ function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [payers, setPayers] = useState([]); 
-  const [placements, setPlacements] = useState([]); // --- תוספת: שומר את השיבוצים לבדיקת הסטטוס ---
+  const [placements, setPlacements] = useState([]); 
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchStudentsAndData(); // --- שינוי: קורא לפונקציה המאוחדת ---
+    fetchStudentsAndData(); 
 
     document.body.classList.remove('modal-open');
     document.body.style.overflow = 'auto';
@@ -30,7 +30,6 @@ function Students() {
     };
   }, []);
 
-  // --- תוספת: פונקציה מאוחדת שמושכת הכל יחד (תלמידים, משלמים, ושיבוצים) ---
   const fetchStudentsAndData = async () => {
     setIsLoading(true); 
     try {
@@ -51,15 +50,13 @@ function Students() {
     }
   };
 
-  // --- תוספת: פונקציה חכמה שבודקת אם התלמיד משובץ עכשיו ---
   const getPlacementStatus = (studentId) => {
-    // מחפש אם יש לתלמיד הזה שיבוץ שהסטטוס שלו 'פעיל'
     const isActivePlaced = placements.some(p => p.student && p.student._id === studentId && p.status === 'פעיל');
     
     if (isActivePlaced) {
       return { text: 'משובץ', bg: 'success' };
     } else {
-      return { text: 'ממתין לשיבוץ', bg: 'warning' }; // צהוב/כתום לממתינים
+      return { text: 'ממתין לשיבוץ', bg: 'warning' }; 
     }
   };
 
@@ -104,7 +101,7 @@ function Students() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // --- התיקון: מכינים את הנתונים, ואם אין משלם - מוחקים את השדה כדי לא לבלבל את השרת ---
+    // מכינים את הנתונים, ואם אין משלם - מוחקים את השדה כדי לא לבלבל את השרת
     const dataToSend = { ...formData };
     if (!dataToSend.payer || dataToSend.payer === "") {
       delete dataToSend.payer;
@@ -114,7 +111,7 @@ function Students() {
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend), // כאן אנחנו שולחים את המידע ה"נקי"
+        body: JSON.stringify(dataToSend), 
       });
 
       if (response.ok) {
@@ -125,27 +122,6 @@ function Students() {
       } else {
         const data = await response.json();
         alert('🔴 שגיאה מהשרת: ' + (data.details || data.error || data.message));
-      }
-    } catch (error) {
-      alert('🔴 שגיאה בתקשורת מול השרת');
-    }
-  };
-    e.preventDefault();
-    try {
-      const response = await fetch(import.meta.env.VITE_API_URL + '/api/students', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        alert('🎉 התלמיד נשמר בהצלחה!');
-        setShowModal(false);
-        setFormData({ firstName: '', lastName: '', idNumber: '', birthDate: '', phone1: '', fatherName: '', motherName: '', address: '', payer: '', city: '507f1f77bcf86cd799439011' });
-        fetchStudentsAndData(); // --- שינוי קטן: מרענן את כל הנתונים ---
-      } else {
-        const data = await response.json();
-        alert('🔴 שגיאה מהשרת: ' + (data.details || data.error));
       }
     } catch (error) {
       alert('🔴 שגיאה בתקשורת מול השרת');
@@ -193,7 +169,7 @@ function Students() {
                   <th><FiUser className="me-2" /> שם התלמיד</th>
                   <th>ת.ז.</th>
                   <th>כתובת</th>
-                  <th>סטטוס שיבוץ</th> {/* --- שינוי כותרת --- */}
+                  <th>סטטוס שיבוץ</th> 
                   <th className="text-end">פעולות</th>
                 </tr>
               </thead>
@@ -207,7 +183,6 @@ function Students() {
                   </tr>
                 ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => {
-                    // --- תוספת: חישוב הסטטוס לכל תלמיד ---
                     const status = getPlacementStatus(student._id);
 
                     return (
@@ -216,7 +191,6 @@ function Students() {
                         <td className="text-muted">{student.idNumber}</td>
                         <td className="text-muted">{student.address}</td>
                         <td>
-                          {/* --- תוספת: הצגת התגית עם הצבע המתאים --- */}
                           <Badge bg={status.bg} style={{ opacity: '0.9', padding: '6px 12px', minWidth: '100px' }}>
                             {status.text}
                           </Badge>
@@ -244,7 +218,6 @@ function Students() {
         </Card.Body>
       </Card>
 
-      {/* מודל טופס ההוספה (הכל נשאר במקום) */}
       <Modal show={showModal} onHide={handleClose} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>הוספת תלמיד חדש</Modal.Title>
@@ -260,7 +233,7 @@ function Students() {
                       <Form.Label className="fw-bold text-primary small mb-2 d-flex align-items-center gap-2">
                         <FiUser /> שיוך למשלם קבוע (הורה/ארגון שאחראי על הגבייה)
                       </Form.Label>
-                      <Form.Select name="payer" value={formData.payer} onChange={handleChange} style={{ borderRadius: '8px' }}>
+                      <Form.Select name="payer" value={formData.payer || ''} onChange={handleChange} style={{ borderRadius: '8px' }}>
                         <option value="">-- ללא משלם קבוע כרגע (ניתן לעדכן מאוחר יותר) --</option>
                         {payers.map(payer => (
                           <option key={payer._id} value={payer._id}>
