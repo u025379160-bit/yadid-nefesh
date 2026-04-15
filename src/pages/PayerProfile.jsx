@@ -27,17 +27,22 @@ function PayerProfile() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // מביא את המשלם, כל התלמידים וכל השיבוצים
-      const [payerRes, studentsRes, placementsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL}/api/payers/${id}`),
+      // שינינו כאן: מביאים את כל המשלמים מהשרת (דלת שבטוח פתוחה), ואת שאר הנתונים
+      const [payersRes, studentsRes, placementsRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
         fetch(`${import.meta.env.VITE_API_URL}/api/students`),
         fetch(`${import.meta.env.VITE_API_URL}/api/placements`)
       ]);
 
-      if (payerRes.ok) {
-        const payerData = await payerRes.json();
-        setPayer(payerData);
-        setFormData(payerData);
+      if (payersRes.ok) {
+        const allPayers = await payersRes.json();
+        // מוצאים את המשלם הספציפי מתוך הרשימה בעזרת ה-ID שלו
+        const foundPayer = allPayers.find(p => p._id === id);
+        
+        if (foundPayer) {
+          setPayer(foundPayer);
+          setFormData(foundPayer);
+        }
       }
 
       let relevantStudents = [];
@@ -61,6 +66,7 @@ function PayerProfile() {
     } finally {
       setLoading(false);
     }
+  };
   };
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
