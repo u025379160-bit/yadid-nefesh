@@ -112,35 +112,59 @@ function StudentProfile() {
       alert('שגיאת תקשורת בעדכון המשלם');
     }
   };
-
-  // --- פונקציית הקסם: הגדרת האבא כמשלם בלחיצה אחת ---
+// --- פונקציית הקסם החכמה: בודקת כפילויות לפני יצירה ---
   const handleQuickSetPayer = async () => {
     if (!student.fatherName) {
       alert("יש להזין שם אב בפרטי התלמיד לפני שניתן להגדירו כמשלם.");
       return;
     }
 
+    // 1. בדיקה חכמה: האם כבר יש משלם עם השם הזה בדיוק במערכת?
+    const existingPayer = payers.find(p => p.name.trim() === student.fatherName.trim());
+
+    if (existingPayer) {
+      // מצאנו! נשאל את המשתמש אם לשדך אליו
+      if (window.confirm(`💡 מצאנו במערכת משלם קיים בשם "${existingPayer.name}".\n\nהאם ברצונך לשייך את התלמיד אליו (ולחסוך כפילות)?`)) {
+        try {
+          setLoading(true);
+          const studentUpdateRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payer: existingPayer._id }),
+          });
+          if (studentUpdateRes.ok) {
+            alert("התלמיד שויך למשלם הקיים בהצלחה! לא נוצרה כפילות במערכת.");
+            fetchData(); // מרענן את העמוד
+          }
+        } catch (error) {
+          alert("שגיאה בתהליך השיוך: " + error.message);
+        } finally {
+          setLoading(false);
+        }
+        return; // עוצרים כאן כדי שהקוד לא ימשיך וייצור משלם חדש
+      }
+    }
+
+    // 2. אם לא מצאנו (או שהמשתמש אמר "לא, זה יחיאל אחר"), ניצור חדש:
     if (!window.confirm(`האם להקים באופן אוטומטי משלם חדש בשם "${student.fatherName}" ולשייך לתלמיד?`)) return;
 
     try {
       setLoading(true);
-      // 1. הקמת המשלם בשרת
       const payerRes = await fetch(`${import.meta.env.VITE_API_URL}/api/payers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: student.fatherName,
-          identifier: student.idNumber + "-P", // מזהה זמני מבוסס ת"ז תלמיד
+          identifier: student.idNumber + "-P",
           phone: student.phone1,
           payerType: 'individual',
           notes: `נוצר אוטומטית עבור התלמיד ${student.firstName}`
         }),
       });
 
-      if (!payerRes.ok) throw new Error("שגיאה ביצירת המשלם בשרת");
+      if (!payerRes.ok) throw new Error("שגיאה ביצירת המשלם");
       const newPayer = await payerRes.json();
 
-      // 2. עדכון התלמיד עם ה-ID של המשלם החדש
       const studentUpdateRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -148,8 +172,8 @@ function StudentProfile() {
       });
 
       if (studentUpdateRes.ok) {
-        alert("המשלם נוצר ושויך בהצלחה!");
-        fetchData(); // רענון נתונים
+        alert("המשלם החדש נוצר ושויך בהצלחה!");
+        fetchData(); 
       }
     } catch (error) {
       alert("שגיאה בתהליך: " + error.message);
