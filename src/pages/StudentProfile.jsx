@@ -1,62 +1,69 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard } from 'react-icons/fi';
+import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus } from 'react-icons/fi';
 
 function StudentProfile() {
   const { id } = useParams(); 
   const navigate = useNavigate();
 
-  // נתונים
   const [student, setStudent] = useState(null);
   const [tasks, setTasks] = useState([]); 
   const [placements, setPlacements] = useState([]); 
-  const [payers, setPayers] = useState([]); // --- תוספת: שומר את כל המשלמים
+  const [payers, setPayers] = useState([]); 
+  const [tutors, setTutors] = useState([]); // --- רשימת החונכים לשיבוץ ---
   const [loading, setLoading] = useState(true);
 
-  // משתנה לבחירת חודש ושנה
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   
-  // מודלים
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({});
 
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskData, setTaskData] = useState({ title: '', description: '', urgency: 'רגיל', studentId: id });
 
-  // 🧹 שואב אבק גלובלי (למקרה שהמודלים נתקעים)
+  // --- מודל השיבוץ המהיר ---
+  const [showPlacementModal, setShowPlacementModal] = useState(false);
+  const [placementData, setPlacementData] = useState({
+    tutor: '',
+    startDate: new Date().toISOString().split('T')[0],
+    paymentAmount: '',
+    paymentMethod: 'credit_card',
+    status: 'פעיל'
+  });
+
   useEffect(() => {
     document.body.classList.remove('modal-open');
     document.body.style.overflow = 'auto';
     document.body.style.paddingRight = '0px';
     const backdrops = document.querySelectorAll('.modal-backdrop');
     backdrops.forEach(backdrop => backdrop.remove());
-  }, [showEditModal, showTaskModal]);
+  }, [showEditModal, showTaskModal, showPlacementModal]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // משיכת נתוני תלמיד, משימות, שיבוצים ומשלמים במקביל!
-        const [studentRes, tasksRes, placementsRes, payersRes] = await Promise.all([
+        const [studentRes, tasksRes, placementsRes, payersRes, tutorsRes] = await Promise.all([
           fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
           fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`),
           fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/payers`)
+          fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) // מביא את החונכים לטופס
         ]);
 
         if (studentRes.ok) setStudent(await studentRes.json());
         if (tasksRes.ok) setTasks(await tasksRes.json());
+        if (payersRes.ok) setPayers(await payersRes.json());
+        if (tutorsRes.ok) setTutors(await tutorsRes.json());
         
         if (placementsRes.ok) {
           const allPlacements = await placementsRes.json();
           const myPlacements = allPlacements.filter(p => p.student && p.student._id === id);
           setPlacements(myPlacements);
         }
-
-        if (payersRes.ok) setPayers(await payersRes.json());
 
       } catch (error) {
         console.error('שגיאה בשליפת נתונים:', error);
@@ -67,34 +74,23 @@ function StudentProfile() {
     fetchData();
   }, [id]);
 
-  // סינון השיבוצים לפי החודש שנבחר
   const filteredPlacements = placements.filter(p => {
     if (!p.startDate) return false;
-    
     const pDate = new Date(p.startDate);
     const [sYear, sMonth] = selectedMonth.split('-').map(Number);
-
     const isStartedBySelectedMonth = pDate.getFullYear() < sYear || (pDate.getFullYear() === sYear && pDate.getMonth() + 1 <= sMonth);
-
     return isStartedBySelectedMonth && p.status !== 'לא פעיל';
   });
 
-  // סיכום העלויות
   const totalMonthlyCost = filteredPlacements.reduce((sum, placement) => {
     return sum + (Number(placement.paymentAmount) || 0);
   }, 0);
 
-  // עריכת תלמיד
+  // --- פונקציות העריכה ---
   const handleOpenEdit = () => {
     let formattedDate = '';
     if (student.birthDate) formattedDate = new Date(student.birthDate).toISOString().split('T')[0];
-    
-    // מעבירים את הנתונים לטופס, כולל ה-ID של המשלם אם קיים
-    setFormData({ 
-      ...student, 
-      birthDate: formattedDate,
-      payer: student.payer || '' 
-    });
+    setFormData({ ...student, birthDate: formattedDate, payer: student.payer || '' });
     setShowEditModal(true);
   };
   const handleCloseEdit = () => setShowEditModal(false);
@@ -112,14 +108,14 @@ function StudentProfile() {
         setStudent(await response.json());
         setShowEditModal(false);
       } else {
-        alert('שגיאה מהשרת בעדכון התלמיד');
+        alert('שגיאה בעדכון התלמיד');
       }
     } catch (error) {
-      alert('שגיאת תקשורת: לא ניתן לעדכן את התלמיד');
+      alert('שגיאת תקשורת עם השרת');
     }
   };
 
-  // משימות
+  // --- פונקציות משימות ---
   const handleOpenTask = () => {
     setTaskData({ title: '', description: '', urgency: 'רגיל', studentId: id });
     setShowTaskModal(true);
@@ -135,7 +131,6 @@ function StudentProfile() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taskData),
       });
-
       if (response.ok) {
         const newTask = await response.json();
         setTasks([...tasks, newTask]);
@@ -147,7 +142,7 @@ function StudentProfile() {
   };
 
   const handleDeleteTask = async (taskId) => {
-    if (!window.confirm('האם אתה בטוח שברצונך למחוק משימה זו?')) return;
+    if (!window.confirm('האם למחוק משימה זו?')) return;
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${taskId}`, { method: 'DELETE' });
       if (response.ok) setTasks(tasks.filter(task => task._id !== taskId));
@@ -156,17 +151,53 @@ function StudentProfile() {
     }
   };
 
+  // --- פונקציות שיבוץ מהיר ---
+  const handleOpenPlacement = () => setShowPlacementModal(true);
+  const handleClosePlacement = () => setShowPlacementModal(false);
+  const handlePlacementChange = (e) => setPlacementData({ ...placementData, [e.target.name]: e.target.value });
+
+  const handleAddPlacement = async (e) => {
+    e.preventDefault();
+    try {
+      const dataToSend = { ...placementData, student: id }; // מוסיף את התלמיד לשיבוץ
+      
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/placements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (response.ok) {
+        alert('🎉 השיבוץ נוצר בהצלחה!');
+        setShowPlacementModal(false);
+        setPlacementData({ tutor: '', startDate: new Date().toISOString().split('T')[0], paymentAmount: '', paymentMethod: 'credit_card', status: 'פעיל' });
+        
+        // רענון שיבוצים
+        const placementsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/placements`);
+        if (placementsRes.ok) {
+          const allPlacements = await placementsRes.json();
+          const myPlacements = allPlacements.filter(p => p.student && p.student._id === id);
+          setPlacements(myPlacements);
+        }
+      } else {
+        const err = await response.json();
+        alert('🔴 שגיאה ביצירת שיבוץ: ' + err.message);
+      }
+    } catch (error) {
+      alert('🔴 שגיאת תקשורת ביצירת השיבוץ');
+    }
+  };
+
+
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: 'var(--primary-accent)'}} /></Container>;
   if (!student) return <Container className="mt-5 text-center"><h3>תלמיד לא נמצא 😕</h3></Container>;
 
-  // מציאת שם המשלם לתצוגה בכרטיס
   const activePayerObj = payers.find(p => p._id === student.payer);
   const activePayerName = activePayerObj ? activePayerObj.name : 'ללא שיוך';
 
   return (
     <Container className="mt-4 mb-5" dir="rtl">
       
-      {/* כותרת עליונה */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div className="d-flex align-items-center gap-3">
           <Button variant="light" className="border shadow-sm text-muted p-2" onClick={() => navigate('/students')} title="חזרה לרשימה">
@@ -184,7 +215,6 @@ function StudentProfile() {
         </Button>
       </div>
 
-      {/* כרטיס פרטים ראשי + כרטיס סיכום כספי */}
       <Row className="g-4 mb-4">
         <Col lg={8}>
           <Card className="border-0 shadow-sm h-100">
@@ -210,10 +240,9 @@ function StudentProfile() {
                   <div className="d-flex flex-column gap-3">
                     <div><small className="text-muted d-block">כתובת</small><span className="fw-bold">{student.address || 'לא צוינה כתובת'}</span></div>
                     
-                    {/* תצוגת הארנק המשלם בכרטיס התלמיד */}
-                    <div className="p-2 bg-light rounded border mt-2">
+                    <div className="p-2 rounded border mt-2" style={{ backgroundColor: activePayerObj ? '#f0fdf4' : '#fff5f5', borderColor: activePayerObj ? '#bbf7d0' : '#fecaca' }}>
                       <small className="text-muted d-block fw-bold"><FiCreditCard className="me-1"/> משלם קבוע (ארנק חיוב)</small>
-                      <span className="fw-bold text-success">{activePayerName}</span>
+                      <span className={`fw-bold ${activePayerObj ? 'text-success' : 'text-danger'}`}>{activePayerName}</span>
                     </div>
 
                     <div className="mt-2">
@@ -228,7 +257,6 @@ function StudentProfile() {
           </Card>
         </Col>
 
-        {/* כרטיס סיכום עלויות חודשי (עם הבורר) */}
         <Col lg={4}>
           <Card className="border-0 shadow-sm h-100" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)' }}>
             <Card.Body className="p-4 d-flex flex-column justify-content-center text-center">
@@ -259,13 +287,16 @@ function StudentProfile() {
 
       <Row className="g-4">
         
-        {/* אזור שיבוצים */}
         <Col lg={7}>
           <Card className="border-0 shadow-sm h-100">
-            <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4">
-              <h5 className="fw-bold d-flex align-items-center gap-2" style={{ color: 'var(--text-main)' }}>
+            {/* --- כאן מופיע הכפתור! --- */}
+            <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
+              <h5 className="fw-bold d-flex align-items-center gap-2 mb-0" style={{ color: 'var(--text-main)' }}>
                 <FiFileText className="text-primary" /> חונכים פעילים בחודש זה
               </h5>
+              <Button variant="outline-primary" size="sm" className="fw-bold rounded-pill px-3 d-flex align-items-center gap-1" onClick={handleOpenPlacement}>
+                <FiUserPlus /> שבץ חונך
+              </Button>
             </Card.Header>
             <Card.Body className="p-4">
               <div className="table-responsive">
@@ -315,7 +346,6 @@ function StudentProfile() {
           </Card>
         </Col>
 
-        {/* אזור משימות */}
         <Col lg={5}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
@@ -360,7 +390,7 @@ function StudentProfile() {
         </Col>
       </Row>
 
-      {/* --- חלון עריכת תלמיד (מעודכן עם שיוך גבייה ופרטים מלאים) --- */}
+      {/* --- חלון עריכת תלמיד --- */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד וגבייה</Modal.Title>
@@ -370,7 +400,6 @@ function StudentProfile() {
             <Card.Body>
               <Form onSubmit={handleUpdateStudent}>
                 
-                {/* אזור שיוך הגבייה החדש */}
                 <Row className="mb-3">
                   <Col md={12}>
                     <Form.Group className="p-3 bg-white border rounded" style={{ borderColor: 'var(--primary-blue)' }}>
@@ -385,13 +414,11 @@ function StudentProfile() {
                           </option>
                         ))}
                       </Form.Select>
-                      <Form.Text className="text-muted small">בחר איזה גורם יחויב אוטומטית על שיבוצים של תלמיד זה.</Form.Text>
                     </Form.Group>
                   </Col>
                 </Row>
                 <hr className="text-muted opacity-25 mb-4"/>
 
-                {/* פרטים אישיים מלאים */}
                 <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטים בסיסיים</h6>
                 <Row className="mb-3">
                   <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם פרטי</Form.Label><Form.Control type="text" name="firstName" value={formData.firstName || ''} onChange={handleChange} required /></Form.Group></Col>
@@ -412,7 +439,53 @@ function StudentProfile() {
 
                 <div className="d-flex justify-content-end pt-3 border-top">
                   <Button variant="light" onClick={handleCloseEdit} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים בענן</Button>
+                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים</Button>
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Modal.Body>
+      </Modal>
+
+      {/* --- חלון הוספת שיבוץ מהיר לתלמיד --- */}
+      <Modal show={showPlacementModal} onHide={handleClosePlacement} dir="rtl">
+        <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>שיבוץ חונך לתלמיד</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-light p-4">
+          <Card className="border-0 shadow-sm">
+            <Card.Body>
+              <Form onSubmit={handleAddPlacement}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="small fw-bold text-muted">בחר חונך מרשימת החונכים *</Form.Label>
+                  <Form.Select name="tutor" required value={placementData.tutor} onChange={handlePlacementChange}>
+                    <option value="">-- בחר חונך --</option>
+                    {tutors.map(t => (
+                      <option key={t._id} value={t._id}>{t.firstName} {t.lastName} (ת.ז: {t.idNumber})</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+                
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label className="small fw-bold text-muted">תאריך התחלה *</Form.Label>
+                      <Form.Control type="date" name="startDate" required value={placementData.startDate} onChange={handlePlacementChange} />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label className="small fw-bold text-muted">סכום חיוב חודשי (₪) *</Form.Label>
+                      <Form.Control type="number" name="paymentAmount" required placeholder="לדוגמה: 1500" value={placementData.paymentAmount} onChange={handlePlacementChange} />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <div className="d-flex justify-content-end pt-3 border-top mt-2">
+                  <Button variant="light" onClick={handleClosePlacement} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
+                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm d-flex align-items-center gap-2">
+                    <FiUserPlus /> צור שיבוץ עכשיו
+                  </Button>
                 </div>
               </Form>
             </Card.Body>
