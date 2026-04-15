@@ -11,7 +11,7 @@ function StudentProfile() {
   const [tasks, setTasks] = useState([]); 
   const [placements, setPlacements] = useState([]); 
   const [payers, setPayers] = useState([]); 
-  const [tutors, setTutors] = useState([]); // --- רשימת החונכים לשיבוץ ---
+  const [tutors, setTutors] = useState([]); 
   const [loading, setLoading] = useState(true);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -25,7 +25,6 @@ function StudentProfile() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskData, setTaskData] = useState({ title: '', description: '', urgency: 'רגיל', studentId: id });
 
-  // --- מודל השיבוץ המהיר ---
   const [showPlacementModal, setShowPlacementModal] = useState(false);
   const [placementData, setPlacementData] = useState({
     tutor: '',
@@ -35,15 +34,7 @@ function StudentProfile() {
     status: 'פעיל'
   });
 
-  useEffect(() => {
-    document.body.classList.remove('modal-open');
-    document.body.style.overflow = 'auto';
-    document.body.style.paddingRight = '0px';
-    const backdrops = document.querySelectorAll('.modal-backdrop');
-    backdrops.forEach(backdrop => backdrop.remove());
-  }, [showEditModal, showTaskModal, showPlacementModal]);
-
-  // מנקה רקעים אפורים רק כשעוזבים את העמוד לחלוטין (כדי לא לריב עם ריאקט)
+  // --- התיקון של המסך הלבן: מופעל רק כשעוזבים את העמוד לחלוטין ---
   useEffect(() => {
     return () => {
       document.body.classList.remove('modal-open');
@@ -53,6 +44,17 @@ function StudentProfile() {
       backdrops.forEach(backdrop => backdrop.remove());
     };
   }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [studentRes, tasksRes, placementsRes, payersRes, tutorsRes] = await Promise.all([
+          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) 
+        ]);
 
         if (studentRes.ok) setStudent(await studentRes.json());
         if (tasksRes.ok) setTasks(await tasksRes.json());
@@ -86,7 +88,6 @@ function StudentProfile() {
     return sum + (Number(placement.paymentAmount) || 0);
   }, 0);
 
-  // --- פונקציות העריכה ---
   const handleOpenEdit = () => {
     let formattedDate = '';
     if (student.birthDate) formattedDate = new Date(student.birthDate).toISOString().split('T')[0];
@@ -115,7 +116,6 @@ function StudentProfile() {
     }
   };
 
-  // --- פונקציות משימות ---
   const handleOpenTask = () => {
     setTaskData({ title: '', description: '', urgency: 'רגיל', studentId: id });
     setShowTaskModal(true);
@@ -151,7 +151,6 @@ function StudentProfile() {
     }
   };
 
-  // --- פונקציות שיבוץ מהיר ---
   const handleOpenPlacement = () => setShowPlacementModal(true);
   const handleClosePlacement = () => setShowPlacementModal(false);
   const handlePlacementChange = (e) => setPlacementData({ ...placementData, [e.target.name]: e.target.value });
@@ -159,7 +158,7 @@ function StudentProfile() {
   const handleAddPlacement = async (e) => {
     e.preventDefault();
     try {
-      const dataToSend = { ...placementData, student: id }; // מוסיף את התלמיד לשיבוץ
+      const dataToSend = { ...placementData, student: id }; 
       
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/placements', {
         method: 'POST',
@@ -172,7 +171,6 @@ function StudentProfile() {
         setShowPlacementModal(false);
         setPlacementData({ tutor: '', startDate: new Date().toISOString().split('T')[0], paymentAmount: '', paymentMethod: 'credit_card', status: 'פעיל' });
         
-        // רענון שיבוצים
         const placementsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/placements`);
         if (placementsRes.ok) {
           const allPlacements = await placementsRes.json();
@@ -289,7 +287,6 @@ function StudentProfile() {
         
         <Col lg={7}>
           <Card className="border-0 shadow-sm h-100">
-            {/* --- כאן מופיע הכפתור! --- */}
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
               <h5 className="fw-bold d-flex align-items-center gap-2 mb-0" style={{ color: 'var(--text-main)' }}>
                 <FiFileText className="text-primary" /> חונכים פעילים בחודש זה
@@ -390,7 +387,6 @@ function StudentProfile() {
         </Col>
       </Row>
 
-      {/* --- חלון עריכת תלמיד --- */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד וגבייה</Modal.Title>
@@ -447,7 +443,6 @@ function StudentProfile() {
         </Modal.Body>
       </Modal>
 
-      {/* --- חלון הוספת שיבוץ מהיר לתלמיד --- */}
       <Modal show={showPlacementModal} onHide={handleClosePlacement} dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>שיבוץ חונך לתלמיד</Modal.Title>
@@ -493,7 +488,6 @@ function StudentProfile() {
         </Modal.Body>
       </Modal>
 
-      {/* חלון הוספת משימה */}
       <Modal show={showTaskModal} onHide={handleCloseTask} dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>משימה חדשה</Modal.Title>
