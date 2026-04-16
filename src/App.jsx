@@ -12,6 +12,7 @@ import Payers from './pages/Payers';
 import PayerProfile from './pages/PayerProfile'; 
 import Billing from './pages/Billing';
 import Team from './pages/Team';
+import Tasks from './pages/Tasks'; // 🔥 הוספנו את הייבוא של עמוד המשימות
 
 function GlobalCleaner() {
   const location = useLocation();
@@ -61,6 +62,10 @@ function App() {
             <Route path="/student/:id" element={<StudentProfile />} />
             <Route path="/tutor/:id" element={<TutorProfile />} />
             <Route path="/team" element={<Team />} />
+            
+            {/* 🔥 הנתיב החדש למשימות שמעביר את פרטי המשתמש המחובר */}
+            <Route path="/tasks" element={<Tasks currentUser={currentUser} />} />
+            
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
