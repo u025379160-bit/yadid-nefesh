@@ -1,273 +1,338 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col, Badge } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUserCheck, FiMoreHorizontal, FiTrash2, FiFileText } from 'react-icons/fi';
+import { Container, Card, Table, Button, Modal, Form, Row, Col, Badge, Spinner } from 'react-bootstrap';
+import { FiPlus, FiMessageSquare, FiLock, FiSearch, FiFilter, FiEdit2, FiCheckCircle, FiCircle, FiTrash2 } from 'react-icons/fi';
 
-function Tutors() {
-  const navigate = useNavigate();
-
-  const [tutors, setTutors] = useState([]);
-  const [placements, setPlacements] = useState([]); 
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const [showAddModal, setShowAddModal] = useState(false);
+function Tasks({ currentUser }) {
+  const [tasks, setTasks] = useState([]);
   
-  const [newTutor, setNewTutor] = useState({
-    firstName: '', lastName: '', idNumber: '', birthDate: '', 
-    phone1: '', phone2: '', email: '', address: '', city: '', sector: '',
-    yeshiva: '', interviewedBy: '', languages: '', recommendations: '', notes: '',
-    bankName: '', branch: '', accountNumber: '' 
+  const [studentsList, setStudentsList] = useState([]);
+  const [tutorsList, setTutorsList] = useState([]);
+  const [placementsList, setPlacementsList] = useState([]);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null); // שומר איזה משימה אנחנו עורכים כרגע
+  
+  const [formData, setFormData] = useState({
+    associatedToType: 'student',
+    associatedToId: '', 
+    taskType: 'תיעוד פעילות',
+    content: '',
+    status: 'published',
+    assignedTo: '', // למי המשימה משויכת
+    isEncrypted: false,
+    sendSystemAlert: true,
+    sendEmailAlert: false
   });
+
+  const taskTypes = ['תיעוד פעילות', 'בקשת עזרה', 'עדכון סטטוס', 'אחר'];
 
   useEffect(() => {
-    const fetchTutorsAndPlacements = async () => {
-      try {
-        const [tutorsRes, placementsRes] = await Promise.all([
-          fetch(import.meta.env.VITE_API_URL + '/api/tutors'),
-          fetch(import.meta.env.VITE_API_URL + '/api/placements')
-        ]);
-
-        if (tutorsRes.ok) setTutors(await tutorsRes.json());
-        if (placementsRes.ok) setPlacements(await placementsRes.json());
-
-      } catch (error) {
-        console.error('שגיאה בשליפת נתונים:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTutorsAndPlacements();
+    fetchTasks();
+    fetchAssociatedData();
   }, []);
 
-  const filteredTutors = tutors.filter(tutor => {
-    const fullName = `${tutor.firstName} ${tutor.lastName}`;
-    return fullName.includes(searchTerm) || tutor.idNumber?.includes(searchTerm);
-  });
-
-  const getPlacementStatus = (tutorId) => {
-    if (!tutorId) return { text: 'פנוי לשיבוץ', bg: 'warning' };
-
-    const isActivePlaced = placements.some(p => {
-      if (!p.tutor) return false;
-
-      // ממיר את שני ה-IDs לטקסט רגיל כדי שההשוואה תהיה 100% מדויקת
-      const pTutorStr = p.tutor._id ? String(p.tutor._id) : String(p.tutor);
-      const currentTutorStr = String(tutorId);
-
-      // בודק שה-ID זהה, ושהסטטוס הוא לא "לא פעיל"
-      return pTutorStr === currentTutorStr && p.status !== 'לא פעיל';
-    });
-
-    if (isActivePlaced) {
-      return { text: 'משובץ', bg: 'success' };
-    } else {
-      return { text: 'פנוי לשיבוץ', bg: 'warning' };
+  const fetchTasks = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/tasks');
+      if (response.ok) setTasks(await response.json());
+    } catch (err) {
+      console.error('שגיאה בשליפת משימות:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleOpenAdd = () => setShowAddModal(true);
-  const handleCloseAdd = () => {
-    setShowAddModal(false);
-    setNewTutor({
-      firstName: '', lastName: '', idNumber: '', birthDate: '', 
-      phone1: '', phone2: '', email: '', address: '', city: '', sector: '',
-      yeshiva: '', interviewedBy: '', languages: '', recommendations: '', notes: '',
-      bankName: '', branch: '', accountNumber: ''
-    });
+  const fetchAssociatedData = async () => {
+    try {
+      const [stdRes, tutRes, plcRes] = await Promise.all([
+        fetch(import.meta.env.VITE_API_URL + '/api/students'),
+        fetch(import.meta.env.VITE_API_URL + '/api/tutors'),
+        fetch(import.meta.env.VITE_API_URL + '/api/placements')
+      ]);
+      
+      if (stdRes.ok) setStudentsList(await stdRes.json());
+      if (tutRes.ok) setTutorsList(await tutRes.json());
+      if (plcRes.ok) setPlacementsList(await plcRes.json());
+    } catch (err) {}
   };
-  
-  const handleAddChange = (e) => setNewTutor({ ...newTutor, [e.target.name]: e.target.value });
 
-  const handleAddTutor = async (e) => {
+  // פתיחת חלון ליצירת משימה חדשה
+  const handleOpenNewTask = () => {
+    setEditingTaskId(null);
+    setFormData({
+      associatedToType: 'student', associatedToId: '', taskType: 'תיעוד פעילות',
+      content: '', status: 'published', assignedTo: '', isEncrypted: false,
+      sendSystemAlert: true, sendEmailAlert: false
+    });
+    setShowModal(true);
+  };
+
+  // פתיחת חלון לעריכת משימה קיימת
+  const handleEditTask = (task) => {
+    setEditingTaskId(task._id);
+    setFormData({
+      associatedToType: task.associatedToType || 'student',
+      associatedToId: task.associatedToId || '',
+      taskType: task.taskType || 'תיעוד פעילות',
+      content: task.content || task.description || '',
+      status: task.status || 'published',
+      assignedTo: task.assignedTo || '',
+      isEncrypted: task.isEncrypted || false,
+      sendSystemAlert: task.sendSystemAlert || false,
+      sendEmailAlert: task.sendEmailAlert || false
+    });
+    setShowModal(true);
+  };
+
+  const handleChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    if (e.target.name === 'associatedToType') {
+      setFormData({ ...formData, associatedToType: value, associatedToId: '' });
+    } else {
+      setFormData({ ...formData, [e.target.name]: value });
+    }
+  };
+
+  // שינוי סטטוס מהיר ל"בוצע/לטיפול" ישירות מהטבלה
+  const handleToggleComplete = async (task) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${task._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isCompleted: !task.isCompleted })
+      });
+      if (response.ok) fetchTasks();
+    } catch (err) {
+      alert('שגיאה בעדכון הסטטוס');
+    }
+  };
+
+  // מחיקת משימה
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('האם אתה בטוח שברצונך למחוק משימה זו?')) return;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${taskId}`, { method: 'DELETE' });
+      if (response.ok) fetchTasks();
+    } catch (error) {
+      alert('שגיאה במחיקת משימה');
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      ...newTutor,
-      languages: newTutor.languages ? newTutor.languages.split(',').map(lang => lang.trim()) : [],
-      bankAccount: { bankName: newTutor.bankName, branch: newTutor.branch, accountNumber: newTutor.accountNumber }
+    if (!formData.associatedToId) {
+      alert('נא לבחור אובייקט (תלמיד/חונך/שיבוץ) מהרשימה'); return;
+    }
+
+    setIsSaving(true);
+    
+    // מזהה אם אנחנו בעריכה (PUT) או יצירה (POST)
+    const method = editingTaskId ? 'PUT' : 'POST';
+    const url = editingTaskId 
+      ? `${import.meta.env.VITE_API_URL}/api/tasks/${editingTaskId}` 
+      : `${import.meta.env.VITE_API_URL}/api/tasks`;
+
+    // אם זו משימה חדשה, נוסיף את השם שלך. אם זו עריכה - לא נדרוס את השם המקורי.
+    const payload = editingTaskId ? formData : {
+      ...formData,
+      createdBy: currentUser?.name || currentUser?.firstName || 'מנהל'
     };
 
     try {
-      const response = await fetch(import.meta.env.VITE_API_URL + '/api/tutors', {
-        method: 'POST',
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setTutors([...tutors, data.tutor]); 
-        handleCloseAdd();
+        setShowModal(false);
+        fetchTasks();
       } else {
-        const errorData = await response.json();
-        alert(`שגיאה ביצירת החונך: ${errorData.details || errorData.error}`);
+        alert('שגיאה בשמירת המשימה');
       }
-    } catch (error) {
-      alert('שגיאה בתקשורת עם השרת');
+    } catch (err) {
+      alert('שגיאת תקשורת מול השרת');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDelete = async (e, tutorId, name) => {
-    e.stopPropagation();
-    if (!window.confirm(`האם אתה בטוח שברצונך למחוק את החונך ${name}?`)) return;
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tutors/${tutorId}`, { method: 'DELETE' });
-      if (response.ok) setTutors(tutors.filter(t => t._id !== tutorId));
-    } catch (error) {
-      alert('שגיאה במחיקת החונך');
-    }
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
-
-  if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: 'var(--primary-accent)'}} /></Container>;
 
   return (
-    <Container className="mt-4" dir="rtl">
-      
+    <Container className="mt-4 mb-5" dir="rtl">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h3 style={{ color: 'var(--text-main)', fontWeight: '700' }} className="mb-1">
-            ניהול חונכים
-          </h3>
-          <p style={{ color: 'var(--text-muted)' }} className="mb-0">
-            צפייה, סינון והוספת חונכים למערכת
-          </p>
+          <h3 style={{ color: 'var(--text-main)', fontWeight: '700' }} className="mb-1">ניהול משימות ותיעוד</h3>
+          <p style={{ color: 'var(--text-muted)' }} className="mb-0">מעקב, תיעוד שיחות והתכתבויות צוות</p>
         </div>
-        <Button variant="primary" className="d-flex align-items-center gap-2 px-4 shadow-sm" onClick={handleOpenAdd}>
-          <FiPlus /> הוסף חונך
+        <Button variant="primary" className="d-flex align-items-center gap-2 px-4 shadow-sm fw-bold" onClick={handleOpenNewTask}>
+          <FiPlus /> משימה חדשה
         </Button>
       </div>
 
-      <Card className="border-0">
-        <Card.Body className="p-4">
-          
-          <div className="mb-4" style={{ maxWidth: '350px' }}>
-            <InputGroup>
-              <InputGroup.Text style={{ backgroundColor: '#f8fafc', border: '1px solid var(--border-color)', borderLeft: 'none' }}>
-                <FiSearch color="var(--text-muted)" />
-              </InputGroup.Text>
-              <Form.Control
-                placeholder="חיפוש לפי שם או ת.ז..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ backgroundColor: '#f8fafc', border: '1px solid var(--border-color)', borderRight: 'none', boxShadow: 'none' }}
-              />
-            </InputGroup>
-          </div>
+      <Card className="border-0 shadow-sm">
+        <Card.Body className="p-0">
+          <Table hover className="align-middle mb-0">
+            <thead className="bg-light">
+              <tr>
+                <th className="border-0 py-3 px-4">תאריך</th>
+                <th className="border-0 py-3">נוצר ע"י</th>
+                <th className="border-0 py-3">לטיפול</th>
+                <th className="border-0 py-3">סוג משימה</th>
+                <th className="border-0 py-3">תוכן המשימה</th>
+                <th className="border-0 py-3 text-center">סטטוס</th>
+                <th className="border-0 py-3 text-end px-4">פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan="7" className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
+              ) : tasks.length > 0 ? (
+                tasks.map(task => (
+                  <tr key={task._id} style={{ opacity: task.isCompleted ? 0.6 : 1 }}>
+                    <td className="px-4 text-muted small">{formatDate(task.createdAt)}</td>
+                    <td className="fw-bold">{task.createdBy || 'מערכת'}</td>
+                    
+                    {/* למי זה משויך */}
+                    <td className="text-primary fw-bold">{task.assignedTo || 'כללי'}</td>
+                    
+                    <td><Badge bg="info" className="rounded-pill px-3 py-2">{task.taskType || task.title || 'משימה'}</Badge></td>
+                    
+                    <td style={{ maxWidth: '250px' }}>
+                      {task.isEncrypted && currentUser?.role !== 'manager' && currentUser?.name !== task.createdBy ? (
+                        <span className="text-danger fw-bold"><FiLock /> תוכן מוצפן</span>
+                      ) : (
+                        <span className="text-truncate d-inline-block w-100" style={{ textDecoration: task.isCompleted ? 'line-through' : 'none' }}>
+                          {task.isEncrypted && <FiLock className="text-danger me-1" />}
+                          {task.content || task.description || '-'}
+                        </span>
+                      )}
+                    </td>
+                    
+                    {/* כפתור בוצע / לא בוצע */}
+                    <td className="text-center">
+                      <Button 
+                        variant={task.isCompleted ? "success" : "light"} 
+                        size="sm" 
+                        className={`rounded-pill fw-bold border ${task.isCompleted ? 'border-success' : 'text-muted'}`}
+                        onClick={() => handleToggleComplete(task)}
+                      >
+                        {task.isCompleted ? <><FiCheckCircle className="me-1"/> בוצע</> : <><FiCircle className="me-1"/> לטיפול</>}
+                      </Button>
+                    </td>
 
-          <div className="table-responsive">
-            <Table hover className="align-middle">
-              <thead>
+                    {/* כפתורי עריכה ומחיקה */}
+                    <td className="text-end px-4">
+                      <Button variant="light" size="sm" className="border text-primary me-2" onClick={() => handleEditTask(task)} title="ערוך משימה">
+                        <FiEdit2 />
+                      </Button>
+                      <Button variant="light" size="sm" className="border text-danger" onClick={() => handleDeleteTask(task._id)} title="מחק משימה">
+                        <FiTrash2 />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
                 <tr>
-                  <th><FiUserCheck className="me-2" /> שם החונך</th>
-                  <th>ת.ז.</th>
-                  <th>טלפון</th>
-                  <th>עיר</th>
-                  <th>סטטוס שיבוץ</th>
-                  <th className="text-end">פעולות</th>
+                  <td colSpan="7" className="text-center py-5 text-muted">
+                    <FiMessageSquare size={40} className="mb-3 opacity-50" />
+                    <h5>אין משימות עדיין</h5>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredTutors.length === 0 ? (
-                  <tr><td colSpan="6" className="text-center py-4 text-muted">לא נמצאו חונכים התואמים לחיפוש.</td></tr>
-                ) : (
-                  filteredTutors.map((tutor) => {
-                    const status = getPlacementStatus(tutor._id);
-
-                    return (
-                      <tr key={tutor._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/tutor/${tutor._id}`)}>
-                        <td className="fw-bold" style={{ color: 'var(--primary-accent)' }}>{tutor.firstName} {tutor.lastName}</td>
-                        <td className="text-muted">{tutor.idNumber}</td>
-                        <td className="text-muted" dir="ltr" style={{ textAlign: 'right' }}>{tutor.phone1}</td>
-                        <td className="text-muted">{tutor.city?.name || tutor.city || '-'}</td>
-                        <td>
-                          <Badge bg={status.bg} style={{ opacity: '0.9', padding: '6px 12px', minWidth: '100px' }}>
-                            {status.text}
-                          </Badge>
-                        </td>
-                        <td className="text-end" onClick={(e) => e.stopPropagation()}>
-                           <Button variant="light" size="sm" className="me-2 text-primary border" onClick={(e) => { e.stopPropagation(); navigate(`/tutor/${tutor._id}`); }}>
-                             <FiFileText className="me-1" /> כרטיס
-                           </Button>
-                           <Button variant="light" size="sm" className="text-danger border" onClick={(e) => handleDelete(e, tutor._id, tutor.firstName)}>
-                             <FiTrash2 className="me-1" /> מחק
-                           </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </Table>
-          </div>
-          
+              )}
+            </tbody>
+          </Table>
         </Card.Body>
       </Card>
 
-      <Modal show={showAddModal} onHide={handleCloseAdd} size="lg" dir="rtl">
+      {/* --- חלון יצירה / עריכה של משימה --- */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>הוספת חונך חדש</Modal.Title>
+          <Modal.Title style={{ fontWeight: '700' }}>{editingTaskId ? 'עריכת משימה' : 'יצירת משימה / תיעוד חדש'}</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-light" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <Form onSubmit={handleAddTutor}>
-                
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-2">פרטים אישיים</h6>
-                <Row className="mb-3">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">שם פרטי *</Form.Label><Form.Control type="text" name="firstName" value={newTutor.firstName} onChange={handleAddChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">שם משפחה *</Form.Label><Form.Control type="text" name="lastName" value={newTutor.lastName} onChange={handleAddChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">ת.ז *</Form.Label><Form.Control type="text" name="idNumber" value={newTutor.idNumber} onChange={handleAddChange} required /></Form.Group></Col>
-                </Row>
-                <Row className="mb-4">
-                  <Col md={4}><Form.Group><Form.Label className="small fw-bold text-muted">תאריך לידה *</Form.Label><Form.Control type="date" name="birthDate" value={newTutor.birthDate} onChange={handleAddChange} required /></Form.Group></Col>
-                </Row>
+        <Modal.Body className="bg-light p-4">
+          <Form onSubmit={handleSubmit}>
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="fw-bold text-muted small">בחר סוג שיוך *</Form.Label>
+                  <Form.Select name="associatedToType" value={formData.associatedToType} onChange={handleChange}>
+                    <option value="student">תלמיד</option>
+                    <option value="tutor">חונך</option>
+                    <option value="placement">שיבוץ (חונך + תלמיד)</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="fw-bold text-muted small">בחר אובייקט *</Form.Label>
+                  <Form.Select name="associatedToId" value={formData.associatedToId} onChange={handleChange} required>
+                    <option value="">-- בחר מהרשימה --</option>
+                    {formData.associatedToType === 'student' && studentsList.map(s => <option key={s._id} value={s._id}>{s.firstName} {s.lastName}</option>)}
+                    {formData.associatedToType === 'tutor' && tutorsList.map(t => <option key={t._id} value={t._id}>{t.firstName} {t.lastName}</option>)}
+                    {formData.associatedToType === 'placement' && placementsList.map(p => <option key={p._id} value={p._id}>{p.tutor?.firstName} {p.tutor?.lastName} (חונך) ⟵ {p.student?.firstName} {p.student?.lastName} (תלמיד)</option>)}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
 
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטי התקשרות ומגורים</h6>
-                <Row className="mb-3">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">טלפון 1 *</Form.Label><Form.Control type="text" name="phone1" value={newTutor.phone1} onChange={handleAddChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={newTutor.phone2} onChange={handleAddChange} /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">אימייל</Form.Label><Form.Control type="email" name="email" value={newTutor.email} onChange={handleAddChange} /></Form.Group></Col>
-                </Row>
-                <Row className="mb-4">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">עיר *</Form.Label><Form.Control type="text" name="city" value={newTutor.city} onChange={handleAddChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">כתובת *</Form.Label><Form.Control type="text" name="address" value={newTutor.address} onChange={handleAddChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">מגזר</Form.Label><Form.Control type="text" name="sector" value={newTutor.sector} onChange={handleAddChange} /></Form.Group></Col>
-                </Row>
+            <Row className="mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="fw-bold text-muted small">סוג המשימה *</Form.Label>
+                  <Form.Select name="taskType" value={formData.taskType} onChange={handleChange}>
+                    {taskTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                {/* השדה החדש לשיוך המשימה לאיש צוות! */}
+                <Form.Group>
+                  <Form.Label className="fw-bold text-primary small">שיוך לאיש צוות (לטיפול)</Form.Label>
+                  <Form.Control type="text" name="assignedTo" value={formData.assignedTo} onChange={handleChange} placeholder="לדוגמה: יצחק (רכז)" />
+                </Form.Group>
+              </Col>
+            </Row>
 
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">רקע מקצועי</h6>
-                <Row className="mb-3">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">ישיבה *</Form.Label><Form.Control type="text" name="yeshiva" value={newTutor.yeshiva} onChange={handleAddChange} required /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">רואיין ע"י</Form.Label><Form.Control type="text" name="interviewedBy" value={newTutor.interviewedBy} onChange={handleAddChange} /></Form.Group></Col>
-                </Row>
-                <Row className="mb-4">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">שפות (מופרד בפסיקים)</Form.Label><Form.Control type="text" name="languages" placeholder="עברית, אנגלית..." value={newTutor.languages} onChange={handleAddChange} /></Form.Group></Col>
-                </Row>
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold text-muted small">תוכן המשימה / תיעוד *</Form.Label>
+              <Form.Control as="textarea" rows={5} name="content" value={formData.content} onChange={handleChange} placeholder="הקלד את פרטי המשימה..." required />
+            </Form.Group>
 
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטי חשבון בנק</h6>
-                <Row className="mb-4">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">שם בנק</Form.Label><Form.Control type="text" name="bankName" value={newTutor.bankName} onChange={handleAddChange} /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">סניף</Form.Label><Form.Control type="text" name="branch" value={newTutor.branch} onChange={handleAddChange} /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">מספר חשבון</Form.Label><Form.Control type="text" name="accountNumber" value={newTutor.accountNumber} onChange={handleAddChange} /></Form.Group></Col>
-                </Row>
+            <div className="bg-white p-3 rounded border mb-4">
+              <h6 className="fw-bold mb-3 border-bottom pb-2">הגדרות נוספות</h6>
+              {currentUser?.role === 'manager' && (
+                <Form.Check type="checkbox" id="isEncrypted" name="isEncrypted" label={<span className="text-danger fw-bold"><FiLock className="me-1" /> הצפן תוכן משימה</span>} checked={formData.isEncrypted} onChange={handleChange} className="mb-2" />
+              )}
+              <Form.Check type="checkbox" id="sendSystemAlert" name="sendSystemAlert" label="שלח התראת מערכת לנמענים" checked={formData.sendSystemAlert} onChange={handleChange} className="mb-2" />
+            </div>
 
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">הערות והמלצות</h6>
-                <Row className="mb-4">
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">המלצות</Form.Label><Form.Control as="textarea" rows={2} name="recommendations" value={newTutor.recommendations} onChange={handleAddChange} /></Form.Group></Col>
-                  <Col><Form.Group><Form.Label className="small fw-bold text-muted">הערות</Form.Label><Form.Control as="textarea" rows={2} name="notes" value={newTutor.notes} onChange={handleAddChange} /></Form.Group></Col>
-                </Row>
-
-                <div className="d-flex justify-content-end pt-3 border-top">
-                  <Button variant="light" onClick={handleCloseAdd} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור חונך בענן</Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
+            <div className="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+              <Form.Select name="status" value={formData.status} onChange={handleChange} style={{ width: '150px' }} className="fw-bold">
+                <option value="published">🟢 פרסם מיד</option>
+                <option value="draft">🟡 שמור כטיוטה</option>
+              </Form.Select>
+              
+              <div>
+                <Button variant="light" onClick={() => setShowModal(false)} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
+                <Button variant="primary" type="submit" disabled={isSaving} className="px-4 fw-bold shadow-sm">
+                  {isSaving ? <Spinner size="sm" animation="border" /> : (editingTaskId ? 'שמור שינויים' : 'שמור משימה')}
+                </Button>
+              </div>
+            </div>
+          </Form>
         </Modal.Body>
       </Modal>
-
     </Container>
   );
 }
 
-export default Tutors;
+export default Tasks;

@@ -58,8 +58,8 @@ function App() {
             <Route path="/placements" element={<Placements />} />
             <Route path="/payers" element={<Payers />} /> 
             <Route path="/payer/:id" element={<PayerProfile />} /> 
-            <Route path="/billing" element={<Billing />} /> 
-            <Route path="/student/:id" element={<StudentProfile />} />
+            <Route path="/student/:id" element={<StudentProfile currentUser={currentUser} />} />
+<Route path="/tutor/:id" element={<TutorProfile currentUser={currentUser} />} />
             <Route path="/tutor/:id" element={<TutorProfile />} />
             <Route path="/team" element={<Team />} />
             

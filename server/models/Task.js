@@ -7,7 +7,6 @@ const taskSchema = new mongoose.Schema({
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student'
-    // הוסר ה-required כדי לאפשר משימות לחונכים/שיבוצים
   },
   title: { type: String },
   description: { type: String },
@@ -50,7 +49,12 @@ const taskSchema = new mongoose.Schema({
     default: false 
   },
   createdBy: { 
-    type: String // שם המשתמש שיצר את המשימה
+    type: String 
+  },
+  // 🔥 === השדה החדש שהוספנו ממש עכשיו! === 🔥
+  assignedTo: { 
+    type: String, 
+    default: '' // שומר למי המשימה מיועדת לטיפול
   },
   createdAt: { 
     type: Date, 
