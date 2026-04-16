@@ -1,35 +1,60 @@
 const mongoose = require('mongoose');
 
 const taskSchema = new mongoose.Schema({
-  // השדה הכי חשוב: למי שייכת המשימה! שומר את ה-ID של התלמיד
+  // ==========================================
+  // --- שדות קיימים (לשמירה על נתונים ישנים) ---
+  // ==========================================
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Student', // אומר למונגו שזה ID שמצביע לתלמיד
-    required: true
+    ref: 'Student'
+    // הוסר ה-required כדי לאפשר משימות לחונכים/שיבוצים
   },
-  // כותרת המשימה (למשל: "שיחת מעקב")
-  title: {
+  title: { type: String },
+  description: { type: String },
+  urgency: { type: String, default: 'רגיל' },
+  isCompleted: { type: Boolean, default: false },
+
+  // ==========================================
+  // --- שדות חדשים לפי האפיון החדש ---
+  // ==========================================
+  associatedToType: { 
+    type: String, 
+    enum: ['student', 'tutor', 'placement'],
+    default: 'student' 
+  },
+  associatedToId: { 
+    type: String 
+  },
+  taskType: { 
     type: String,
-    required: true
+    default: 'תיעוד פעילות'
   },
-  // פירוט קצר
-  description: {
-    type: String
+  content: { 
+    type: String 
   },
-  // רמת דחיפות (למשל: רגיל, דחוף, השבוע)
-  urgency: {
-    type: String,
-    default: 'רגיל'
+  status: { 
+    type: String, 
+    enum: ['published', 'draft'],
+    default: 'published' 
   },
-  // האם המשימה בוצעה?
-  isCompleted: {
-    type: Boolean,
-    default: false
+  isEncrypted: { 
+    type: Boolean, 
+    default: false 
   },
-  // מתי יצרנו אותה?
-  createdAt: {
-    type: Date,
-    default: Date.now
+  sendSystemAlert: { 
+    type: Boolean, 
+    default: false 
+  },
+  sendEmailAlert: { 
+    type: Boolean, 
+    default: false 
+  },
+  createdBy: { 
+    type: String // שם המשתמש שיצר את המשימה
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
   }
 });
 

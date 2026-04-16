@@ -107,6 +107,16 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
+// שליפת כל המשימות למסך הניהול הראשי
+app.get('/api/tasks', async (req, res) => {
+  try {
+    const allTasks = await Task.find().sort({ createdAt: -1 });
+    res.status(200).json(allTasks);
+  } catch (err) {
+    res.status(500).json({ error: 'שגיאה בשליפת המשימות' });
+  }
+});
+
 // שליפת משימות של תלמיד
 app.get('/api/students/:studentId/tasks', async (req, res) => {
   try {
