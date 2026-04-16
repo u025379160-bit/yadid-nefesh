@@ -9,7 +9,7 @@ import StudentProfile from './pages/StudentProfile';
 import TutorProfile from './pages/TutorProfile';
 import Login from './pages/Login';
 import Payers from './pages/Payers'; 
-import PayerProfile from './pages/PayerProfile'; // --- הוספנו את הייבוא של כרטיס המשלם ---
+import PayerProfile from './pages/PayerProfile'; 
 import Billing from './pages/Billing';
 import Team from './pages/Team';
 
@@ -30,8 +30,8 @@ function GlobalCleaner() {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-const [userRole, setUserRole] = useState('manager'); 
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+const [userRole, setUserRole] = useState(null);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -61,10 +61,14 @@ const [userRole, setUserRole] = useState('manager');
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/placements" element={<Placements />} />
             <Route path="/payers" element={<Payers />} /> 
-            <Route path="/payer/:id" element={<PayerProfile />} /> {/* --- הוספנו את הנתיב לכרטיס המשלם --- */}
+            <Route path="/payer/:id" element={<PayerProfile />} /> 
             <Route path="/billing" element={<Billing />} /> 
             <Route path="/student/:id" element={<StudentProfile />} />
             <Route path="/tutor/:id" element={<TutorProfile />} />
+            
+            {/* 🔥 הנה השורה שהייתה חסרה ופתרה לנו את כל הבעיות! 🔥 */}
+            <Route path="/team" element={<Team />} />
+            
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
