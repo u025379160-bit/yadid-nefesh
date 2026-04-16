@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Form, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FiPlus, FiTrash2, FiShield, FiUserCheck } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiShield, FiUserCheck, FiEdit2 } from 'react-icons/fi'; // הוספנו FiEdit2
 
 function Team() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null); // סטייט חדש למעקב אחרי עריכה
   
   const [formData, setFormData] = useState({
     name: '', email: '', password: '', role: 'tutor', phone: ''
@@ -50,19 +51,51 @@ function Team() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // פונקציה לפתיחת המודל במצב עריכה
+  const handleEditClick = (user) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      phone: user.phone || '',
+      role: user.role,
+      password: '' // לא נציג את הסיסמה הישנה מטעמי אבטחה
+    });
+    setShowModal(true);
+  };
+
+  // פונקציה לסגירת המודל ואיפוס
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingUser(null);
+    setFormData({ name: '', email: '', password: '', role: 'tutor', phone: '' });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // אם אנחנו בעריכה, אנחנו משתמשים ב-PUT, אם לא - ב-POST
+    const method = editingUser ? 'PUT' : 'POST';
+    const url = editingUser 
+      ? `${import.meta.env.VITE_API_URL}/api/users/${editingUser._id}`
+      : `${import.meta.env.VITE_API_URL}/api/users`;
+
     try {
-      const response = await fetch(import.meta.env.VITE_API_URL + '/api/users', {
-        method: 'POST',
+      // אם אנחנו בעריכה והמשתמש לא הזין סיסמה חדשה, לא נשלח את השדה הזה לשרת
+      const dataToSend = { ...formData };
+      if (editingUser && !dataToSend.password) {
+        delete dataToSend.password;
+      }
+
+      const response = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (response.ok) {
-        alert('איש צוות נוסף בהצלחה!');
-        setShowModal(false);
-        setFormData({ name: '', email: '', password: '', role: 'tutor', phone: '' });
+        alert(editingUser ? 'פרטי המשתמש עודכנו!' : 'איש צוות נוסף בהצלחה!');
+        handleCloseModal();
         fetchUsers(); 
       } else {
         const errorData = await response.json();
@@ -128,6 +161,10 @@ function Team() {
                       </Badge>
                     </td>
                     <td className="text-end">
+                      {/* כפתור עריכה חדש */}
+                      <Button variant="light" size="sm" className="text-primary border me-2" onClick={() => handleEditClick(user)}>
+                        <FiEdit2 />
+                      </Button>
                       <Button variant="light" size="sm" className="text-danger border" onClick={() => handleDelete(user._id, user.name)}>
                         <FiTrash2 />
                       </Button>
@@ -142,10 +179,11 @@ function Team() {
         </Card.Body>
       </Card>
 
-      {/* מודל הוספת משתמש */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" dir="rtl">
+      <Modal show={showModal} onHide={handleCloseModal} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700' }}>יצירת משתמש חדש</Modal.Title>
+          <Modal.Title style={{ fontWeight: '700' }}>
+            {editingUser ? 'עריכת פרטי משתמש' : 'יצירת משתמש חדש'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light">
           <Card className="border-0 shadow-sm">
@@ -174,8 +212,10 @@ function Team() {
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label className="fw-bold text-muted small">סיסמה ראשונית *</Form.Label>
-                      <Form.Control type="text" name="password" required value={formData.password} onChange={handleChange} placeholder="לפחות 6 תווים" />
+                      <Form.Label className="fw-bold text-muted small">
+                        {editingUser ? 'סיסמה חדשה (השאר ריק אם לא תרצה לשנות)' : 'סיסמה ראשונית *'}
+                      </Form.Label>
+                      <Form.Control type="text" name="password" required={!editingUser} value={formData.password} onChange={handleChange} placeholder={editingUser ? 'הזן סיסמה רק אם ברצונך להחליפה' : 'לפחות 6 תווים'} />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -194,8 +234,10 @@ function Team() {
                   </Col>
                 </Row>
                 <div className="d-flex justify-content-end mt-3 pt-3 border-top">
-                  <Button variant="light" onClick={() => setShowModal(false)} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">צור משתמש</Button>
+                  <Button variant="light" onClick={handleCloseModal} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
+                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">
+                    {editingUser ? 'עדכן משתמש' : 'צור משתמש'}
+                  </Button>
                 </div>
               </Form>
             </Card.Body>
