@@ -22,19 +22,22 @@ function AppNavbar({ onLogout, currentUser }) {
   return (
     <Navbar expand="lg" style={{ backgroundColor: 'var(--primary-blue)', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }} variant="dark" className="mb-4">
       <Container>
-        {/* לוגו המערכת */}
+        {/* לוגו המערכת - עודכן ללוגו האמיתי שהעלית */}
         <Navbar.Brand as={Link} to="/" className="fw-bold fs-4 d-flex align-items-center gap-2">
-          <div style={{ backgroundColor: 'var(--accent-gold)', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.2rem'}}>
-            י"נ
-          </div>
+          <img
+            src="/logo.png"
+            alt="ידיד נפש לוגו"
+            height="40" 
+            className="d-inline-block align-top bg-white rounded px-2 py-1"
+          />
           <span style={{ letterSpacing: '0.5px' }}>ידיד נפש</span>
         </Navbar.Brand>
         
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           
-          {/* האזור של כל כפתורי הניווט */}
-          <Nav className="me-auto gap-3 pe-4">
+          {/* האזור של כל כפתורי הניווט - הפונט הוקטן טיפה לשמירה על אלגנטיות */}
+          <Nav className="me-auto gap-3 pe-4" style={{ fontSize: '0.95rem' }}>
             
             <Nav.Link as={Link} to="/" className={`d-flex align-items-center gap-2 ${isActive('/') && location.pathname === '/' ? 'active text-white fw-bold' : 'text-light'}`}>
               <FiHome size={18} /> ראשי
@@ -44,10 +47,10 @@ function AppNavbar({ onLogout, currentUser }) {
             {['manager', 'admin', 'secretary', 'coordinator'].includes(role) && (
               <>
                 <Nav.Link as={Link} to="/students" className={`d-flex align-items-center gap-2 ${isActive('/student') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiUsers size={18} /> ניהול תלמידים
+                  <FiUsers size={18} /> תלמידים
                 </Nav.Link>
                 <Nav.Link as={Link} to="/tutors" className={`d-flex align-items-center gap-2 ${isActive('/tutor') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiUserCheck size={18} /> ניהול חונכים
+                  <FiUserCheck size={18} /> חונכים
                 </Nav.Link>
               </>
             )}
@@ -61,10 +64,10 @@ function AppNavbar({ onLogout, currentUser }) {
             {['manager', 'admin', 'secretary'].includes(role) && (
               <>
                 <Nav.Link as={Link} to="/payers" className={`d-flex align-items-center gap-2 ${isActive('/payers') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiCreditCard size={18} /> גביה ומשלמים
+                  <FiCreditCard size={18} /> משלמים
                 </Nav.Link>
                 <Nav.Link as={Link} to="/billing" className={`d-flex align-items-center gap-2 ${isActive('/billing') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiDollarSign size={18} /> חישוב וגביה
+                  <FiDollarSign size={18} /> חיובים
                 </Nav.Link>
               </>
             )}
@@ -72,13 +75,13 @@ function AppNavbar({ onLogout, currentUser }) {
             {/* רק הנהלה רואה ניהול צוות */}
             {['manager', 'admin'].includes(role) && (
               <Nav.Link as={Link} to="/team" className={`d-flex align-items-center gap-2 ${isActive('/team') ? 'active text-white fw-bold' : 'text-light'}`}>
-                <FiShield size={18} /> ניהול צוות
+                <FiShield size={18} /> צוות
               </Nav.Link>
             )}
 
-            {/* 🔥 כפתור המשימות במקום המדויק שלו! (פתוח לכולם) */}
+            {/* משימות ותיעוד */}
             <Nav.Link as={Link} to="/tasks" className={`d-flex align-items-center gap-2 ${isActive('/tasks') ? 'active text-white fw-bold' : 'text-light'}`}>
-              <FiMessageSquare size={18} /> משימות ותיעוד
+              <FiMessageSquare size={18} /> משימות
             </Nav.Link>
 
           </Nav>
