@@ -44,4 +44,41 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// 🔥 5. פונקציית ההתחברות שהייתה חסרה לנו! 🔥
+// ==========================================
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // מחפשים את המשתמש במסד הנתונים לפי האימייל
+    const user = await User.findOne({ email });
+
+    // אם המשתמש לא קיים
+    if (!user) {
+      return res.status(401).json({ message: 'אימייל או סיסמה שגויים' });
+    }
+
+    // בודקים אם הסיסמה תואמת
+    if (user.password !== password) {
+      return res.status(401).json({ message: 'אימייל או סיסמה שגויים' });
+    }
+
+    // הכל תקין! מחזירים אישור ואת התפקיד שלו למערכת
+    res.json({
+      message: 'התחברת בהצלחה',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role // זה המפתח שיפתח לנו את הדלתות באתר!
+      }
+    });
+
+  } catch (err) {
+    console.error('Login Error:', err);
+    res.status(500).json({ message: 'שגיאת שרת בתהליך ההתחברות' });
+  }
+});
+
 module.exports = router;
