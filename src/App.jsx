@@ -9,9 +9,9 @@ import StudentProfile from './pages/StudentProfile';
 import TutorProfile from './pages/TutorProfile';
 import Login from './pages/Login';
 import Payers from './pages/Payers'; 
-import PayerProfile from './pages/PayerProfile'; 
+import PayerProfile from './pages/PayerProfile'; // --- הוספנו את הייבוא של כרטיס המשלם ---
 import Billing from './pages/Billing';
-import Team from './pages/Team'; // <--- הנה הייבוא החדש שהוספתי לך
+import Team from './pages/Team';
 
 // 🧹 המנקה הגלובלי: מוודא שאין רקעים אפורים בכל פעם שאתה עובר עמוד
 function GlobalCleaner() {
@@ -30,8 +30,8 @@ function GlobalCleaner() {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState(null); 
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+const [userRole, setUserRole] = useState('manager'); 
 
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -61,9 +61,8 @@ function App() {
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/placements" element={<Placements />} />
             <Route path="/payers" element={<Payers />} /> 
-            <Route path="/payer/:id" element={<PayerProfile />} /> 
+            <Route path="/payer/:id" element={<PayerProfile />} /> {/* --- הוספנו את הנתיב לכרטיס המשלם --- */}
             <Route path="/billing" element={<Billing />} /> 
-            <Route path="/team" element={<Team />} /> {/* <--- הנה הנתיב החדש שהוספתי לך! */}
             <Route path="/student/:id" element={<StudentProfile />} />
             <Route path="/tutor/:id" element={<TutorProfile />} />
             <Route path="*" element={<Navigate to="/" />} />
