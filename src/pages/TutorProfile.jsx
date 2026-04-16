@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiArrowRight, FiEdit2, FiUser, FiInfo, FiBriefcase, FiList, FiPhone, FiMail, FiCreditCard, FiUserPlus } from 'react-icons/fi';
+import { FiArrowRight, FiEdit2, FiUser, FiInfo, FiBriefcase, FiList, FiPhone, FiMail, FiCreditCard, FiUserPlus, FiCheckSquare, FiTrash2, FiLock } from 'react-icons/fi';
 
 function TutorProfile() {
   const { id } = useParams(); 
@@ -9,13 +9,13 @@ function TutorProfile() {
 
   const [tutor, setTutor] = useState(null);
   const [placements, setPlacements] = useState([]);
-  const [students, setStudents] = useState([]); // --- שומר את רשימת התלמידים לשיבוץ ---
+  const [students, setStudents] = useState([]); 
+  const [tasks, setTasks] = useState([]); // --- סטייט חדש למשימות החונך ---
   const [loading, setLoading] = useState(true);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({});
 
-  // --- ניהול מודל השיבוץ המהיר ---
   const [showPlacementModal, setShowPlacementModal] = useState(false);
   const [placementData, setPlacementData] = useState({
     student: '',
@@ -25,12 +25,26 @@ function TutorProfile() {
     status: 'פעיל'
   });
 
+  // --- ניהול מודל המשימות / דיווחים לחונך ---
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const taskTypes = ['תיעוד פעילות', 'בקשת עזרה', 'עדכון סטטוס', 'אחר'];
+  const [taskData, setTaskData] = useState({
+    associatedToType: 'tutor',
+    associatedToId: id, // נעול אוטומטית על החונך הנוכחי!
+    taskType: 'תיעוד פעילות',
+    content: '',
+    status: 'published',
+    isEncrypted: false,
+    sendSystemAlert: true,
+    sendEmailAlert: false
+  });
+
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // מנקה רקעים אפורים רק כשעוזבים את העמוד לחלוטין (כדי לא לריב עם ריאקט)
   useEffect(() => {
     return () => {
       document.body.classList.remove('modal-open');
@@ -44,11 +58,12 @@ function TutorProfile() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // שולף גם חונך, גם שיבוצים וגם את כל התלמידים במקביל!
-        const [tutorRes, placementsRes, studentsRes] = await Promise.all([
+        // שולף הכל במקביל כולל המשימות מהשרת
+        const [tutorRes, placementsRes, studentsRes, tasksRes] = await Promise.all([
           fetch(`${import.meta.env.VITE_API_URL}/api/tutors/${id}`),
           fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
-          fetch(`${import.meta.env.VITE_API_URL}/api/students`)
+          fetch(`${import.meta.env.VITE_API_URL}/api/students`),
+          fetch(`${import.meta.env.VITE_API_URL}/api/tasks`) // מביא משימות לסינון
         ]);
 
         if (tutorRes.ok) setTutor(await tutorRes.json());
@@ -58,6 +73,13 @@ function TutorProfile() {
           const allPlacements = await placementsRes.json();
           const tutorPlacements = allPlacements.filter(p => p.tutor && p.tutor._id === id);
           setPlacements(tutorPlacements);
+        }
+
+        if (tasksRes.ok) {
+          const allTasks = await tasksRes.json();
+          // מסנן רק משימות ששייכות לחונך הנוכחי
+          const tutorTasks = allTasks.filter(t => t.associatedToType === 'tutor' && t.associatedToId === id);
+          setTasks(tutorTasks);
         }
       } catch (error) {
         console.error('שגיאה:', error);
@@ -80,7 +102,6 @@ function TutorProfile() {
     return sum + (Number(placement.paymentAmount) || 0);
   }, 0);
 
-  // --- פונקציות העריכה של החונך ---
   const handleOpenEdit = () => {
     setFormData(tutor);
     setShowEditModal(true);
@@ -109,7 +130,6 @@ function TutorProfile() {
     }
   };
 
-  // --- פונקציות השיבוץ המהיר ---
   const handleOpenPlacement = () => setShowPlacementModal(true);
   const handleClosePlacement = () => setShowPlacementModal(false);
   const handlePlacementChange = (e) => setPlacementData({ ...placementData, [e.target.name]: e.target.value });
@@ -117,9 +137,7 @@ function TutorProfile() {
   const handleAddPlacement = async (e) => {
     e.preventDefault();
     try {
-      // מוסיפים את ה-ID של החונך לנתונים (כי אנחנו בפרופיל שלו)
       const dataToSend = { ...placementData, tutor: id };
-      
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/placements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,7 +149,6 @@ function TutorProfile() {
         setShowPlacementModal(false);
         setPlacementData({ student: '', startDate: new Date().toISOString().split('T')[0], paymentAmount: '', paymentMethod: 'credit_card', status: 'פעיל' });
         
-        // מרעננים את רשימת השיבוצים כדי לראות את השיבוץ החדש בטבלה
         const placementsRes = await fetch(`${import.meta.env.VITE_API_URL}/api/placements`);
         if (placementsRes.ok) {
           const allPlacements = await placementsRes.json();
@@ -146,6 +163,69 @@ function TutorProfile() {
       alert('🔴 שגיאת תקשורת ביצירת השיבוץ');
     }
   };
+
+  // --- פונקציות המשימות והדיווחים ---
+  const handleOpenTask = () => {
+    setTaskData({
+      associatedToType: 'tutor',
+      associatedToId: id, 
+      taskType: 'תיעוד פעילות',
+      content: '',
+      status: 'published',
+      isEncrypted: false,
+      sendSystemAlert: true,
+      sendEmailAlert: false
+    });
+    setShowTaskModal(true);
+  };
+  
+  const handleCloseTask = () => setShowTaskModal(false);
+  
+  const handleTaskChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setTaskData({ ...taskData, [e.target.name]: value });
+  };
+
+  const handleAddTask = async (e) => {
+    e.preventDefault();
+    setIsSavingTask(true);
+    
+    const payload = { ...taskData, createdBy: 'מערכת (מהכרטיס)' };
+    
+    try {
+      const response = await fetch(import.meta.env.VITE_API_URL + '/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        // מביא את רשימת המשימות מחדש כדי להציג מיד
+        const tasksRes = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks`);
+        if (tasksRes.ok) {
+          const allTasks = await tasksRes.json();
+          setTasks(allTasks.filter(t => t.associatedToType === 'tutor' && t.associatedToId === id));
+        }
+        setShowTaskModal(false);
+      } else {
+        alert('שגיאה בשמירת המשימה');
+      }
+    } catch (error) {
+      alert('שגיאה בתקשורת עם השרת');
+    } finally {
+      setIsSavingTask(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('האם למחוק משימה/תיעוד זה?')) return;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${taskId}`, { method: 'DELETE' });
+      if (response.ok) setTasks(tasks.filter(task => task._id !== taskId));
+    } catch (error) {
+      alert('שגיאה במחיקת משימה');
+    }
+  };
+
 
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: 'var(--primary-accent)'}} /></Container>;
   if (!tutor) return <Container className="mt-5 text-center"><h3>חונך לא נמצא 😕</h3></Container>;
@@ -243,10 +323,8 @@ function TutorProfile() {
 
       <Row className="g-4">
         
-        {/* שיבוצים שרלוונטים לחודש שנבחר */}
         <Col lg={7}>
           <Card className="border-0 shadow-sm h-100">
-            {/* --- שינוי: הוספת הכפתור לשורת הכותרת --- */}
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
               <h5 className="fw-bold d-flex align-items-center gap-2 mb-0" style={{ color: 'var(--text-main)' }}>
                 <FiBriefcase className="text-primary" /> פירוט התשלום החודשי
@@ -299,38 +377,61 @@ function TutorProfile() {
           </Card>
         </Col>
 
-        {/* משימות ודיווחי שעות (סטטי כרגע) */}
         <Col lg={5}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
               <h5 className="fw-bold d-flex align-items-center gap-2 mb-0" style={{ color: 'var(--text-main)' }}>
-                <FiList className="text-warning" /> משימות ודיווחים
+                <FiCheckSquare className="text-warning" /> תיעוד פעילות ודיווחי שעות
               </h5>
-              <Button variant="outline-primary" size="sm" className="fw-bold rounded-pill px-3">+ דיווח חדש</Button>
+              <Button variant="outline-primary" size="sm" className="fw-bold rounded-pill px-3" onClick={handleOpenTask}>+ דיווח חדש</Button>
             </Card.Header>
             <Card.Body className="p-4">
               <ListGroup variant="flush">
-                <ListGroup.Item className="px-0 py-3 border-bottom d-flex justify-content-between align-items-start">
-                  <div className="ms-2 me-auto">
-                    <div className="fw-bold" style={{ color: 'var(--text-main)' }}>אישור נסיעות</div>
-                    <small className="text-muted">צריך לאשר את קבלות הנסיעה של חודש קודם</small>
+                {tasks.length === 0 ? (
+                  <div className="text-center p-4 text-muted bg-light rounded" style={{ border: '1px dashed var(--border-color)' }}>
+                    אין משימות או תיעודים לחונך זה עדיין.
                   </div>
-                  <Badge bg="warning" text="dark" className="rounded-pill">השבוע</Badge>
-                </ListGroup.Item>
-                <ListGroup.Item className="px-0 py-3 border-bottom d-flex justify-content-between align-items-start">
-                  <div className="ms-2 me-auto">
-                    <div className="fw-bold" style={{ color: 'var(--text-main)' }}>שיחת חתך עם רכז</div>
-                    <small className="text-muted">לבצע שיחת טלפון לבדיקת מצב השיבוץ</small>
-                  </div>
-                  <Badge bg="danger" className="rounded-pill">דחוף</Badge>
-                </ListGroup.Item>
+                ) : (
+                  tasks.map((task) => {
+                    const title = task.taskType || task.title || 'משימה';
+                    const description = task.content || task.description;
+                    const badgeText = task.status === 'draft' ? 'טיוטה' : 'פורסם';
+                    const badgeBg = task.status === 'draft' ? 'warning' : 'info';
+
+                    return (
+                      <ListGroup.Item key={task._id} className="px-0 py-3 border-bottom d-flex justify-content-between align-items-start">
+                        <div className="ms-2 me-auto">
+                          <div className="fw-bold" style={{ color: 'var(--text-main)' }}>{title}</div>
+                          {description && (
+                            <small className="text-muted">
+                              {task.isEncrypted ? <span className="text-danger fw-bold"><FiLock className="me-1"/> תוכן מוצפן</span> : description}
+                            </small>
+                          )}
+                        </div>
+                        <div className="d-flex align-items-center gap-3">
+                          <Badge bg={badgeBg} className="rounded-pill">
+                            {badgeText}
+                          </Badge>
+                          <Button 
+                            variant="light" 
+                            size="sm" 
+                            className="border text-danger" 
+                            onClick={() => handleDeleteTask(task._id)}
+                            title="מחק משימה"
+                          >
+                            <FiTrash2 />
+                          </Button>
+                        </div>
+                      </ListGroup.Item>
+                    );
+                  })
+                )}
               </ListGroup>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* מודל עריכת חונך */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי חונך</Modal.Title>
@@ -380,7 +481,6 @@ function TutorProfile() {
         </Modal.Body>
       </Modal>
 
-      {/* --- תוספת: חלון הוספת שיבוץ מהיר לחונך --- */}
       <Modal show={showPlacementModal} onHide={handleClosePlacement} dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>שיבוץ תלמיד לחונך</Modal.Title>
@@ -419,6 +519,58 @@ function TutorProfile() {
                   <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm d-flex align-items-center gap-2">
                     <FiUserPlus /> צור שיבוץ עכשיו
                   </Button>
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Modal.Body>
+      </Modal>
+
+      {/* --- חלון המשימות והדיווחים לחונך --- */}
+      <Modal show={showTaskModal} onHide={handleCloseTask} size="lg" dir="rtl">
+        <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>יצירת תיעוד / דיווח לחונך</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-light p-4">
+          <Card className="border-0 shadow-sm">
+            <Card.Body>
+              <Form onSubmit={handleAddTask}>
+                
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Group>
+                      <Form.Label className="fw-bold text-muted small">סוג המשימה *</Form.Label>
+                      <Form.Select name="taskType" value={taskData.taskType} onChange={handleTaskChange}>
+                        {taskTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-bold text-muted small">תוכן המשימה / תיעוד *</Form.Label>
+                  <Form.Control as="textarea" rows={5} name="content" value={taskData.content} onChange={handleTaskChange} placeholder="הקלד את פרטי הדיווח כאן..." required />
+                </Form.Group>
+
+                <div className="bg-white p-3 rounded border mb-4">
+                  <h6 className="fw-bold mb-3 border-bottom pb-2">הגדרות אבטחה והתראות</h6>
+                  <Form.Check type="checkbox" id="isEncrypted" name="isEncrypted" label={<span className="text-danger fw-bold"><FiLock className="me-1" /> הצפן תוכן משימה (יוצג רק למורשים)</span>} checked={taskData.isEncrypted} onChange={handleTaskChange} className="mb-2" />
+                  <Form.Check type="checkbox" id="sendSystemAlert" name="sendSystemAlert" label="שלח התראת מערכת לנמענים" checked={taskData.sendSystemAlert} onChange={handleTaskChange} className="mb-2" />
+                  <Form.Check type="checkbox" id="sendEmailAlert" name="sendEmailAlert" label="שלח התראה במייל לנמענים" checked={taskData.sendEmailAlert} onChange={handleTaskChange} />
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
+                  <Form.Select name="status" value={taskData.status} onChange={handleTaskChange} style={{ width: '150px' }} className="fw-bold">
+                    <option value="published">🟢 פרסם מיד</option>
+                    <option value="draft">🟡 שמור כטיוטה</option>
+                  </Form.Select>
+                  
+                  <div>
+                    <Button variant="light" onClick={handleCloseTask} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
+                    <Button variant="primary" type="submit" disabled={isSavingTask} className="px-4 fw-bold shadow-sm">
+                      {isSavingTask ? <Spinner size="sm" animation="border" /> : 'שמור משימה'}
+                    </Button>
+                  </div>
                 </div>
               </Form>
             </Card.Body>

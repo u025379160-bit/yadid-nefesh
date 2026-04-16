@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings } from 'react-icons/fi';
+import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings, FiLock } from 'react-icons/fi';
 
 function StudentProfile() {
   const { id } = useParams(); 
@@ -22,12 +22,24 @@ function StudentProfile() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({});
 
-  // --- סטייט חדש לעריכת משלם ---
+  // --- סטייט לעריכת משלם ---
   const [showPayerEditModal, setShowPayerEditModal] = useState(false);
   const [payerFormData, setPayerFormData] = useState({});
 
+  // --- משימות (הגרסה החדשה והמתקדמת!) ---
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [taskData, setTaskData] = useState({ title: '', description: '', urgency: 'רגיל', studentId: id });
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const taskTypes = ['תיעוד פעילות', 'בקשת עזרה', 'עדכון סטטוס', 'אחר'];
+  const [taskData, setTaskData] = useState({
+    associatedToType: 'student',
+    associatedToId: id, // שואב אוטומטית את ה-ID של התלמיד מהכתובת!
+    taskType: 'תיעוד פעילות',
+    content: '',
+    status: 'published',
+    isEncrypted: false,
+    sendSystemAlert: true,
+    sendEmailAlert: false
+  });
 
   const [showPlacementModal, setShowPlacementModal] = useState(false);
   const [placementData, setPlacementData] = useState({
@@ -52,7 +64,7 @@ function StudentProfile() {
     try {
       const [studentRes, tasksRes, placementsRes, payersRes, tutorsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`),
+        fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`), // מביא את המשימות של התלמיד
         fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
         fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
         fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) 
@@ -112,18 +124,16 @@ function StudentProfile() {
       alert('שגיאת תקשורת בעדכון המשלם');
     }
   };
-// --- פונקציית הקסם החכמה: בודקת כפילויות לפני יצירה ---
+
   const handleQuickSetPayer = async () => {
     if (!student.fatherName) {
       alert("יש להזין שם אב בפרטי התלמיד לפני שניתן להגדירו כמשלם.");
       return;
     }
 
-    // 1. בדיקה חכמה: האם כבר יש משלם עם השם הזה בדיוק במערכת?
     const existingPayer = payers.find(p => p.name.trim() === student.fatherName.trim());
 
     if (existingPayer) {
-      // מצאנו! נשאל את המשתמש אם לשדך אליו
       if (window.confirm(`💡 מצאנו במערכת משלם קיים בשם "${existingPayer.name}".\n\nהאם ברצונך לשייך את התלמיד אליו (ולחסוך כפילות)?`)) {
         try {
           setLoading(true);
@@ -134,18 +144,17 @@ function StudentProfile() {
           });
           if (studentUpdateRes.ok) {
             alert("התלמיד שויך למשלם הקיים בהצלחה! לא נוצרה כפילות במערכת.");
-            fetchData(); // מרענן את העמוד
+            fetchData(); 
           }
         } catch (error) {
           alert("שגיאה בתהליך השיוך: " + error.message);
         } finally {
           setLoading(false);
         }
-        return; // עוצרים כאן כדי שהקוד לא ימשיך וייצור משלם חדש
+        return; 
       }
     }
 
-    // 2. אם לא מצאנו (או שהמשתמש אמר "לא, זה יחיאל אחר"), ניצור חדש:
     if (!window.confirm(`האם להקים באופן אוטומטי משלם חדש בשם "${student.fatherName}" ולשייך לתלמיד?`)) return;
 
     try {
@@ -223,28 +232,54 @@ function StudentProfile() {
     }
   };
 
+  // --- פונקציות המשימות החדשות ---
   const handleOpenTask = () => {
-    setTaskData({ title: '', description: '', urgency: 'רגיל', studentId: id });
+    setTaskData({
+      associatedToType: 'student',
+      associatedToId: id, // תמיד משויך לתלמיד הנוכחי
+      taskType: 'תיעוד פעילות',
+      content: '',
+      status: 'published',
+      isEncrypted: false,
+      sendSystemAlert: true,
+      sendEmailAlert: false
+    });
     setShowTaskModal(true);
   };
+  
   const handleCloseTask = () => setShowTaskModal(false);
-  const handleTaskChange = (e) => setTaskData({ ...taskData, [e.target.name]: e.target.value });
+  
+  const handleTaskChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setTaskData({ ...taskData, [e.target.name]: value });
+  };
 
   const handleAddTask = async (e) => {
     e.preventDefault();
+    setIsSavingTask(true);
+    
+    // נוסיף שזה נוצר מהכרטיס
+    const payload = { ...taskData, createdBy: 'מערכת (מהכרטיס)' };
+    
     try {
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(taskData),
+        body: JSON.stringify(payload),
       });
       if (response.ok) {
-        const newTask = await response.json();
-        setTasks([...tasks, newTask]);
+        // מביא את רשימת המשימות מחדש כדי להציג את החדשה מיד
+        const tasksRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`);
+        if (tasksRes.ok) setTasks(await tasksRes.json());
+        
         setShowTaskModal(false);
+      } else {
+        alert('שגיאה בשמירת המשימה');
       }
     } catch (error) {
-      alert('שגיאה בהוספת משימה');
+      alert('שגיאה בתקשורת עם השרת');
+    } finally {
+      setIsSavingTask(false);
     }
   };
 
@@ -345,7 +380,6 @@ function StudentProfile() {
                             <FiUserCheck className="me-1"/> הגדר אבא כמשלם
                           </Button>
                         )}
-                        {/* --- כאן הוספתי את כפתור עריכת המשלם --- */}
                         {activePayerObj && (
                           <Button variant="link" className="p-0 text-primary text-decoration-none small fw-bold" onClick={handleOpenPayerEdit} style={{fontSize: '0.75rem'}}>
                             <FiSettings className="me-1"/> ערוך פרטי משלם
@@ -459,39 +493,51 @@ function StudentProfile() {
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
               <h5 className="fw-bold d-flex align-items-center gap-2 mb-0" style={{ color: 'var(--text-main)' }}>
-                <FiCheckSquare className="text-warning" /> משימות לטיפול
+                <FiCheckSquare className="text-warning" /> משימות ותיעוד
               </h5>
-              <Button variant="outline-primary" size="sm" className="fw-bold rounded-pill px-3" onClick={handleOpenTask}>+ הוסף משימה</Button>
+              <Button variant="outline-primary" size="sm" className="fw-bold rounded-pill px-3" onClick={handleOpenTask}>+ משימה/תיעוד</Button>
             </Card.Header>
             <Card.Body className="p-4">
               <ListGroup variant="flush">
                 {tasks.length === 0 ? (
                   <div className="text-center p-4 text-muted bg-light rounded" style={{ border: '1px dashed var(--border-color)' }}>
-                    אין משימות פתוחות לתלמיד זה. איזה כיף! ☕
+                    אין משימות או תיעוד לתלמיד זה עדיין.
                   </div>
                 ) : (
-                  tasks.map((task) => (
-                    <ListGroup.Item key={task._id} className="px-0 py-3 border-bottom d-flex justify-content-between align-items-start">
-                      <div className="ms-2 me-auto">
-                        <div className="fw-bold" style={{ color: 'var(--text-main)' }}>{task.title}</div>
-                        {task.description && <small className="text-muted">{task.description}</small>}
-                      </div>
-                      <div className="d-flex align-items-center gap-3">
-                        <Badge bg={task.urgency === 'דחוף' ? 'danger' : task.urgency === 'השבוע' ? 'warning' : 'info'} className="rounded-pill">
-                          {task.urgency}
-                        </Badge>
-                        <Button 
-                          variant="light" 
-                          size="sm" 
-                          className="border text-danger" 
-                          onClick={() => handleDeleteTask(task._id)}
-                          title="מחק משימה"
-                        >
-                          <FiTrash2 />
-                        </Button>
-                      </div>
-                    </ListGroup.Item>
-                  ))
+                  tasks.map((task) => {
+                    // תמיכה לאחור בפורמט הישן מול החדש
+                    const title = task.taskType || task.title || 'משימה';
+                    const description = task.content || task.description;
+                    const badgeText = task.urgency || (task.status === 'draft' ? 'טיוטה' : 'פורסם');
+                    const badgeBg = task.urgency === 'דחוף' ? 'danger' : task.urgency === 'השבוע' ? 'warning' : task.status === 'draft' ? 'warning' : 'info';
+
+                    return (
+                      <ListGroup.Item key={task._id} className="px-0 py-3 border-bottom d-flex justify-content-between align-items-start">
+                        <div className="ms-2 me-auto">
+                          <div className="fw-bold" style={{ color: 'var(--text-main)' }}>{title}</div>
+                          {description && (
+                            <small className="text-muted">
+                              {task.isEncrypted ? <span className="text-danger fw-bold"><FiLock className="me-1"/> תוכן מוצפן</span> : description}
+                            </small>
+                          )}
+                        </div>
+                        <div className="d-flex align-items-center gap-3">
+                          <Badge bg={badgeBg} className="rounded-pill">
+                            {badgeText}
+                          </Badge>
+                          <Button 
+                            variant="light" 
+                            size="sm" 
+                            className="border text-danger" 
+                            onClick={() => handleDeleteTask(task._id)}
+                            title="מחק משימה"
+                          >
+                            <FiTrash2 />
+                          </Button>
+                        </div>
+                      </ListGroup.Item>
+                    );
+                  })
                 )}
               </ListGroup>
             </Card.Body>
@@ -600,33 +646,51 @@ function StudentProfile() {
         </Modal.Body>
       </Modal>
 
-      <Modal show={showTaskModal} onHide={handleCloseTask} dir="rtl">
+      {/* --- חלון המשימות החדש, היפה והחכם! --- */}
+      <Modal show={showTaskModal} onHide={handleCloseTask} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>משימה חדשה</Modal.Title>
+          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>יצירת תיעוד / משימה לתלמיד</Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light p-4">
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <Form onSubmit={handleAddTask}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold text-muted">כותרת המשימה</Form.Label>
-                  <Form.Control type="text" name="title" required placeholder="לדוגמה: שיחת מעקב חודשית" value={taskData.title} onChange={handleTaskChange} />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold text-muted">פירוט (לא חובה)</Form.Label>
-                  <Form.Control as="textarea" rows={2} name="description" value={taskData.description} onChange={handleTaskChange} />
-                </Form.Group>
+                
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Group>
+                      <Form.Label className="fw-bold text-muted small">סוג המשימה *</Form.Label>
+                      <Form.Select name="taskType" value={taskData.taskType} onChange={handleTaskChange}>
+                        {taskTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
                 <Form.Group className="mb-4">
-                  <Form.Label className="small fw-bold text-muted">דחיפות</Form.Label>
-                  <Form.Select name="urgency" value={taskData.urgency} onChange={handleTaskChange}>
-                    <option value="רגיל">רגיל</option>
-                    <option value="השבוע">השבוע</option>
-                    <option value="דחוף">דחוף 🔥</option>
-                  </Form.Select>
+                  <Form.Label className="fw-bold text-muted small">תוכן המשימה / תיעוד *</Form.Label>
+                  <Form.Control as="textarea" rows={5} name="content" value={taskData.content} onChange={handleTaskChange} placeholder="הקלד את פרטי המשימה כאן..." required />
                 </Form.Group>
-                <div className="d-flex justify-content-end pt-3 border-top">
-                  <Button variant="light" onClick={handleCloseTask} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">הוסף משימה 📌</Button>
+
+                <div className="bg-white p-3 rounded border mb-4">
+                  <h6 className="fw-bold mb-3 border-bottom pb-2">הגדרות אבטחה והתראות</h6>
+                  <Form.Check type="checkbox" id="isEncrypted" name="isEncrypted" label={<span className="text-danger fw-bold"><FiLock className="me-1" /> הצפן תוכן משימה (יוצג רק למורשים)</span>} checked={taskData.isEncrypted} onChange={handleTaskChange} className="mb-2" />
+                  <Form.Check type="checkbox" id="sendSystemAlert" name="sendSystemAlert" label="שלח התראת מערכת לנמענים" checked={taskData.sendSystemAlert} onChange={handleTaskChange} className="mb-2" />
+                  <Form.Check type="checkbox" id="sendEmailAlert" name="sendEmailAlert" label="שלח התראה במייל לנמענים" checked={taskData.sendEmailAlert} onChange={handleTaskChange} />
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
+                  <Form.Select name="status" value={taskData.status} onChange={handleTaskChange} style={{ width: '150px' }} className="fw-bold">
+                    <option value="published">🟢 פרסם מיד</option>
+                    <option value="draft">🟡 שמור כטיוטה</option>
+                  </Form.Select>
+                  
+                  <div>
+                    <Button variant="light" onClick={handleCloseTask} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
+                    <Button variant="primary" type="submit" disabled={isSavingTask} className="px-4 fw-bold shadow-sm">
+                      {isSavingTask ? <Spinner size="sm" animation="border" /> : 'שמור משימה'}
+                    </Button>
+                  </div>
                 </div>
               </Form>
             </Card.Body>
