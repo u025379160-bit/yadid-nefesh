@@ -8,11 +8,12 @@ function Tasks({ currentUser }) {
   const [studentsList, setStudentsList] = useState([]);
   const [tutorsList, setTutorsList] = useState([]);
   const [placementsList, setPlacementsList] = useState([]);
+  const [usersList, setUsersList] = useState([]); // 🔥 רשימת אנשי הצוות (משתמשים)
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState(null); // שומר איזה משימה אנחנו עורכים כרגע
+  const [editingTaskId, setEditingTaskId] = useState(null); 
   
   const [formData, setFormData] = useState({
     associatedToType: 'student',
@@ -20,7 +21,7 @@ function Tasks({ currentUser }) {
     taskType: 'תיעוד פעילות',
     content: '',
     status: 'published',
-    assignedTo: '', // למי המשימה משויכת
+    assignedTo: '', // שיוך לאיש צוות
     isEncrypted: false,
     sendSystemAlert: true,
     sendEmailAlert: false
@@ -47,19 +48,21 @@ function Tasks({ currentUser }) {
 
   const fetchAssociatedData = async () => {
     try {
-      const [stdRes, tutRes, plcRes] = await Promise.all([
+      // 🔥 הוספנו פה גם משיכה של רשימת המשתמשים (/api/users)
+      const [stdRes, tutRes, plcRes, usersRes] = await Promise.all([
         fetch(import.meta.env.VITE_API_URL + '/api/students'),
         fetch(import.meta.env.VITE_API_URL + '/api/tutors'),
-        fetch(import.meta.env.VITE_API_URL + '/api/placements')
+        fetch(import.meta.env.VITE_API_URL + '/api/placements'),
+        fetch(import.meta.env.VITE_API_URL + '/api/users')
       ]);
       
       if (stdRes.ok) setStudentsList(await stdRes.json());
       if (tutRes.ok) setTutorsList(await tutRes.json());
       if (plcRes.ok) setPlacementsList(await plcRes.json());
+      if (usersRes.ok) setUsersList(await usersRes.json()); // שומר את המשתמשים
     } catch (err) {}
   };
 
-  // פתיחת חלון ליצירת משימה חדשה
   const handleOpenNewTask = () => {
     setEditingTaskId(null);
     setFormData({
@@ -70,7 +73,6 @@ function Tasks({ currentUser }) {
     setShowModal(true);
   };
 
-  // פתיחת חלון לעריכת משימה קיימת
   const handleEditTask = (task) => {
     setEditingTaskId(task._id);
     setFormData({
@@ -96,7 +98,6 @@ function Tasks({ currentUser }) {
     }
   };
 
-  // שינוי סטטוס מהיר ל"בוצע/לטיפול" ישירות מהטבלה
   const handleToggleComplete = async (task) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${task._id}`, {
@@ -110,7 +111,6 @@ function Tasks({ currentUser }) {
     }
   };
 
-  // מחיקת משימה
   const handleDeleteTask = async (taskId) => {
     if (!window.confirm('האם אתה בטוח שברצונך למחוק משימה זו?')) return;
     try {
@@ -129,13 +129,11 @@ function Tasks({ currentUser }) {
 
     setIsSaving(true);
     
-    // מזהה אם אנחנו בעריכה (PUT) או יצירה (POST)
     const method = editingTaskId ? 'PUT' : 'POST';
     const url = editingTaskId 
       ? `${import.meta.env.VITE_API_URL}/api/tasks/${editingTaskId}` 
       : `${import.meta.env.VITE_API_URL}/api/tasks`;
 
-    // אם זו משימה חדשה, נוסיף את השם שלך. אם זו עריכה - לא נדרוס את השם המקורי.
     const payload = editingTaskId ? formData : {
       ...formData,
       createdBy: currentUser?.name || currentUser?.firstName || 'מנהל'
@@ -201,7 +199,6 @@ function Tasks({ currentUser }) {
                     <td className="px-4 text-muted small">{formatDate(task.createdAt)}</td>
                     <td className="fw-bold">{task.createdBy || 'מערכת'}</td>
                     
-                    {/* למי זה משויך */}
                     <td className="text-primary fw-bold">{task.assignedTo || 'כללי'}</td>
                     
                     <td><Badge bg="info" className="rounded-pill px-3 py-2">{task.taskType || task.title || 'משימה'}</Badge></td>
@@ -217,7 +214,6 @@ function Tasks({ currentUser }) {
                       )}
                     </td>
                     
-                    {/* כפתור בוצע / לא בוצע */}
                     <td className="text-center">
                       <Button 
                         variant={task.isCompleted ? "success" : "light"} 
@@ -229,7 +225,6 @@ function Tasks({ currentUser }) {
                       </Button>
                     </td>
 
-                    {/* כפתורי עריכה ומחיקה */}
                     <td className="text-end px-4">
                       <Button variant="light" size="sm" className="border text-primary me-2" onClick={() => handleEditTask(task)} title="ערוך משימה">
                         <FiEdit2 />
@@ -253,7 +248,6 @@ function Tasks({ currentUser }) {
         </Card.Body>
       </Card>
 
-      {/* --- חלון יצירה / עריכה של משימה --- */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700' }}>{editingTaskId ? 'עריכת משימה' : 'יצירת משימה / תיעוד חדש'}</Modal.Title>
@@ -294,10 +288,17 @@ function Tasks({ currentUser }) {
                 </Form.Group>
               </Col>
               <Col md={6}>
-                {/* השדה החדש לשיוך המשימה לאיש צוות! */}
+                {/* 🔥 הנה השינוי: עכשיו זה רשימה נפתחת מתוך המשתמשים בשרת! */}
                 <Form.Group>
                   <Form.Label className="fw-bold text-primary small">שיוך לאיש צוות (לטיפול)</Form.Label>
-                  <Form.Control type="text" name="assignedTo" value={formData.assignedTo} onChange={handleChange} placeholder="לדוגמה: יצחק (רכז)" />
+                  <Form.Select name="assignedTo" value={formData.assignedTo} onChange={handleChange}>
+                    <option value="">-- ללא שיוך מיוחד (כללי) --</option>
+                    {usersList.map(user => (
+                      <option key={user._id} value={user.name || user.firstName}>
+                        {user.name || user.firstName} {user.role === 'manager' ? '(מנהל)' : ''}
+                      </option>
+                    ))}
+                  </Form.Select>
                 </Form.Group>
               </Col>
             </Row>
