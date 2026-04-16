@@ -13,46 +13,41 @@ import PayerProfile from './pages/PayerProfile';
 import Billing from './pages/Billing';
 import Team from './pages/Team';
 
-// 🧹 המנקה הגלובלי: מוודא שאין רקעים אפורים בכל פעם שאתה עובר עמוד
 function GlobalCleaner() {
   const location = useLocation();
-  
   useEffect(() => {
     document.body.classList.remove('modal-open');
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
-    
     const backdrops = document.querySelectorAll('.modal-backdrop');
     backdrops.forEach(el => el.remove());
   }, [location]);
-
   return null;
 }
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-const [userRole, setUserRole] = useState(null);
+  // 🔥 שינינו מ-userRole ל-currentUser ששומר את הכל!
+  const [currentUser, setCurrentUser] = useState(null);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setUserRole(null);
+    setCurrentUser(null);
   };
 
   if (!isAuthenticated) {
-    return <Login onLogin={(role) => {
+    return <Login onLogin={(user) => {
       setIsAuthenticated(true);
-      setUserRole(role);
+      setCurrentUser(user);
     }} />;
   }
 
   return (
     <BrowserRouter>
-      {/* מפעילים את המנקה מאחורי הקלעים */}
       <GlobalCleaner />
-      
       <div dir="rtl" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        
-        <MainNavbar onLogout={handleLogout} userRole={userRole} />
+        {/* העברנו ל-Navbar את המשתמש המלא */}
+        <MainNavbar onLogout={handleLogout} currentUser={currentUser} />
         
         <div className="container mt-4" style={{ flex: 1 }}>
           <Routes>
@@ -65,10 +60,7 @@ const [userRole, setUserRole] = useState(null);
             <Route path="/billing" element={<Billing />} /> 
             <Route path="/student/:id" element={<StudentProfile />} />
             <Route path="/tutor/:id" element={<TutorProfile />} />
-            
-            {/* 🔥 הנה השורה שהייתה חסרה ופתרה לנו את כל הבעיות! 🔥 */}
             <Route path="/team" element={<Team />} />
-            
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </div>
