@@ -30,8 +30,8 @@ function GlobalCleaner() {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-const [userRole, setUserRole] = useState(null);
+const [isAuthenticated, setIsAuthenticated] = useState(true);
+const [userRole, setUserRole] = useState('manager');
 
   const handleLogout = () => {
     setIsAuthenticated(false);
