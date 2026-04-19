@@ -18,20 +18,19 @@ function TaskNotification({ currentUser }) {
           const tasks = await response.json();
           
           const pendingTasks = tasks.filter(task => {
-            // מוודאים שהשדות באמת קיימים לפני שמשווים, כדי למנוע את באג ה-4 משימות!
-            // אנחנו מחפשים בכמה שמות אפשריים (assignee, handledBy) למקרה שקראת לזה אחרת
-            const assigneeValue = task.assignee || task.handledBy || task.assignedTo;
+            // 🔥 התיקון: אנחנו בודקים בדיוק לפי השם שהגדרת בקוד המשימות: task.assignedTo
+            const assignedToValue = task.assignedTo;
             
-            // אם אין אחראי בכלל על המשימה - זה לא שלך
-            if (!assigneeValue) return false;
+            // אם אף אחד לא מוגדר לשיוך, המשימה לא נספרת בבועה שלך
+            if (!assignedToValue) return false;
 
             const isAssignedToMe = 
-              (assigneeValue._id === currentUser._id) || 
-              (assigneeValue === currentUser._id) || 
-              (assigneeValue === currentUser.name) ||
-              (assigneeValue.name === currentUser.name);
+              (assignedToValue === currentUser._id) || 
+              (assignedToValue === currentUser.name) ||
+              (assignedToValue === currentUser.firstName);
               
-            const isOpen = task.status !== 'הושלם' && task.status !== 'בוצע';
+            // בודק שהמשימה פתוחה (כלומר isCompleted הוא שקר)
+            const isOpen = !task.isCompleted;
             
             return isAssignedToMe && isOpen;
           });
