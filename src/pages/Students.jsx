@@ -129,50 +129,52 @@ function Students() {
   return (
     <Container className="pt-3 mb-5" dir="rtl">
       
-      {/* כותרת מודרנית - עכשיו "דביקה" (Sticky) לתקרת המסך! */}
+      {/* אזור עליון דביק הכולל את הכותרת + כפתור + שורת חיפוש */}
       <div 
-        className="d-flex justify-content-between align-items-center pb-3 mb-4 pt-3"
+        className="pb-4 pt-3 mb-4"
         style={{
           position: 'sticky',
-          top: '68px', /* ממוקם בדיוק מתחת לתפריט הראשי */
-          backgroundColor: '#f8fafc', /* אותו צבע כמו רקע האתר כדי להסתיר את הגלילה */
-          zIndex: 100, /* מוודא שזה צף מעל הטבלה */
-          borderBottom: '1px solid #e2e8f0' /* פס עדין שמפריד כשהטבלה גולשת מתחת */
+          top: '68px',
+          backgroundColor: '#f8fafc',
+          zIndex: 100,
+          borderBottom: '1px solid #e2e8f0'
         }}
       >
-        <div>
-          <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1">
-            ניהול תלמידים
-          </h2>
-          <p style={{ color: '#64748b', fontSize: '1.05rem' }} className="mb-0">
-            צפייה, ניהול והוספת תלמידים למערכת
-          </p>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1">
+              ניהול תלמידים
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '1.05rem' }} className="mb-0">
+              צפייה, ניהול והוספת תלמידים למערכת
+            </p>
+          </div>
+          <Button variant="primary" className="d-flex align-items-center gap-2 px-4 py-2 rounded-pill shadow-sm" style={{ fontWeight: '600' }} onClick={handleShow}>
+            <FiPlus size={18} /> הוסף תלמיד
+          </Button>
         </div>
-        <Button variant="primary" className="d-flex align-items-center gap-2 px-4 py-2 rounded-pill shadow-sm" style={{ fontWeight: '600' }} onClick={handleShow}>
-          <FiPlus size={18} /> הוסף תלמיד
-        </Button>
+
+        {/* שורת החיפוש הוכנסה לאזור הדביק */}
+        <div style={{ maxWidth: '350px' }}>
+          <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+            <InputGroup.Text style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
+              <FiSearch color="#94a3b8" />
+            </InputGroup.Text>
+            <Form.Control
+              placeholder="חיפוש לפי שם או ת.ז..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none' }}
+            />
+          </InputGroup>
+        </div>
       </div>
 
-      {/* כרטיסיית הטבלה */}
+      {/* כרטיסיית הטבלה (מחליקה מתחת לאזור הדביק בגלילה) */}
       <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <Card.Body className="p-4">
-          
-          <div className="mb-4" style={{ maxWidth: '350px' }}>
-            <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-              <InputGroup.Text style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
-                <FiSearch color="#94a3b8" />
-              </InputGroup.Text>
-              <Form.Control
-                placeholder="חיפוש לפי שם או ת.ז..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none' }}
-              />
-            </InputGroup>
-          </div>
-
           <div className="table-responsive">
-            <Table hover className="align-middle border-light" style={{ color: '#334155' }}>
+            <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
               <thead>
                 <tr>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}><FiUser className="me-2" /> שם התלמיד</th>
@@ -223,11 +225,10 @@ function Students() {
               </tbody>
             </Table>
           </div>
-          
         </Card.Body>
       </Card>
 
-      {/* חלון מודל הוספת תלמיד משודרג */}
+      {/* חלון מודל הוספת תלמיד */}
       <Modal show={showModal} onHide={handleClose} size="lg" dir="rtl" backdrop="static">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>הוספת תלמיד חדש</Modal.Title>
