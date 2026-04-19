@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import MainNavbar from './components/Navbar';
+import MainNavbar from './components/Navbar'; // שים לב שאצלך זה קורא לקומפוננטת הניווט, אם קראת לה AppNavbar וודא שהנתיב נכון
 import Home from './pages/Home';
 import Students from './pages/Students';
 import Tutors from './pages/Tutors';
@@ -12,7 +12,7 @@ import Payers from './pages/Payers';
 import PayerProfile from './pages/PayerProfile'; 
 import Billing from './pages/Billing';
 import Team from './pages/Team';
-import Tasks from './pages/Tasks'; // 🔥 הוספנו את הייבוא של עמוד המשימות
+import Tasks from './pages/Tasks';
 
 function GlobalCleaner() {
   const location = useLocation();
@@ -28,7 +28,6 @@ function GlobalCleaner() {
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // 🔥 שינינו מ-userRole ל-currentUser ששומר את הכל!
   const [currentUser, setCurrentUser] = useState(null);
 
   const handleLogout = () => {
@@ -47,7 +46,7 @@ function App() {
     <BrowserRouter>
       <GlobalCleaner />
       <div dir="rtl" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {/* העברנו ל-Navbar את המשתמש המלא */}
+        
         <MainNavbar onLogout={handleLogout} currentUser={currentUser} />
         
         <div className="container mt-4" style={{ flex: 1 }}>
@@ -58,12 +57,15 @@ function App() {
             <Route path="/placements" element={<Placements />} />
             <Route path="/payers" element={<Payers />} /> 
             <Route path="/payer/:id" element={<PayerProfile />} /> 
-            <Route path="/student/:id" element={<StudentProfile currentUser={currentUser} />} />
-<Route path="/tutor/:id" element={<TutorProfile currentUser={currentUser} />} />
-            <Route path="/tutor/:id" element={<TutorProfile />} />
-            <Route path="/team" element={<Team />} />
             
-            {/* 🔥 הנתיב החדש למשימות שמעביר את פרטי המשתמש המחובר */}
+            {/* הכרטיסים המעודכנים שמעבירים את המשתמש */}
+            <Route path="/student/:id" element={<StudentProfile currentUser={currentUser} />} />
+            <Route path="/tutor/:id" element={<TutorProfile currentUser={currentUser} />} />
+            
+            {/* 🔥 הנה השורה שהייתה חסרה לחיובים! */}
+            <Route path="/billing" element={<Billing />} />
+            
+            <Route path="/team" element={<Team />} />
             <Route path="/tasks" element={<Tasks currentUser={currentUser} />} />
             
             <Route path="*" element={<Navigate to="/" />} />
