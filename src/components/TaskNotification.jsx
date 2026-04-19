@@ -9,7 +9,6 @@ function TaskNotification({ currentUser }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // אם אין משתמש מחובר, אל תעשה כלום
     if (!currentUser) return;
 
     const fetchUserTasks = async () => {
@@ -18,14 +17,19 @@ function TaskNotification({ currentUser }) {
         if (response.ok) {
           const tasks = await response.json();
           
-          // מסננים משימות: 
-          // 1. שהמשתמש הנוכחי אחראי עליהן (בודק לפי ID או לפי שם)
-          // 2. שהסטטוס שלהן עדיין פתוח (לא 'הושלם' או 'בוצע')
           const pendingTasks = tasks.filter(task => {
+            // מוודאים שהשדות באמת קיימים לפני שמשווים, כדי למנוע את באג ה-4 משימות!
+            // אנחנו מחפשים בכמה שמות אפשריים (assignee, handledBy) למקרה שקראת לזה אחרת
+            const assigneeValue = task.assignee || task.handledBy || task.assignedTo;
+            
+            // אם אין אחראי בכלל על המשימה - זה לא שלך
+            if (!assigneeValue) return false;
+
             const isAssignedToMe = 
-              (task.assignee?._id === currentUser._id) || 
-              (task.assignee === currentUser._id) || 
-              (task.assignee === currentUser.name);
+              (assigneeValue._id === currentUser._id) || 
+              (assigneeValue === currentUser._id) || 
+              (assigneeValue === currentUser.name) ||
+              (assigneeValue.name === currentUser.name);
               
             const isOpen = task.status !== 'הושלם' && task.status !== 'בוצע';
             
@@ -34,7 +38,6 @@ function TaskNotification({ currentUser }) {
 
           if (pendingTasks.length > 0) {
             setTaskCount(pendingTasks.length);
-            // משהה קצת את הקפיצה של הבועה כדי שזה יראה טוב אחרי טעינת העמוד
             setTimeout(() => setShow(true), 1500); 
           }
         }
@@ -46,11 +49,9 @@ function TaskNotification({ currentUser }) {
     fetchUserTasks();
   }, [currentUser]);
 
-  // אם אין משימות או שהבועה נסגרה - לא מציגים כלום
   if (!show || taskCount === 0) return null;
 
   return (
-    // מיקום הבועה בפינה השמאלית התחתונה מעל הכל
     <div style={{ position: 'fixed', bottom: '30px', left: '30px', zIndex: 9999 }} dir="rtl">
       <Toast 
         onClose={() => setShow(false)} 
