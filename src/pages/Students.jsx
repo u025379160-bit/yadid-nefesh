@@ -15,7 +15,6 @@ function Students() {
   useEffect(() => {
     fetchStudentsAndData(); 
 
-    // שואב אבק: ניקוי שאריות חלונות מודל אם היו
     document.body.classList.remove('modal-open');
     document.body.style.overflow = 'auto';
     document.body.style.paddingRight = '0px';
@@ -51,7 +50,6 @@ function Students() {
     }
   };
 
-  // עיצוב SaaS חדש לתגיות הסטטוס
   const getPlacementStatus = (studentId) => {
     const isActivePlaced = placements.some(p => p.student && p.student._id === studentId && p.status === 'פעיל');
     
@@ -129,10 +127,19 @@ function Students() {
   };
 
   return (
-    <Container className="mt-5 mb-5" dir="rtl">
+    <Container className="pt-3 mb-5" dir="rtl">
       
-      {/* כותרת מודרנית */}
-      <div className="d-flex justify-content-between align-items-center mb-5">
+      {/* כותרת מודרנית - עכשיו "דביקה" (Sticky) לתקרת המסך! */}
+      <div 
+        className="d-flex justify-content-between align-items-center pb-3 mb-4 pt-3"
+        style={{
+          position: 'sticky',
+          top: '68px', /* ממוקם בדיוק מתחת לתפריט הראשי */
+          backgroundColor: '#f8fafc', /* אותו צבע כמו רקע האתר כדי להסתיר את הגלילה */
+          zIndex: 100, /* מוודא שזה צף מעל הטבלה */
+          borderBottom: '1px solid #e2e8f0' /* פס עדין שמפריד כשהטבלה גולשת מתחת */
+        }}
+      >
         <div>
           <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1">
             ניהול תלמידים
@@ -146,7 +153,7 @@ function Students() {
         </Button>
       </div>
 
-      {/* כרטיסיית הטבלה המרחפת */}
+      {/* כרטיסיית הטבלה */}
       <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <Card.Body className="p-4">
           
