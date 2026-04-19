@@ -40,11 +40,20 @@ body {
   border-radius: 12px 12px 0 0 !important;
 }
 
-/* --- תפריט עליון מודרני --- */
+/* --- תפריט עליון בהיר ויוקרתי --- */
 .navbar {
-  background-color: #0f172a !important; /* אפור-פחם עמוק במקום כחול צועק */
-  border-bottom: 1px solid #1e293b !important;
-  box-shadow: none !important;
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03) !important;
+  padding: 12px 0 !important;
+}
+
+.navbar-brand img {
+  transition: all 0.3s ease;
+}
+
+.navbar-brand:hover img {
+  opacity: 0.85;
 }
 
 /* --- כפתורים נקיים בלי ברק --- */
