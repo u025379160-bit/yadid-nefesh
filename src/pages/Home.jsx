@@ -3,10 +3,11 @@ import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { FiUsers, FiUserCheck, FiBriefcase, FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-function Home() {
+// מקבלים את פרטי המשתמש המחובר לתוך המסך
+function Home({ currentUser }) {
   const navigate = useNavigate();
 
-  // 🧹 שואב אבק: מוודא שהמסך נקי מרקעים אפורים של מודלים כשחוזרים לעמוד הראשי
+  // 🧹 שואב אבק: מוודא שהמסך נקי מרקעים אפורים של מודלים
   useEffect(() => {
     document.body.classList.remove('modal-open');
     document.body.style.overflow = 'auto';
@@ -25,10 +26,10 @@ function Home() {
 
   return (
     <Container className="mt-5 mb-5" dir="rtl">
-      {/* כותרת נקייה ואלגנטית */}
+      {/* כותרת נקייה ואלגנטית - עכשיו דינמית עם השם שלך! */}
       <div className="mb-5 text-center">
         <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-2">
-          שלום רכז, ברוך שובך
+          שלום {currentUser ? currentUser.name : 'אורח'}, ברוך שובך!
         </h2>
         <p style={{ color: '#64748b', fontSize: '1.1rem' }}>
           הנה סיכום הנתונים של המערכת להיום:
