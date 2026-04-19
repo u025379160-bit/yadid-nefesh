@@ -13,6 +13,7 @@ import PayerProfile from './pages/PayerProfile';
 import Billing from './pages/Billing';
 import Team from './pages/Team';
 import Tasks from './pages/Tasks';
+import TaskNotification from './components/TaskNotification';
 
 function GlobalCleaner() {
   const location = useLocation();
@@ -42,12 +43,15 @@ function App() {
     }} />;
   }
 
-  return (
+return (
     <BrowserRouter>
       <GlobalCleaner />
       <div dir="rtl" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         
         <MainNavbar onLogout={handleLogout} currentUser={currentUser} />
+        
+        {/* הנה בועת ההתראות שלנו! */}
+        <TaskNotification currentUser={currentUser} />
         
         <div className="container mt-4" style={{ flex: 1 }}>
           <Routes>
