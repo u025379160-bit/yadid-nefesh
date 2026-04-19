@@ -1,11 +1,50 @@
-import { useEffect } from 'react';
-import { Container, Row, Col, Card, Button } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { Container, Row, Col, Card, Button, Spinner } from 'react-bootstrap';
 import { FiUsers, FiUserCheck, FiBriefcase, FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-// מקבלים את פרטי המשתמש המחובר לתוך המסך
 function Home({ currentUser }) {
   const navigate = useNavigate();
+
+  // סטייט לשמירת המספרים האמיתיים שמגיעים מהשרת
+  const [stats, setStats] = useState({
+    students: 0,
+    tutors: 0,
+    placements: 0,
+    loading: true
+  });
+
+  // פונקציה ששואבת את הנתונים בזמן אמת ברגע שהעמוד נטען
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [studentsRes, tutorsRes, placementsRes] = await Promise.all([
+          fetch(import.meta.env.VITE_API_URL + '/api/students'),
+          fetch(import.meta.env.VITE_API_URL + '/api/tutors'),
+          fetch(import.meta.env.VITE_API_URL + '/api/placements')
+        ]);
+
+        const students = studentsRes.ok ? await studentsRes.json() : [];
+        const tutors = tutorsRes.ok ? await tutorsRes.json() : [];
+        const placements = placementsRes.ok ? await placementsRes.json() : [];
+
+        // מסנן רק את השיבוצים הפעילים (כדי לא לספור שיבוצים שהסתיימו)
+        const activePlacements = placements.filter(p => p.status !== 'לא פעיל');
+
+        setStats({
+          students: students.length,
+          tutors: tutors.length,
+          placements: activePlacements.length,
+          loading: false
+        });
+      } catch (error) {
+        console.error('שגיאה במשיכת נתוני הסטטיסטיקה:', error);
+        setStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   // 🧹 שואב אבק: מוודא שהמסך נקי מרקעים אפורים של מודלים
   useEffect(() => {
@@ -26,7 +65,7 @@ function Home({ currentUser }) {
 
   return (
     <Container className="mt-5 mb-5" dir="rtl">
-      {/* כותרת נקייה ואלגנטית - עכשיו דינמית עם השם שלך! */}
+      {/* כותרת דינמית */}
       <div className="mb-5 text-center">
         <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-2">
           שלום {currentUser ? currentUser.name : 'אורח'}, ברוך שובך!
@@ -36,7 +75,7 @@ function Home({ currentUser }) {
         </p>
       </div>
 
-      {/* כרטיסיות נתונים במראה "מרחף" מודרני */}
+      {/* כרטיסיות נתונים דינמיות */}
       <Row className="g-4 mb-5">
         <Col md={4}>
           <Card className="h-100 text-center py-4 border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
@@ -45,8 +84,10 @@ function Home({ currentUser }) {
                 <FiUsers size={28} />
               </div>
               <h5 style={{ color: '#64748b', fontWeight: '600', fontSize: '1.05rem' }}>סה"כ תלמידים</h5>
-              <h1 style={{ color: '#0f172a', fontSize: '3.5rem', fontWeight: '800' }} className="my-2">124</h1>
-              <small className="fw-bold" style={{ color: '#10b981' }}>↑ 3 חדשים החודש</small>
+              <h1 style={{ color: '#0f172a', fontSize: '3.5rem', fontWeight: '800' }} className="my-2">
+                {stats.loading ? <Spinner animation="border" size="sm" variant="primary" /> : stats.students}
+              </h1>
+              <small className="fw-bold" style={{ color: '#10b981' }}>עדכני להיום</small>
             </Card.Body>
           </Card>
         </Col>
@@ -58,8 +99,10 @@ function Home({ currentUser }) {
                 <FiUserCheck size={28} />
               </div>
               <h5 style={{ color: '#64748b', fontWeight: '600', fontSize: '1.05rem' }}>חונכים פעילים</h5>
-              <h1 style={{ color: '#0f172a', fontSize: '3.5rem', fontWeight: '800' }} className="my-2">38</h1>
-              <small className="fw-bold" style={{ color: '#f59e0b' }}>2 ממתינים לשיבוץ</small>
+              <h1 style={{ color: '#0f172a', fontSize: '3.5rem', fontWeight: '800' }} className="my-2">
+                {stats.loading ? <Spinner animation="border" size="sm" variant="warning" /> : stats.tutors}
+              </h1>
+              <small className="fw-bold" style={{ color: '#f59e0b' }}>עדכני להיום</small>
             </Card.Body>
           </Card>
         </Col>
@@ -71,14 +114,16 @@ function Home({ currentUser }) {
                 <FiBriefcase size={28} />
               </div>
               <h5 style={{ color: '#64748b', fontWeight: '600', fontSize: '1.05rem' }}>שיבוצים פעילים</h5>
-              <h1 style={{ color: '#0f172a', fontSize: '3.5rem', fontWeight: '800' }} className="my-2">95</h1>
-              <small className="fw-bold" style={{ color: '#94a3b8' }}>5 שיבוצים הסתיימו לאחרונה</small>
+              <h1 style={{ color: '#0f172a', fontSize: '3.5rem', fontWeight: '800' }} className="my-2">
+                {stats.loading ? <Spinner animation="border" size="sm" variant="secondary" /> : stats.placements}
+              </h1>
+              <small className="fw-bold" style={{ color: '#94a3b8' }}>עדכני להיום</small>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* אזור פעולות מהירות מעודן */}
+      {/* אזור פעולות מהירות */}
       <div className="text-center mt-5">
         <h5 style={{ color: '#334155', fontWeight: '700' }} className="mb-4">פעולות מהירות</h5>
         <div className="d-flex justify-content-center gap-3 flex-wrap">
