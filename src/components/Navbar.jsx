@@ -1,14 +1,14 @@
-import { Navbar, Nav, Container } from 'react-bootstrap';
+import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
-import { FiUsers, FiUserCheck, FiBriefcase, FiHome, FiLogOut, FiCreditCard, FiDollarSign, FiShield, FiUser, FiMessageSquare } from 'react-icons/fi';
+import { FiLogOut } from 'react-icons/fi';
 
 function AppNavbar({ onLogout, currentUser }) {
   const location = useLocation();
 
-  // פונקציה קטנה שבודקת אם אנחנו בעמוד הנוכחי כדי להאיר אותו
+  // בדיקה אם העמוד פעיל כדי להאיר אותו
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
-  // מילון תרגום לתפקידים
+  // תרגום תפקידים לאזור השמאלי
   const roleTranslations = {
     'admin': 'אדמין',
     'manager': 'מנהל מערכת',
@@ -20,91 +20,144 @@ function AppNavbar({ onLogout, currentUser }) {
   const role = currentUser?.role || 'tutor';
 
   return (
-    <Navbar expand="lg" style={{ backgroundColor: 'var(--primary-blue)', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }} variant="dark" className="mb-4">
-      <Container>
-        {/* לוגו המערכת - עודכן ללוגו האמיתי שהעלית */}
-        <Navbar.Brand as={Link} to="/" className="fw-bold fs-4 d-flex align-items-center gap-2">
-          <img
-            src="/logo.png"
-            alt="ידיד נפש לוגו"
-            height="40" 
-            className="d-inline-block align-top bg-white rounded px-2 py-1"
-          />
-          <span style={{ letterSpacing: '0.5px' }}>ידיד נפש</span>
-        </Navbar.Brand>
-        
-        <Navbar.Toggle aria-controls="basic-navbar-nav" />
-        <Navbar.Collapse id="basic-navbar-nav">
+    <>
+      <Navbar expand="lg" sticky="top" className="bg-white">
+        <Container fluid className="px-lg-5">
           
-          {/* האזור של כל כפתורי הניווט - הפונט הוקטן טיפה לשמירה על אלגנטיות */}
-          <Nav className="me-auto gap-3 pe-4" style={{ fontSize: '0.95rem' }}>
+          {/* צד ימין: לוגו נקי ומינימליסטי */}
+          <Navbar.Brand as={Link} to="/" className="me-5">
+            <img
+              src="/logo.png"
+              alt="ידיד נפש לוגו"
+              height="45"
+              className="d-inline-block align-top"
+            />
+          </Navbar.Brand>
+          
+          <Navbar.Toggle aria-controls="basic-navbar-nav" className="border-0 shadow-none" />
+          <Navbar.Collapse id="basic-navbar-nav">
             
-            <Nav.Link as={Link} to="/" className={`d-flex align-items-center gap-2 ${isActive('/') && location.pathname === '/' ? 'active text-white fw-bold' : 'text-light'}`}>
-              <FiHome size={18} /> ראשי
-            </Nav.Link>
-
-            {/* רק הנהלה, מזכירות ורכזים רואים תלמידים וחונכים */}
-            {['manager', 'admin', 'secretary', 'coordinator'].includes(role) && (
-              <>
-                <Nav.Link as={Link} to="/students" className={`d-flex align-items-center gap-2 ${isActive('/student') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiUsers size={18} /> תלמידים
-                </Nav.Link>
-                <Nav.Link as={Link} to="/tutors" className={`d-flex align-items-center gap-2 ${isActive('/tutor') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiUserCheck size={18} /> חונכים
-                </Nav.Link>
-              </>
-            )}
-
-            {/* כולם רואים שיבוצים */}
-            <Nav.Link as={Link} to="/placements" className={`d-flex align-items-center gap-2 ${isActive('/placements') ? 'active text-white fw-bold' : 'text-light'}`}>
-              <FiBriefcase size={18} /> שיבוצים
-            </Nav.Link>
-
-            {/* רק הנהלה ומזכירות רואים כספים */}
-            {['manager', 'admin', 'secretary'].includes(role) && (
-              <>
-                <Nav.Link as={Link} to="/payers" className={`d-flex align-items-center gap-2 ${isActive('/payers') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiCreditCard size={18} /> משלמים
-                </Nav.Link>
-                <Nav.Link as={Link} to="/billing" className={`d-flex align-items-center gap-2 ${isActive('/billing') ? 'active text-white fw-bold' : 'text-light'}`}>
-                  <FiDollarSign size={18} /> חיובים
-                </Nav.Link>
-              </>
-            )}
-
-            {/* רק הנהלה רואה ניהול צוות */}
-            {['manager', 'admin'].includes(role) && (
-              <Nav.Link as={Link} to="/team" className={`d-flex align-items-center gap-2 ${isActive('/team') ? 'active text-white fw-bold' : 'text-light'}`}>
-                <FiShield size={18} /> צוות
+            {/* מרכז: כפתורים דקים ויוקרתיים (בלי אייקונים ליד המילים) */}
+            <Nav className="me-auto gap-4" style={{ fontSize: '1.05rem', fontWeight: '500' }}>
+              
+              <Nav.Link as={Link} to="/" className={isActive('/') && location.pathname === '/' ? 'nav-elegant active' : 'nav-elegant'}>
+                ראשי
               </Nav.Link>
-            )}
 
-            {/* משימות ותיעוד */}
-            <Nav.Link as={Link} to="/tasks" className={`d-flex align-items-center gap-2 ${isActive('/tasks') ? 'active text-white fw-bold' : 'text-light'}`}>
-              <FiMessageSquare size={18} /> משימות
-            </Nav.Link>
+              {['manager', 'admin', 'secretary', 'coordinator'].includes(role) && (
+                <>
+                  <Nav.Link as={Link} to="/students" className={isActive('/student') ? 'nav-elegant active' : 'nav-elegant'}>
+                    תלמידים
+                  </Nav.Link>
+                  <Nav.Link as={Link} to="/tutors" className={isActive('/tutor') ? 'nav-elegant active' : 'nav-elegant'}>
+                    חונכים
+                  </Nav.Link>
+                </>
+              )}
 
-          </Nav>
-          
-          {/* אזור המשתמש בצד שמאל (שם + התנתקות) */}
-          <Nav className="align-items-center gap-3">
+              <Nav.Link as={Link} to="/placements" className={isActive('/placements') ? 'nav-elegant active' : 'nav-elegant'}>
+                שיבוצים
+              </Nav.Link>
+
+              {['manager', 'admin', 'secretary'].includes(role) && (
+                <>
+                  <Nav.Link as={Link} to="/payers" className={isActive('/payers') ? 'nav-elegant active' : 'nav-elegant'}>
+                    משלמים
+                  </Nav.Link>
+                  <Nav.Link as={Link} to="/billing" className={isActive('/billing') ? 'nav-elegant active' : 'nav-elegant'}>
+                    חיובים
+                  </Nav.Link>
+                </>
+              )}
+
+              {['manager', 'admin'].includes(role) && (
+                <Nav.Link as={Link} to="/team" className={isActive('/team') ? 'nav-elegant active' : 'nav-elegant'}>
+                  צוות ניהול
+                </Nav.Link>
+              )}
+
+              <Nav.Link as={Link} to="/tasks" className={isActive('/tasks') ? 'nav-elegant active' : 'nav-elegant'}>
+                משימות
+              </Nav.Link>
+
+            </Nav>
             
-            {currentUser && (
-              <div className="d-none d-lg-flex align-items-center gap-2 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '6px 16px', borderRadius: '20px', fontSize: '0.9rem' }}>
-                <FiUser size={16} /> 
-                <span>שלום, <strong>{currentUser.name}</strong></span>
-                <span className="opacity-75">({roleTranslations[currentUser.role] || role})</span>
-              </div>
-            )}
+            {/* צד שמאל: אזור משתמש עדין עם כפתור התנתקות */}
+            <div className="d-flex align-items-center gap-4 ms-auto mt-3 mt-lg-0">
+              {currentUser && (
+                <div className="text-end" style={{ lineHeight: '1.2' }}>
+                  <div style={{ color: '#0f172a', fontWeight: '600', fontSize: '0.95rem' }}>
+                    {currentUser.name}
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                    {roleTranslations[currentUser.role] || role}
+                  </div>
+                </div>
+              )}
 
-            <Nav.Link onClick={onLogout} className="d-flex align-items-center gap-2 text-light opacity-75 hover-opacity-100" style={{ cursor: 'pointer' }}>
-              <FiLogOut size={18} /> התנתק
-            </Nav.Link>
+              <Button 
+                variant="link" 
+                onClick={onLogout} 
+                className="text-decoration-none d-flex align-items-center gap-2 px-0 logout-elegant"
+              >
+                <span style={{ fontWeight: '500' }}>התנתק</span>
+                <FiLogOut size={18} />
+              </Button>
+            </div>
 
-          </Nav>
-        </Navbar.Collapse>
-      </Container>
-    </Navbar>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
+
+      {/* פס תכלת דקיק לעיצוב יוקרתי בתחתית התפריט */}
+      <div style={{ width: '100%', height: '4px', background: 'linear-gradient(90deg, #e0f2fe 0%, #bae6fd 100%)' }}></div>
+
+      {/* CSS פנימי עבור אפקטי הריחוף של הכפתורים הדקים */}
+      <style>{`
+        .nav-elegant {
+          color: #475569 !important;
+          position: relative;
+          padding: 8px 0 !important;
+          transition: color 0.3s ease;
+        }
+        
+        .nav-elegant:hover {
+          color: #d97706 !important;
+        }
+        
+        .nav-elegant.active {
+          color: #d97706 !important;
+          font-weight: 700 !important;
+        }
+        
+        /* האפקט של קו הזהב מתחת למילה */
+        .nav-elegant::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 2px;
+          background-color: #d97706;
+          transition: width 0.3s ease;
+          border-radius: 2px;
+        }
+        
+        .nav-elegant:hover::after, .nav-elegant.active::after {
+          width: 100%;
+        }
+
+        .logout-elegant {
+          color: #64748b !important;
+          transition: color 0.2s ease;
+        }
+        
+        .logout-elegant:hover {
+          color: #ef4444 !important;
+        }
+      `}</style>
+    </>
   );
 }
 
