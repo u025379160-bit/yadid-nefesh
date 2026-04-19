@@ -211,8 +211,19 @@ app.delete('/api/tutors/:id', async (req, res) => {
 // יצירת שיבוץ חדש
 app.post('/api/placements', async (req, res) => {
   try {
-    const newPlacement = new Placement(req.body);
+    // 🔥 התיקון: מנקים את הנתונים שמגיעים מהאתר כדי לא לשמור בטעות את המשלם או התלמיד מחדש
+    const placementData = { ...req.body };
+    
+    if (placementData.student && placementData.student._id) {
+      placementData.student = placementData.student._id;
+    }
+    if (placementData.tutor && placementData.tutor._id) {
+      placementData.tutor = placementData.tutor._id;
+    }
+
+    const newPlacement = new Placement(placementData);
     await newPlacement.save();
+
     // שואבים את הפרטים המלאים של החונך והתלמיד כדי להחזיר לאתר
     const populatedPlacement = await Placement.findById(newPlacement._id).populate('student').populate('tutor');
     res.status(201).json({ message: '✅ השיבוץ נשמר בהצלחה!', placement: populatedPlacement });
@@ -245,9 +256,19 @@ app.delete('/api/placements/:id', async (req, res) => {
 // עדכון שיבוץ
 app.put('/api/placements/:id', async (req, res) => {
   try {
+    // 🔥 התיקון: אותו פילטר גם כשאנחנו עורכים שיבוץ קיים!
+    const placementData = { ...req.body };
+    
+    if (placementData.student && placementData.student._id) {
+      placementData.student = placementData.student._id;
+    }
+    if (placementData.tutor && placementData.tutor._id) {
+      placementData.tutor = placementData.tutor._id;
+    }
+
     const updatedPlacement = await Placement.findByIdAndUpdate(
       req.params.id, 
-      req.body, 
+      placementData, 
       { new: true } 
     )
     .populate('student')
