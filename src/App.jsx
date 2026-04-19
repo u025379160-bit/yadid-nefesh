@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import MainNavbar from './components/Navbar'; // שים לב שאצלך זה קורא לקומפוננטת הניווט, אם קראת לה AppNavbar וודא שהנתיב נכון
+import MainNavbar from './components/Navbar';
 import Home from './pages/Home';
 import Students from './pages/Students';
 import Tutors from './pages/Tutors';
@@ -51,20 +51,19 @@ function App() {
         
         <div className="container mt-4" style={{ flex: 1 }}>
           <Routes>
-            <Route path="/" element={<Home />} />
+            {/* 🔥 הנה השינוי: עמוד הבית מקבל עכשיו את נתוני המשתמש! */}
+            <Route path="/" element={<Home currentUser={currentUser} />} />
+            
             <Route path="/students" element={<Students />} />
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/placements" element={<Placements />} />
             <Route path="/payers" element={<Payers />} /> 
             <Route path="/payer/:id" element={<PayerProfile />} /> 
             
-            {/* הכרטיסים המעודכנים שמעבירים את המשתמש */}
             <Route path="/student/:id" element={<StudentProfile currentUser={currentUser} />} />
             <Route path="/tutor/:id" element={<TutorProfile currentUser={currentUser} />} />
             
-            {/* 🔥 הנה השורה שהייתה חסרה לחיובים! */}
             <Route path="/billing" element={<Billing />} />
-            
             <Route path="/team" element={<Team />} />
             <Route path="/tasks" element={<Tasks currentUser={currentUser} />} />
             
