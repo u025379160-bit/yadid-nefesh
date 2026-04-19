@@ -2,7 +2,7 @@ import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
 import { FiLogOut } from 'react-icons/fi';
 
-function AppNavbar({ onLogout, currentUser }) {
+function MainNavbar({ onLogout, currentUser }) {
   const location = useLocation();
 
   // בדיקה אם העמוד פעיל כדי להאיר אותו
@@ -21,11 +21,11 @@ function AppNavbar({ onLogout, currentUser }) {
 
   return (
     <>
-      <Navbar expand="lg" sticky="top" className="bg-white">
+      <Navbar expand="xl" sticky="top" className="bg-white">
         <Container fluid className="px-lg-5">
           
-          {/* צד ימין: לוגו נקי ומינימליסטי */}
-          <Navbar.Brand as={Link} to="/" className="me-5">
+          {/* צד ימין: לוגו */}
+          <Navbar.Brand as={Link} to="/" className="me-4 d-flex align-items-center">
             <img
               src="/logo.png"
               alt="ידיד נפש לוגו"
@@ -37,8 +37,8 @@ function AppNavbar({ onLogout, currentUser }) {
           <Navbar.Toggle aria-controls="basic-navbar-nav" className="border-0 shadow-none" />
           <Navbar.Collapse id="basic-navbar-nav">
             
-            {/* מרכז: כפתורים דקים ויוקרתיים (בלי אייקונים ליד המילים) */}
-            <Nav className="me-auto gap-4" style={{ fontSize: '1.05rem', fontWeight: '500' }}>
+            {/* מרכז: כאן עשינו את הקסם - שינינו ל mx-auto כדי למרכז את התפריט ולנצל את המקום */}
+            <Nav className="mx-auto gap-4" style={{ fontSize: '1.05rem', fontWeight: '500' }}>
               
               <Nav.Link as={Link} to="/" className={isActive('/') && location.pathname === '/' ? 'nav-elegant active' : 'nav-elegant'}>
                 ראשי
@@ -82,11 +82,11 @@ function AppNavbar({ onLogout, currentUser }) {
 
             </Nav>
             
-            {/* צד שמאל: אזור משתמש עדין עם כפתור התנתקות */}
-            <div className="d-flex align-items-center gap-4 ms-auto mt-3 mt-lg-0">
+            {/* צד שמאל: אזור משתמש מקובע שלא יידרס */}
+            <div className="d-flex align-items-center justify-content-end gap-3 mt-3 mt-xl-0" style={{ minWidth: '220px' }}>
               {currentUser && (
                 <div className="text-end" style={{ lineHeight: '1.2' }}>
-                  <div style={{ color: '#0f172a', fontWeight: '600', fontSize: '0.95rem' }}>
+                  <div className="text-truncate" style={{ color: '#0f172a', fontWeight: '600', fontSize: '0.95rem', maxWidth: '160px' }}>
                     {currentUser.name}
                   </div>
                   <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
@@ -98,7 +98,7 @@ function AppNavbar({ onLogout, currentUser }) {
               <Button 
                 variant="link" 
                 onClick={onLogout} 
-                className="text-decoration-none d-flex align-items-center gap-2 px-0 logout-elegant"
+                className="text-decoration-none d-flex align-items-center gap-2 px-0 logout-elegant flex-shrink-0"
               >
                 <span style={{ fontWeight: '500' }}>התנתק</span>
                 <FiLogOut size={18} />
@@ -109,16 +109,15 @@ function AppNavbar({ onLogout, currentUser }) {
         </Container>
       </Navbar>
 
-      {/* פס תכלת דקיק לעיצוב יוקרתי בתחתית התפריט */}
       <div style={{ width: '100%', height: '4px', background: 'linear-gradient(90deg, #e0f2fe 0%, #bae6fd 100%)' }}></div>
 
-      {/* CSS פנימי עבור אפקטי הריחוף של הכפתורים הדקים */}
       <style>{`
         .nav-elegant {
           color: #475569 !important;
           position: relative;
           padding: 8px 0 !important;
           transition: color 0.3s ease;
+          white-space: nowrap; 
         }
         
         .nav-elegant:hover {
@@ -130,7 +129,6 @@ function AppNavbar({ onLogout, currentUser }) {
           font-weight: 700 !important;
         }
         
-        /* האפקט של קו הזהב מתחת למילה */
         .nav-elegant::after {
           content: '';
           position: absolute;
@@ -151,6 +149,7 @@ function AppNavbar({ onLogout, currentUser }) {
         .logout-elegant {
           color: #64748b !important;
           transition: color 0.2s ease;
+          white-space: nowrap;
         }
         
         .logout-elegant:hover {
@@ -161,4 +160,4 @@ function AppNavbar({ onLogout, currentUser }) {
   );
 }
 
-export default AppNavbar;
+export default MainNavbar;
