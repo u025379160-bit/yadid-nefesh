@@ -51,15 +51,24 @@ const taskSchema = new mongoose.Schema({
   createdBy: { 
     type: String 
   },
-  // 🔥 === השדה החדש שהוספנו ממש עכשיו! === 🔥
   assignedTo: { 
     type: String, 
     default: '' // שומר למי המשימה מיועדת לטיפול
   },
+
+  // ==========================================
+  // --- מערך תגובות (שרשור הודעות / "השב") ---
+  // ==========================================
+  replies: [{
+    text: { type: String, required: true },
+    author: { type: String, default: 'צוות ניהול' },
+    createdAt: { type: Date, default: Date.now }
+  }],
+
   createdAt: { 
     type: Date, 
     default: Date.now 
   }
-});
+}, { timestamps: true }); // שומר אוטומטית שדות של תאריך יצירה ותאריך עדכון אחרון
 
 module.exports = mongoose.model('Task', taskSchema);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Container, Card, Table, Button, Modal, Form, Row, Col, Badge, Spinner } from 'react-bootstrap';
-import { FiPlus, FiMessageSquare, FiLock, FiEdit2, FiCheckCircle, FiCircle, FiTrash2 } from 'react-icons/fi';
+import { Container, Card, Table, Button, Modal, Form, Row, Col, Badge, Spinner, InputGroup } from 'react-bootstrap';
+import { FiPlus, FiMessageSquare, FiLock, FiEdit2, FiCheckCircle, FiCircle, FiTrash2, FiMessageCircle, FiSend } from 'react-icons/fi';
 
 function Tasks({ currentUser }) {
   const [tasks, setTasks] = useState([]);
@@ -14,6 +14,12 @@ function Tasks({ currentUser }) {
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null); 
+  
+  // === סטייטים חדשים עבור מערכת התגובות ===
+  const [showRepliesModal, setShowRepliesModal] = useState(false);
+  const [selectedTaskForReplies, setSelectedTaskForReplies] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [isSavingReply, setIsSavingReply] = useState(false);
   
   const [formData, setFormData] = useState({
     associatedToType: 'student',
@@ -158,6 +164,44 @@ function Tasks({ currentUser }) {
     }
   };
 
+  // === פונקציות לניהול התגובות ===
+  const handleOpenReplies = (task) => {
+    setSelectedTaskForReplies(task);
+    setShowRepliesModal(true);
+  };
+
+  const handleSubmitReply = async (e) => {
+    e.preventDefault();
+    if (!replyText.trim() || !selectedTaskForReplies) return;
+
+    setIsSavingReply(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${selectedTaskForReplies._id}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: replyText,
+          author: currentUser?.name || currentUser?.firstName || 'צוות ניהול'
+        })
+      });
+
+      if (response.ok) {
+        const updatedTask = await response.json();
+        // עדכון המשימה במערך המשימות הכללי כדי שהמונה יתעדכן
+        setTasks(tasks.map(t => t._id === updatedTask._id ? updatedTask : t));
+        // עדכון המשימה הנבחרת כדי שהתגובה תופיע מיד בחלון הפתוח
+        setSelectedTaskForReplies(updatedTask);
+        setReplyText('');
+      } else {
+        alert('שגיאה בשמירת התגובה');
+      }
+    } catch (err) {
+      alert('שגיאת תקשורת מול השרת');
+    } finally {
+      setIsSavingReply(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -237,7 +281,23 @@ function Tasks({ currentUser }) {
                         </Button>
                       </td>
 
-                      <td className="text-end" style={{ padding: '16px 12px' }}>
+                      <td className="text-end" style={{ padding: '16px 12px', minWidth: '150px' }}>
+                        {/* כפתור תגובות חדש */}
+                        <Button 
+                          variant="light" 
+                          size="sm" 
+                          className="me-2 rounded-pill shadow-sm position-relative" 
+                          style={{ color: '#10b981', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0' }} 
+                          onClick={() => handleOpenReplies(task)} 
+                          title="צ'אט / תגובות"
+                        >
+                          <FiMessageCircle />
+                          {task.replies && task.replies.length > 0 && (
+                            <span className="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-success" style={{ fontSize: '0.65rem' }}>
+                              {task.replies.length}
+                            </span>
+                          )}
+                        </Button>
                         <Button variant="light" size="sm" className="me-2 rounded-pill shadow-sm" style={{ color: '#0284c7', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }} onClick={() => handleEditTask(task)} title="ערוך משימה">
                           <FiEdit2 />
                         </Button>
@@ -345,6 +405,83 @@ function Tasks({ currentUser }) {
           </Form>
         </Modal.Body>
       </Modal>
+
+      {/* חלון מודל - שרשור תגובות (צ'אט) */}
+      <Modal show={showRepliesModal} onHide={() => setShowRepliesModal(false)} size="lg" dir="rtl">
+        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>תגובות ועדכונים למשימה</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0 d-flex flex-column" style={{ backgroundColor: '#f1f5f9', height: '60vh' }}>
+          
+          {/* גוף הצ'אט / תגובות (אזור נגלל) */}
+          <div className="p-4 flex-grow-1" style={{ overflowY: 'auto' }}>
+            {/* תוכן המשימה המקורית */}
+            <div className="mb-4 p-3 shadow-sm rounded-4" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <Badge bg="light" text="dark" className="border border-secondary">{selectedTaskForReplies?.taskType || 'משימה מקורית'}</Badge>
+                <span className="small text-muted">{formatDate(selectedTaskForReplies?.createdAt)}</span>
+              </div>
+              <p className="mb-1" style={{ color: '#334155', fontWeight: '500' }}>{selectedTaskForReplies?.content || selectedTaskForReplies?.description}</p>
+              <div className="small text-muted mt-2">נכתב ע"י: <span className="fw-bold">{selectedTaskForReplies?.createdBy || 'מערכת'}</span></div>
+            </div>
+
+            <hr style={{ borderColor: '#cbd5e1', borderStyle: 'dashed' }} className="my-4" />
+
+            {/* רשימת התגובות */}
+            {selectedTaskForReplies?.replies && selectedTaskForReplies.replies.length > 0 ? (
+              selectedTaskForReplies.replies.map((reply, idx) => {
+                const isMe = reply.author === (currentUser?.name || currentUser?.firstName);
+                return (
+                  <div key={idx} className={`mb-3 p-3 shadow-sm rounded-4 ${isMe ? 'ms-auto' : 'me-auto'}`} 
+                       style={{ 
+                         maxWidth: '85%', 
+                         width: 'fit-content',
+                         backgroundColor: isMe ? '#eff6ff' : '#ffffff',
+                         border: `1px solid ${isMe ? '#bfdbfe' : '#e2e8f0'}`
+                       }}>
+                    <div className="d-flex justify-content-between align-items-center gap-4 mb-2" style={{ fontSize: '0.85rem' }}>
+                      <span className="fw-bold" style={{ color: isMe ? '#2563eb' : '#475569' }}>{reply.author}</span>
+                      <span style={{ color: '#94a3b8' }}>{formatDate(reply.createdAt)}</span>
+                    </div>
+                    <div style={{ color: '#334155', whiteSpace: 'pre-wrap' }}>{reply.text}</div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center text-muted mt-5 py-5">
+                <FiMessageCircle size={30} className="mb-2 opacity-50" />
+                <p>אין עדיין תגובות למשימה זו. היה הראשון להגיב!</p>
+              </div>
+            )}
+          </div>
+
+          {/* אזור הקלדת תגובה חדשה */}
+          <div className="p-3" style={{ backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+            <Form onSubmit={handleSubmitReply}>
+              <InputGroup>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="הקלד תגובה או עדכון כאן..."
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  style={{ borderRadius: '0 12px 12px 0', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', resize: 'none' }}
+                />
+                <Button 
+                  type="submit" 
+                  variant="primary" 
+                  disabled={isSavingReply || !replyText.trim()}
+                  className="px-4 d-flex align-items-center justify-content-center gap-2"
+                  style={{ borderRadius: '12px 0 0 12px', fontWeight: '600' }}
+                >
+                  {isSavingReply ? <Spinner size="sm" animation="border" /> : <><FiSend /> שלח</>}
+                </Button>
+              </InputGroup>
+            </Form>
+          </div>
+        </Modal.Body>
+      </Modal>
+
     </Container>
   );
 }

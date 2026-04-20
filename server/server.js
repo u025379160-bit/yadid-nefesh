@@ -147,6 +147,34 @@ app.delete('/api/tasks/:id', async (req, res) => {
   }
 });
 
+// 🔥 הוספת תגובה (השב) למשימה קיימת
+app.post('/api/tasks/:id/replies', async (req, res) => {
+  try {
+    // 1. מחפשים את המשימה הספציפית לפי ה-ID שלה
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: 'המשימה לא נמצאה' });
+
+    // 2. יוצרים את אובייקט התגובה החדשה עם הנתונים שקיבלנו מהאתר
+    const newReply = {
+      text: req.body.text,
+      author: req.body.author || 'צוות ניהול', // אם לא נשלח שם מחבר, נכתוב "צוות ניהול"
+      createdAt: new Date()
+    };
+
+    // 3. דוחפים את התגובה החדשה למערך התגובות של המשימה
+    task.replies.push(newReply);
+    
+    // 4. שומרים את המשימה המעודכנת במסד הנתונים
+    await task.save();
+
+    // 5. מחזירים לאתר את המשימה המעודכנת כדי שיציג את התגובה מיד
+    res.status(201).json(task); 
+  } catch (err) {
+    console.error('שגיאה בהוספת תגובה:', err);
+    res.status(500).json({ error: 'שגיאה בשמירת התגובה' });
+  }
+});
+
 // ==========================================
 // --- ניהול חונכים ---
 // ==========================================
