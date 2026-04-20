@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
 import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings, FiLock } from 'react-icons/fi';
+import Select from 'react-select'; // הוספנו את רכיב החיפוש החכם
 
 function StudentProfile() {
   const { id } = useParams(); 
@@ -206,9 +207,12 @@ function StudentProfile() {
   const handleOpenEdit = () => {
     let formattedDate = '';
     if (student.birthDate) formattedDate = new Date(student.birthDate).toISOString().split('T')[0];
-    setFormData({ ...student, birthDate: formattedDate, payer: student.payer || '' });
+    // משיכת ה-ID המדויק של המשלם (למקרה שהוא אובייקט מאוכלס)
+    const payerId = student.payer?._id || student.payer || '';
+    setFormData({ ...student, birthDate: formattedDate, payer: payerId });
     setShowEditModal(true);
   };
+  
   const handleCloseEdit = () => setShowEditModal(false);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -232,11 +236,11 @@ function StudentProfile() {
     }
   };
 
-  // --- פונקציות המשימות החדשות ---
+  // --- פונקציות המשימות ---
   const handleOpenTask = () => {
     setTaskData({
       associatedToType: 'student',
-      associatedToId: id, // תמיד משויך לתלמיד הנוכחי
+      associatedToId: id,
       taskType: 'תיעוד פעילות',
       content: '',
       status: 'published',
@@ -258,7 +262,6 @@ function StudentProfile() {
     e.preventDefault();
     setIsSavingTask(true);
     
-    // נוסיף שזה נוצר מהכרטיס
     const payload = { ...taskData, createdBy: 'מערכת (מהכרטיס)' };
     
     try {
@@ -268,10 +271,8 @@ function StudentProfile() {
         body: JSON.stringify(payload),
       });
       if (response.ok) {
-        // מביא את רשימת המשימות מחדש כדי להציג את החדשה מיד
         const tasksRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`);
         if (tasksRes.ok) setTasks(await tasksRes.json());
-        
         setShowTaskModal(false);
       } else {
         alert('שגיאה בשמירת המשימה');
@@ -320,6 +321,11 @@ function StudentProfile() {
     }
   };
 
+  // המרת המשלמים לפורמט של react-select
+  const payerOptions = payers.map(payer => ({
+    value: payer._id,
+    label: `${payer.name} (${payer.identifier}) - ${payer.payerType === 'individual' ? 'אדם פרטי' : 'מוסד'}`
+  }));
 
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: 'var(--primary-accent)'}} /></Container>;
   if (!student) return <Container className="mt-5 text-center"><h3>תלמיד לא נמצא 😕</h3></Container>;
@@ -375,15 +381,21 @@ function StudentProfile() {
                     <div className="p-3 rounded border mt-2" style={{ backgroundColor: activePayerObj ? '#f0fdf4' : '#fff5f5', borderColor: activePayerObj ? '#bbf7d0' : '#fecaca' }}>
                       <div className="d-flex justify-content-between align-items-center mb-1">
                         <small className="text-muted fw-bold small"><FiCreditCard className="me-1"/> משלם קבוע (ארנק חיוב)</small>
-                        {!activePayerObj && (
+                        
+                        {/* תיקון UX: כפתור החלפת משלם נפרד מעריכת הרשומה */}
+                        {!activePayerObj ? (
                           <Button variant="link" className="p-0 text-decoration-none small fw-bold" onClick={handleQuickSetPayer} style={{fontSize: '0.75rem'}}>
                             <FiUserCheck className="me-1"/> הגדר אבא כמשלם
                           </Button>
-                        )}
-                        {activePayerObj && (
-                          <Button variant="link" className="p-0 text-primary text-decoration-none small fw-bold" onClick={handleOpenPayerEdit} style={{fontSize: '0.75rem'}}>
-                            <FiSettings className="me-1"/> ערוך פרטי משלם
-                          </Button>
+                        ) : (
+                          <div className="d-flex gap-2">
+                            <Button variant="link" className="p-0 text-primary text-decoration-none small fw-bold" onClick={handleOpenEdit} style={{fontSize: '0.75rem'}} title="בחר משלם אחר לרשומה זו">
+                              <FiUserCheck className="me-1"/> החלף משלם
+                            </Button>
+                            <Button variant="link" className="p-0 text-muted text-decoration-none small fw-bold" onClick={handleOpenPayerEdit} style={{fontSize: '0.75rem'}} title="ערוך את פרטי המשלם עצמו">
+                              <FiSettings className="me-1"/> ערוך שם/טלפון
+                            </Button>
+                          </div>
                         )}
                       </div>
                       <span className={`fw-bold ${activePayerObj ? 'text-success' : 'text-danger'}`}>{activePayerName}</span>
@@ -505,7 +517,6 @@ function StudentProfile() {
                   </div>
                 ) : (
                   tasks.map((task) => {
-                    // תמיכה לאחור בפורמט הישן מול החדש
                     const title = task.taskType || task.title || 'משימה';
                     const description = task.content || task.description;
                     const badgeText = task.urgency || (task.status === 'draft' ? 'טיוטה' : 'פורסם');
@@ -545,11 +556,12 @@ function StudentProfile() {
         </Col>
       </Row>
 
+      {/* --- חלון עריכת פרטי תלמיד עם בחירת משלם מתקדמת --- */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד וגבייה</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-light p-4">
+        <Modal.Body className="bg-light p-4" style={{ minHeight: '60vh', overflow: 'visible' }}>
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <Form onSubmit={handleUpdateStudent}>
@@ -560,14 +572,21 @@ function StudentProfile() {
                       <Form.Label className="fw-bold text-primary small mb-2 d-flex align-items-center gap-2">
                         <FiUser /> שיוך למשלם קבוע (ארנק חיוב)
                       </Form.Label>
-                      <Form.Select name="payer" value={formData.payer || ''} onChange={handleChange} style={{ borderRadius: '8px' }}>
-                        <option value="">-- ללא משלם משויך כרגע --</option>
-                        {payers.map(payer => (
-                          <option key={payer._id} value={payer._id}>
-                            {payer.name} ({payer.identifier}) - {payer.payerType === 'individual' ? 'אדם פרטי' : 'מוסד'}
-                          </option>
-                        ))}
-                      </Form.Select>
+                      
+                      {/* התיקון שלנו: רכיב החיפוש החכם של משלמים */}
+                      <Select
+                        options={payerOptions}
+                        value={payerOptions.find(opt => opt.value === formData.payer) || null}
+                        onChange={(selected) => setFormData({ ...formData, payer: selected ? selected.value : '' })}
+                        placeholder="הקלד שם משלם לחיפוש..."
+                        isSearchable
+                        isClearable
+                        isRtl
+                        noOptionsMessage={() => "לא נמצאו משלמים"}
+                        menuPortalTarget={document.body}
+                        styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({...base, borderRadius: '8px'}) }}
+                      />
+                      
                     </Form.Group>
                   </Col>
                 </Row>
@@ -646,7 +665,6 @@ function StudentProfile() {
         </Modal.Body>
       </Modal>
 
-      {/* --- חלון המשימות החדש, היפה והחכם! --- */}
       <Modal show={showTaskModal} onHide={handleCloseTask} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
           <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>יצירת תיעוד / משימה לתלמיד</Modal.Title>
@@ -701,7 +719,7 @@ function StudentProfile() {
       {/* --- חלון עריכת משלם --- */}
       <Modal show={showPayerEditModal} onHide={() => setShowPayerEditModal(false)} dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי משלם</Modal.Title>
+          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי משלם במסד הנתונים</Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light p-4">
           <Card className="border-0 shadow-sm">
