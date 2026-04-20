@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Container, Card, Table, Button, Spinner, Row, Col, Modal } from 'react-bootstrap';
-import { FiDollarSign, FiCreditCard, FiUsers, FiSend, FiFileText } from 'react-icons/fi';
+import { Container, Card, Table, Button, Spinner, Row, Col, Modal, InputGroup, Form } from 'react-bootstrap';
+import { FiDollarSign, FiCreditCard, FiUsers, FiSend, FiFileText, FiSearch } from 'react-icons/fi';
 
 function Billing() {
   const [billingList, setBillingList] = useState([]);
   const [totalExpected, setTotalExpected] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // הסטייט החדש לחיפוש
+  const [searchTerm, setSearchTerm] = useState('');
 
   // לניהול המודל שמציג את פירוט החיוב
   const [showDetails, setShowDetails] = useState(false);
@@ -90,6 +93,16 @@ function Billing() {
     alert(`סימולציה: נשלחה בקשת חיוב לנדרים פלוס!\nמשלם: ${payerName}\nסכום: ₪${amount}\n\n(כאן יתבצע החיבור האמיתי לסליקה בעתיד)`);
   };
 
+  // מנגנון הסינון (חיפוש)
+  const filteredBillingList = billingList.filter(item => {
+    const searchLower = searchTerm.toLowerCase();
+    // מאפשר חיפוש לפי שם משלם או שם התלמיד המשויך אליו
+    return (
+      item.payerName.toLowerCase().includes(searchLower) ||
+      item.studentNamesArray.some(studentName => studentName.toLowerCase().includes(searchLower))
+    );
+  });
+
   return (
     <Container className="mt-5 mb-5" dir="rtl">
       
@@ -136,23 +149,41 @@ function Billing() {
 
       <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <Card.Body className="p-4">
-          <div className="table-responsive">
+          
+          {/* אזור החיפוש */}
+          <div className="mb-4" style={{ maxWidth: '400px' }}>
+            <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <InputGroup.Text style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
+                <FiSearch color="#94a3b8" />
+              </InputGroup.Text>
+              <Form.Control
+                placeholder="חיפוש לפי שם משלם או תלמיד..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '10px' }}
+              />
+            </InputGroup>
+          </div>
+
+          {/* הגדרת גובה מקסימלי לטבלה וגלילה אנכית לשמירת הכותרת דבוקה */}
+          <div className="table-responsive" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
             <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}><FiCreditCard className="me-2" /> שם המשלם</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>סוג</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>תלמידים משויכים</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>מס' שיבוצים</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>סה"כ לחיוב</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }} className="text-end">פעולות סליקה</th>
+                  {/* הגדרת position: sticky לכל כותרת כדי למנוע דריסות של סגנונות */}
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}><FiCreditCard className="me-2" /> שם המשלם</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}>סוג</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}>תלמידים משויכים</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}>מס' שיבוצים</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}>סה"כ לחיוב</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }} className="text-end">פעולות סליקה</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr><td colSpan="6" className="text-center py-5"><Spinner animation="border" style={{ color: '#2563eb' }} /></td></tr>
-                ) : billingList.length > 0 ? (
-                  billingList.map((item) => (
+                ) : filteredBillingList.length > 0 ? (
+                  filteredBillingList.map((item) => (
                     <tr key={item.payerId}>
                       <td className="fw-bold" style={{ color: '#2563eb', padding: '16px 12px', fontSize: '1.05rem' }}>{item.payerName}</td>
                       <td style={{ padding: '16px 12px' }}>
@@ -197,8 +228,8 @@ function Billing() {
                   <tr>
                     <td colSpan="6" className="text-center py-5 text-muted">
                       <div className="mb-3"><FiDollarSign size={40} className="opacity-25" /></div>
-                      <h5 style={{ color: '#64748b' }}>לא נמצאו חיובים החודש</h5>
-                      <p className="small mb-0">ודא שיש שיבוצים פעילים עם סכום, ושהתלמידים משויכים למשלם.</p>
+                      <h5 style={{ color: '#64748b' }}>לא נמצאו חיובים</h5>
+                      <p className="small mb-0">נסה לחפש שם אחר, או ודא שיש שיבוצים פעילים עם סכום המשויכים למשלם.</p>
                     </td>
                   </tr>
                 )}
