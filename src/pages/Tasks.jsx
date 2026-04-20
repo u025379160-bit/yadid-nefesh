@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Modal, Form, Row, Col, Badge, Spinner, InputGroup } from 'react-bootstrap';
-import { FiPlus, FiMessageSquare, FiLock, FiEdit2, FiCheckCircle, FiCircle, FiTrash2, FiMessageCircle, FiSend } from 'react-icons/fi';
+import { FiPlus, FiMessageSquare, FiLock, FiEdit2, FiCheckCircle, FiCircle, FiTrash2, FiMessageCircle, FiSend, FiAtSign } from 'react-icons/fi';
 
 function Tasks({ currentUser }) {
   const [tasks, setTasks] = useState([]);
@@ -15,10 +15,11 @@ function Tasks({ currentUser }) {
   const [showModal, setShowModal] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null); 
   
-  // === סטייטים חדשים עבור מערכת התגובות ===
+  // === סטייטים עבור מערכת התגובות ===
   const [showRepliesModal, setShowRepliesModal] = useState(false);
   const [selectedTaskForReplies, setSelectedTaskForReplies] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [taggedUserForReply, setTaggedUserForReply] = useState(''); // 🔥 הסטייט החדש לתיוג אנשי צוות!
   const [isSavingReply, setIsSavingReply] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -164,9 +165,10 @@ function Tasks({ currentUser }) {
     }
   };
 
-  // === פונקציות לניהול התגובות ===
+  // === פונקציות לניהול התגובות והתיוגים ===
   const handleOpenReplies = (task) => {
     setSelectedTaskForReplies(task);
+    setTaggedUserForReply(''); // איפוס התיוג כשפותחים את החלון
     setShowRepliesModal(true);
   };
 
@@ -175,23 +177,29 @@ function Tasks({ currentUser }) {
     if (!replyText.trim() || !selectedTaskForReplies) return;
 
     setIsSavingReply(true);
+
+    // 🔥 הטריק שלנו: אם נבחר איש צוות לתיוג, אנחנו משרשרים את השם שלו בתחילת ההודעה!
+    let finalReplyText = replyText;
+    if (taggedUserForReply) {
+      finalReplyText = `[🔔 תיוג: @${taggedUserForReply}]\n${finalReplyText}`;
+    }
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${selectedTaskForReplies._id}/replies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: replyText,
+          text: finalReplyText,
           author: currentUser?.name || currentUser?.firstName || 'צוות ניהול'
         })
       });
 
       if (response.ok) {
         const updatedTask = await response.json();
-        // עדכון המשימה במערך המשימות הכללי כדי שהמונה יתעדכן
         setTasks(tasks.map(t => t._id === updatedTask._id ? updatedTask : t));
-        // עדכון המשימה הנבחרת כדי שהתגובה תופיע מיד בחלון הפתוח
         setSelectedTaskForReplies(updatedTask);
         setReplyText('');
+        setTaggedUserForReply(''); // איפוס התיוג אחרי השליחה
       } else {
         alert('שגיאה בשמירת התגובה');
       }
@@ -206,6 +214,9 @@ function Tasks({ currentUser }) {
     if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
+
+  // חילוץ השם של המשתמש הנוכחי כדי שלא יוכל לתייג את עצמו
+  const currentUserName = currentUser?.name || currentUser?.firstName;
 
   return (
     <Container className="mt-5 mb-5" dir="rtl">
@@ -282,7 +293,6 @@ function Tasks({ currentUser }) {
                       </td>
 
                       <td className="text-end" style={{ padding: '16px 12px', minWidth: '150px' }}>
-                        {/* כפתור תגובות חדש */}
                         <Button 
                           variant="light" 
                           size="sm" 
@@ -421,7 +431,7 @@ function Tasks({ currentUser }) {
                 <Badge bg="light" text="dark" className="border border-secondary">{selectedTaskForReplies?.taskType || 'משימה מקורית'}</Badge>
                 <span className="small text-muted">{formatDate(selectedTaskForReplies?.createdAt)}</span>
               </div>
-              <p className="mb-1" style={{ color: '#334155', fontWeight: '500' }}>{selectedTaskForReplies?.content || selectedTaskForReplies?.description}</p>
+              <p className="mb-1" style={{ color: '#334155', fontWeight: '500', whiteSpace: 'pre-wrap' }}>{selectedTaskForReplies?.content || selectedTaskForReplies?.description}</p>
               <div className="small text-muted mt-2">נכתב ע"י: <span className="fw-bold">{selectedTaskForReplies?.createdBy || 'מערכת'}</span></div>
             </div>
 
@@ -430,14 +440,17 @@ function Tasks({ currentUser }) {
             {/* רשימת התגובות */}
             {selectedTaskForReplies?.replies && selectedTaskForReplies.replies.length > 0 ? (
               selectedTaskForReplies.replies.map((reply, idx) => {
-                const isMe = reply.author === (currentUser?.name || currentUser?.firstName);
+                const isMe = reply.author === currentUserName;
+                // הדגשה ויזואלית אם יש תיוג בתוך הטקסט
+                const hasTag = reply.text.includes('[🔔 תיוג:');
+                
                 return (
                   <div key={idx} className={`mb-3 p-3 shadow-sm rounded-4 ${isMe ? 'ms-auto' : 'me-auto'}`} 
                        style={{ 
                          maxWidth: '85%', 
                          width: 'fit-content',
-                         backgroundColor: isMe ? '#eff6ff' : '#ffffff',
-                         border: `1px solid ${isMe ? '#bfdbfe' : '#e2e8f0'}`
+                         backgroundColor: isMe ? '#eff6ff' : (hasTag ? '#fffbeb' : '#ffffff'), // צבע צהבהב אם יש תיוג
+                         border: `1px solid ${isMe ? '#bfdbfe' : (hasTag ? '#fde68a' : '#e2e8f0')}`
                        }}>
                     <div className="d-flex justify-content-between align-items-center gap-4 mb-2" style={{ fontSize: '0.85rem' }}>
                       <span className="fw-bold" style={{ color: isMe ? '#2563eb' : '#475569' }}>{reply.author}</span>
@@ -455,9 +468,30 @@ function Tasks({ currentUser }) {
             )}
           </div>
 
-          {/* אזור הקלדת תגובה חדשה */}
+          {/* אזור הקלדת תגובה חדשה עם אופציה לתיוג */}
           <div className="p-3" style={{ backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
             <Form onSubmit={handleSubmitReply}>
+              
+              {/* רשימת תיוג הצוות */}
+              <div className="mb-2">
+                <Form.Select 
+                  size="sm"
+                  value={taggedUserForReply}
+                  onChange={(e) => setTaggedUserForReply(e.target.value)}
+                  style={{ width: 'max-content', borderRadius: '8px', backgroundColor: '#f8fafc', color: '#475569', fontSize: '0.85rem', border: '1px solid #cbd5e1' }}
+                >
+                  <option value="">@ תייג איש צוות (אופציונלי)</option>
+                  {/* מציג את כל הצוות למעט המשתמש הנוכחי (שלא יתייג את עצמו) */}
+                  {usersList
+                    .filter(u => (u.name || u.firstName) !== currentUserName)
+                    .map(user => (
+                      <option key={user._id} value={user.name || user.firstName}>
+                        {user.name || user.firstName}
+                      </option>
+                  ))}
+                </Form.Select>
+              </div>
+
               <InputGroup>
                 <Form.Control
                   as="textarea"
