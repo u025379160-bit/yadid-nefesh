@@ -121,7 +121,19 @@ function TutorProfile() {
   };
   
   const handleCloseEdit = () => setShowEditModal(false);
+  
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  
+  // פונקציה מיוחדת לעדכון שדות הבנק הפנימיים (אובייקט בתוך הסטייט)
+  const handleBankChange = (e) => {
+    setFormData({
+      ...formData,
+      bankAccount: {
+        ...(formData.bankAccount || {}),
+        [e.target.name]: e.target.value
+      }
+    });
+  };
 
   const handleUpdateTutor = async (e) => {
     e.preventDefault();
@@ -296,7 +308,7 @@ function TutorProfile() {
                 </Col>
               </Row>
 
-              {/* אזור המידע החדש מהאפיון */}
+              {/* אזור המידע המורחב */}
               <Row className="mt-4 pt-4" style={{ borderTop: '2px solid #f1f5f9' }}>
                 <Col md={6}>
                   <h6 className="fw-bold mb-4 d-flex align-items-center gap-2 pb-2" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>
@@ -312,11 +324,22 @@ function TutorProfile() {
                 </Col>
                 <Col md={6}>
                   <h6 className="fw-bold mb-4 d-flex align-items-center gap-2 pb-2" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>
-                    <FiFileText style={{ color: '#2563eb' }} /> נתונים נוספים
+                    <FiFileText style={{ color: '#2563eb' }} /> נתונים נוספים ופיננסי
                   </h6>
                   <div className="d-flex flex-column gap-3">
                     <div><small className="d-block mb-1" style={{ color: '#64748b' }}>רואיין על ידי</small><span className="fw-bold" style={{ color: '#0f172a' }}>{tutor.interviewedBy || 'לא צוין'}</span></div>
-                    <div><small className="d-block mb-1" style={{ color: '#64748b' }}>פרטי חשבון בנק למלגות</small><span className="fw-bold" style={{ color: '#0f172a' }}>{tutor.bankAccount || 'לא הוזן'}</span></div>
+                    
+                    {/* תצוגת הבנק המופרדת */}
+                    <div className="p-3 rounded-4" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      <small className="fw-bold d-block mb-1" style={{ color: '#166534' }}>פרטי חשבון בנק למלגות</small>
+                      <span className="fw-bold" style={{ color: '#15803d', fontSize: '0.95rem' }}>
+                        {tutor.bankAccount?.bankName || tutor.bankAccount?.accountNumber ? 
+                          `בנק ${tutor.bankAccount.bankName || '-'} | סניף ${tutor.bankAccount.branch || '-'} | חשבון ${tutor.bankAccount.accountNumber || '-'}` 
+                          : 'לא הוזן חשבון'
+                        }
+                      </span>
+                    </div>
+
                     {tutor.recommendations && (
                       <div>
                         <small className="d-block mb-1" style={{ color: '#64748b' }}>ממליצים:</small>
@@ -531,7 +554,6 @@ function TutorProfile() {
         </Col>
       </Row>
 
-      {/* --- חלון עריכת פרטי חונך - מעודכן עם כל השדות --- */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="xl" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>עריכת פרטי חונך מלאים</Modal.Title>
@@ -575,9 +597,16 @@ function TutorProfile() {
                 </Row>
 
                 <h6 className="fw-bold mb-3 pb-2 mt-4" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>מידע פיננסי וראיונות</h6>
+                
+                {/* כאן 3 השדות המופרדים של הבנק בטופס העריכה */}
                 <Row className="mb-3">
-                  <Col md={6}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>פרטי חשבון בנק למלגות</Form.Label><Form.Control type="text" name="bankAccount" value={formData.bankAccount || ''} onChange={handleChange} placeholder="שם בנק, סניף, מספר חשבון" style={{ borderRadius: '8px' }}/></Form.Group></Col>
-                  <Col md={6}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>רואיין על ידי</Form.Label><Form.Control type="text" name="interviewedBy" value={formData.interviewedBy || ''} onChange={handleChange} placeholder="שם המראיין" style={{ borderRadius: '8px' }}/></Form.Group></Col>
+                  <Col md={4}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>שם בנק</Form.Label><Form.Control type="text" name="bankName" value={formData.bankAccount?.bankName || ''} onChange={handleBankChange} placeholder="לדוגמה: פועלים" style={{ borderRadius: '8px' }}/></Form.Group></Col>
+                  <Col md={4}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>סניף</Form.Label><Form.Control type="text" name="branch" value={formData.bankAccount?.branch || ''} onChange={handleBankChange} placeholder="מספר סניף" style={{ borderRadius: '8px' }}/></Form.Group></Col>
+                  <Col md={4}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>מספר חשבון</Form.Label><Form.Control type="text" name="accountNumber" value={formData.bankAccount?.accountNumber || ''} onChange={handleBankChange} placeholder="מספר חשבון" style={{ borderRadius: '8px' }}/></Form.Group></Col>
+                </Row>
+
+                <Row className="mb-3">
+                  <Col md={12}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>רואיין על ידי</Form.Label><Form.Control type="text" name="interviewedBy" value={formData.interviewedBy || ''} onChange={handleChange} placeholder="שם המראיין" style={{ borderRadius: '8px' }}/></Form.Group></Col>
                 </Row>
                 
                 <Form.Group className="mb-4">
