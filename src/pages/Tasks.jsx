@@ -19,7 +19,7 @@ function Tasks({ currentUser }) {
   const [showRepliesModal, setShowRepliesModal] = useState(false);
   const [selectedTaskForReplies, setSelectedTaskForReplies] = useState(null);
   const [replyText, setReplyText] = useState('');
-  const [taggedUserForReply, setTaggedUserForReply] = useState(''); // 🔥 הסטייט החדש לתיוג אנשי צוות!
+  const [taggedUserForReply, setTaggedUserForReply] = useState(''); 
   const [isSavingReply, setIsSavingReply] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -39,13 +39,37 @@ function Tasks({ currentUser }) {
   useEffect(() => {
     fetchTasks();
     fetchAssociatedData();
-  }, []);
+  }, [currentUser]); // הוספנו את currentUser לתלויות כדי שיטען מחדש אם המשתמש מתחלף
 
   const fetchTasks = async () => {
     setIsLoading(true);
     try {
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/tasks');
-      if (response.ok) setTasks(await response.json());
+      if (response.ok) {
+        const allTasks = await response.json();
+        
+        // --- תוספת הסינון החכם להרשאות צפייה ---
+        let filteredTasks = allTasks;
+        
+        // אם המשתמש הוא לא מנהל, נסנן את המשימות שיוצגו לו
+        if (currentUser && currentUser.role !== 'manager') {
+          const myName = currentUser.name || currentUser.firstName;
+          const myId = currentUser._id;
+
+          filteredTasks = allTasks.filter(task => {
+            // האם המשימה משויכת אליי בתור אובייקט?
+            const isAssociatedToMe = task.associatedToType === 'tutor' && task.associatedToId === myId;
+            // האם המשימה הוקצתה אליי לטיפול?
+            const isAssignedToMe = task.assignedTo === myName;
+            // האם אני יצרתי את המשימה?
+            const isCreatedByMe = task.createdBy === myName;
+            
+            return isAssociatedToMe || isAssignedToMe || isCreatedByMe;
+          });
+        }
+        
+        setTasks(filteredTasks);
+      }
     } catch (err) {
       console.error('שגיאה בשליפת משימות:', err);
     } finally {
@@ -178,7 +202,7 @@ function Tasks({ currentUser }) {
 
     setIsSavingReply(true);
 
-    // 🔥 הטריק שלנו: אם נבחר איש צוות לתיוג, אנחנו משרשרים את השם שלו בתחילת ההודעה!
+    // שרשור השם לתיוג בתחילת ההודעה
     let finalReplyText = replyText;
     if (taggedUserForReply) {
       finalReplyText = `[🔔 תיוג: @${taggedUserForReply}]\n${finalReplyText}`;
@@ -199,7 +223,7 @@ function Tasks({ currentUser }) {
         setTasks(tasks.map(t => t._id === updatedTask._id ? updatedTask : t));
         setSelectedTaskForReplies(updatedTask);
         setReplyText('');
-        setTaggedUserForReply(''); // איפוס התיוג אחרי השליחה
+        setTaggedUserForReply(''); 
       } else {
         alert('שגיאה בשמירת התגובה');
       }
@@ -215,7 +239,6 @@ function Tasks({ currentUser }) {
     return new Date(dateString).toLocaleDateString('he-IL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  // חילוץ השם של המשתמש הנוכחי כדי שלא יוכל לתייג את עצמו
   const currentUserName = currentUser?.name || currentUser?.firstName;
 
   return (
@@ -441,7 +464,6 @@ function Tasks({ currentUser }) {
             {selectedTaskForReplies?.replies && selectedTaskForReplies.replies.length > 0 ? (
               selectedTaskForReplies.replies.map((reply, idx) => {
                 const isMe = reply.author === currentUserName;
-                // הדגשה ויזואלית אם יש תיוג בתוך הטקסט
                 const hasTag = reply.text.includes('[🔔 תיוג:');
                 
                 return (
@@ -449,7 +471,7 @@ function Tasks({ currentUser }) {
                        style={{ 
                          maxWidth: '85%', 
                          width: 'fit-content',
-                         backgroundColor: isMe ? '#eff6ff' : (hasTag ? '#fffbeb' : '#ffffff'), // צבע צהבהב אם יש תיוג
+                         backgroundColor: isMe ? '#eff6ff' : (hasTag ? '#fffbeb' : '#ffffff'), 
                          border: `1px solid ${isMe ? '#bfdbfe' : (hasTag ? '#fde68a' : '#e2e8f0')}`
                        }}>
                     <div className="d-flex justify-content-between align-items-center gap-4 mb-2" style={{ fontSize: '0.85rem' }}>
@@ -472,7 +494,6 @@ function Tasks({ currentUser }) {
           <div className="p-3" style={{ backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
             <Form onSubmit={handleSubmitReply}>
               
-              {/* רשימת תיוג הצוות */}
               <div className="mb-2">
                 <Form.Select 
                   size="sm"
@@ -481,7 +502,6 @@ function Tasks({ currentUser }) {
                   style={{ width: 'max-content', borderRadius: '8px', backgroundColor: '#f8fafc', color: '#475569', fontSize: '0.85rem', border: '1px solid #cbd5e1' }}
                 >
                   <option value="">@ תייג איש צוות (אופציונלי)</option>
-                  {/* מציג את כל הצוות למעט המשתמש הנוכחי (שלא יתייג את עצמו) */}
                   {usersList
                     .filter(u => (u.name || u.firstName) !== currentUserName)
                     .map(user => (
