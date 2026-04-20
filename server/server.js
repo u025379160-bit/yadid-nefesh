@@ -314,6 +314,70 @@ app.put('/api/placements/:id', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+// ==============================================================
+// 📞 מערכת הטלפוניה (IVR - קול כשר) 📞
+// ==============================================================
+
+// 1. אימות חונך בכניסה למערכת
+app.post('/api/ivr/auth', async (req, res) => {
+  try {
+    const { tutor_id } = req.body;
+    
+    // חיפוש חונך פעיל במסד הנתונים לפי תעודת זהות שהוקשה בטלפון
+    const Tutor = require('./models/Tutor'); // ודא שהנתיב למודל נכון
+    const tutor = await Tutor.findOne({ idNumber: tutor_id, status: 'פעיל' });
+
+    if (tutor) {
+      return res.json({
+        status: "success",
+        message: "Authorized",
+        tutor_name: `${tutor.firstName} ${tutor.lastName}`
+      });
+    } else {
+      return res.json({
+        status: "error",
+        message: "Tutor not found"
+      });
+    }
+  } catch (error) {
+    console.error("IVR Auth Error:", error);
+    res.status(500).json({ status: "error", message: "Server error" });
+  }
+});
+
+// 2. דיווח שעות - קבלת הנתונים מהטלפון
+app.post('/api/ivr/report-hours', async (req, res) => {
+  try {
+    const { tutor_id, date, start_time, end_time } = req.body;
+    
+    // כרגע רק מדפיס לקונסול כדי לראות שזה עובד מול קול כשר.
+    // בהמשך נוסיף פה את קוד השמירה למסד הנתונים.
+    console.log(`התקבל דיווח שעות מחונך ${tutor_id}: מ-${start_time} עד ${end_time}`);
+
+    return res.json({
+      status: "success",
+      message: "Hours saved successfully"
+    });
+  } catch (error) {
+    console.error("IVR Report Error:", error);
+    res.status(500).json({ status: "error", message: "Server error" });
+  }
+});
+
+// 3. בירור מצב מלגה 
+app.post('/api/ivr/scholarship-balance', async (req, res) => {
+  try {
+    const { tutor_id } = req.body;
+    
+    return res.json({
+      status: "success",
+      balance_to_say: "1500" // נתון דמה לבינתיים
+    });
+  } catch (error) {
+    console.error("IVR Balance Error:", error);
+    res.status(500).json({ status: "error", message: "Server error" });
+  }
+});
 app.listen(PORT, () => {
   console.log(`✅ השרת רץ על פורט ${PORT}`);
 });
