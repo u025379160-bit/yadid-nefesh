@@ -3,7 +3,7 @@ import { Container, Card, Form, Button, Table, Spinner, Row, Col, Tabs, Tab } fr
 import { FiCalendar, FiTrash2, FiPlus, FiSave, FiUsers, FiSettings } from 'react-icons/fi';
 
 // 👇 מייבאים את מסך הצוות לתוך ההגדרות
-import Team from './Team'; 
+import Team from '../pages/Team';
 
 function AdminSettings() {
   const [dates, setDates] = useState([]);
