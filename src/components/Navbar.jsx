@@ -21,7 +21,8 @@ function MainNavbar({ onLogout, currentUser }) {
 
   return (
     <>
-      <Navbar expand="xl" sticky="top" className="bg-white">
+      {/* הוספנו צל עדין לתפריט עצמו */}
+      <Navbar expand="xl" sticky="top" className="bg-white shadow-sm" style={{ borderBottom: '1px solid #f1f5f9' }}>
         <Container fluid className="px-lg-5">
           
           {/* צד ימין: לוגו */}
@@ -37,52 +38,54 @@ function MainNavbar({ onLogout, currentUser }) {
           <Navbar.Toggle aria-controls="basic-navbar-nav" className="border-0 shadow-none" />
           <Navbar.Collapse id="basic-navbar-nav">
             
-            {/* מרכז: כאן עשינו את הקסם - שינינו ל mx-auto כדי למרכז את התפריט ולנצל את המקום */}
-            <Nav className="mx-auto gap-4" style={{ fontSize: '1.05rem', fontWeight: '500' }}>
+            <Nav className="mx-auto gap-2" style={{ fontSize: '1.05rem' }}>
               
-              <Nav.Link as={Link} to="/" className={isActive('/') && location.pathname === '/' ? 'nav-elegant active' : 'nav-elegant'}>
+              <Nav.Link as={Link} to="/" className={isActive('/') && location.pathname === '/' ? 'nav-modern active' : 'nav-modern'}>
                 ראשי
               </Nav.Link>
 
               {['manager', 'admin', 'secretary', 'coordinator'].includes(role) && (
                 <>
-                  <Nav.Link as={Link} to="/students" className={isActive('/student') ? 'nav-elegant active' : 'nav-elegant'}>
+                  <Nav.Link as={Link} to="/students" className={isActive('/student') ? 'nav-modern active' : 'nav-modern'}>
                     תלמידים
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/tutors" className={isActive('/tutor') ? 'nav-elegant active' : 'nav-elegant'}>
+                  <Nav.Link as={Link} to="/tutors" className={isActive('/tutor') ? 'nav-modern active' : 'nav-modern'}>
                     חונכים
                   </Nav.Link>
                 </>
               )}
 
-              <Nav.Link as={Link} to="/placements" className={isActive('/placements') ? 'nav-elegant active' : 'nav-elegant'}>
+              <Nav.Link as={Link} to="/placements" className={isActive('/placements') ? 'nav-modern active' : 'nav-modern'}>
                 שיבוצים
               </Nav.Link>
 
               {['manager', 'admin', 'secretary'].includes(role) && (
                 <>
-                  <Nav.Link as={Link} to="/payers" className={isActive('/payers') ? 'nav-elegant active' : 'nav-elegant'}>
+                  <Nav.Link as={Link} to="/payers" className={isActive('/payers') ? 'nav-modern active' : 'nav-modern'}>
                     משלמים
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/billing" className={isActive('/billing') ? 'nav-elegant active' : 'nav-elegant'}>
+                  <Nav.Link as={Link} to="/billing" className={isActive('/billing') ? 'nav-modern active' : 'nav-modern'}>
                     חיובים
+                  </Nav.Link>
+                  <Nav.Link as={Link} to="/scholarships" className={isActive('/scholarships') ? 'nav-modern active' : 'nav-modern'}>
+                    מלגות
                   </Nav.Link>
                 </>
               )}
 
               {['manager', 'admin'].includes(role) && (
-                <Nav.Link as={Link} to="/team" className={isActive('/team') ? 'nav-elegant active' : 'nav-elegant'}>
+                <Nav.Link as={Link} to="/team" className={isActive('/team') ? 'nav-modern active' : 'nav-modern'}>
                   צוות ניהול
                 </Nav.Link>
               )}
 
-              <Nav.Link as={Link} to="/tasks" className={isActive('/tasks') ? 'nav-elegant active' : 'nav-elegant'}>
+              <Nav.Link as={Link} to="/tasks" className={isActive('/tasks') ? 'nav-modern active' : 'nav-modern'}>
                 משימות
               </Nav.Link>
 
             </Nav>
             
-            {/* צד שמאל: אזור משתמש מקובע שלא יידרס */}
+            {/* צד שמאל: אזור משתמש מקובע */}
             <div className="d-flex align-items-center justify-content-end gap-3 mt-3 mt-xl-0" style={{ minWidth: '220px' }}>
               {currentUser && (
                 <div className="text-end" style={{ lineHeight: '1.2' }}>
@@ -95,13 +98,15 @@ function MainNavbar({ onLogout, currentUser }) {
                 </div>
               )}
 
+              {/* כפתור התנתקות מודרני */}
               <Button 
-                variant="link" 
+                variant="light" 
                 onClick={onLogout} 
-                className="text-decoration-none d-flex align-items-center gap-2 px-0 logout-elegant flex-shrink-0"
+                className="rounded-pill d-flex align-items-center gap-2 px-3 logout-modern flex-shrink-0"
+                style={{ border: '1px solid #e2e8f0' }}
               >
-                <span style={{ fontWeight: '500' }}>התנתק</span>
-                <FiLogOut size={18} />
+                <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>התנתק</span>
+                <FiLogOut size={16} />
               </Button>
             </div>
 
@@ -109,51 +114,38 @@ function MainNavbar({ onLogout, currentUser }) {
         </Container>
       </Navbar>
 
-      <div style={{ width: '100%', height: '4px', background: 'linear-gradient(90deg, #e0f2fe 0%, #bae6fd 100%)' }}></div>
-
       <style>{`
-        .nav-elegant {
-          color: #475569 !important;
-          position: relative;
-          padding: 8px 0 !important;
-          transition: color 0.3s ease;
+        /* העיצוב המודרני החדש לקישורים - דומה לכפתורי הטבלה */
+        .nav-modern {
+          color: #64748b !important;
+          padding: 8px 18px !important;
+          border-radius: 999px; /* עיצוב גלולה עגול */
+          transition: all 0.2s ease;
           white-space: nowrap; 
+          font-weight: 600;
         }
         
-        .nav-elegant:hover {
-          color: #d97706 !important;
+        .nav-modern:hover {
+          background-color: #f8fafc;
+          color: #334155 !important;
         }
         
-        .nav-elegant.active {
-          color: #d97706 !important;
-          font-weight: 700 !important;
-        }
-        
-        .nav-elegant::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 0;
-          height: 2px;
-          background-color: #d97706;
-          transition: width 0.3s ease;
-          border-radius: 2px;
-        }
-        
-        .nav-elegant:hover::after, .nav-elegant.active::after {
-          width: 100%;
+        .nav-modern.active {
+          background-color: #eff6ff !important; /* תכלת בהיר כמו הכפתורים שלך */
+          color: #2563eb !important; /* כחול בולט כמו כפתור ההוספה */
         }
 
-        .logout-elegant {
+        /* עיצוב לכפתור ההתנתקות */
+        .logout-modern {
           color: #64748b !important;
-          transition: color 0.2s ease;
-          white-space: nowrap;
+          background-color: #ffffff;
+          transition: all 0.2s ease;
         }
         
-        .logout-elegant:hover {
-          color: #ef4444 !important;
+        .logout-modern:hover {
+          background-color: #fee2e2 !important; /* אדום בהיר */
+          color: #ef4444 !important; /* טקסט אדום */
+          border-color: #fca5a5 !important;
         }
       `}</style>
     </>
