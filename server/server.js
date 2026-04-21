@@ -9,6 +9,8 @@ const Student = require('./models/Student');
 const Task = require('./models/Task'); 
 const Tutor = require('./models/Tutor'); 
 const Placement = require('./models/Placement');
+// הייבוא החדש שלנו!
+const Scholarship = require('./models/Scholarship'); 
 
 const app = express();
 app.use(cors());
@@ -19,15 +21,13 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('🟢 מחובר בהצלחה למסד הנתונים MongoDB בענן!'))
   .catch((err) => console.log('🔴 שגיאה בחיבור:', err));
 
-
 // ==========================================
 // --- חיבור הראוטרים החיצוניים ---
 // ==========================================
 
-// מחבר את הקובץ של המשלמים (שיושב בתיקיית routes) אל השרת הראשי
 const payersRouter = require('./routes/payers');
 app.use('/api/payers', payersRouter);
-// חיבור מודול המשתמשים (הצוות)
+
 const usersRouter = require('./routes/users');
 app.use('/api/users', usersRouter);
 
@@ -35,7 +35,6 @@ app.use('/api/users', usersRouter);
 // --- ניהול תלמידים ---
 // ==========================================
 
-// הוספת תלמיד חדש
 app.post('/api/students', async (req, res) => {
   try {
     const newStudent = new Student(req.body); 
@@ -46,7 +45,6 @@ app.post('/api/students', async (req, res) => {
   }
 });
 
-// שליפת כל התלמידים
 app.get('/api/students', async (req, res) => {
   try {
     const allStudents = await Student.find(); 
@@ -56,7 +54,6 @@ app.get('/api/students', async (req, res) => {
   }
 });
 
-// מחיקת תלמיד
 app.delete('/api/students/:id', async (req, res) => {
   try {
     await Student.findByIdAndDelete(req.params.id); 
@@ -66,7 +63,6 @@ app.delete('/api/students/:id', async (req, res) => {
   }
 });
 
-// שליפת תלמיד אחד
 app.get('/api/students/:id', async (req, res) => {
   try {
     const student = await Student.findById(req.params.id); 
@@ -77,7 +73,6 @@ app.get('/api/students/:id', async (req, res) => {
   }
 });
 
-// עדכון תלמיד
 app.put('/api/students/:id', async (req, res) => {
   try {
     const updatedStudent = await Student.findByIdAndUpdate(
@@ -96,7 +91,6 @@ app.put('/api/students/:id', async (req, res) => {
 // --- ניהול משימות ---
 // ==========================================
 
-// עדכון משימה קיימת (לעריכה או לסימון כ"בוצע")
 app.put('/api/tasks/:id', async (req, res) => {
   try {
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -106,7 +100,6 @@ app.put('/api/tasks/:id', async (req, res) => {
   }
 });
 
-// הוספת משימה לתלמיד
 app.post('/api/tasks', async (req, res) => {
   try {
     const newTask = new Task(req.body);
@@ -117,7 +110,6 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// שליפת כל המשימות למסך הניהול הראשי
 app.get('/api/tasks', async (req, res) => {
   try {
     const allTasks = await Task.find().sort({ createdAt: -1 });
@@ -127,7 +119,6 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// שליפת משימות של תלמיד
 app.get('/api/students/:studentId/tasks', async (req, res) => {
   try {
     const tasks = await Task.find({ studentId: req.params.studentId });
@@ -137,7 +128,6 @@ app.get('/api/students/:studentId/tasks', async (req, res) => {
   }
 });
 
-// מחיקת משימה
 app.delete('/api/tasks/:id', async (req, res) => {
   try {
     await Task.findByIdAndDelete(req.params.id);
@@ -147,27 +137,20 @@ app.delete('/api/tasks/:id', async (req, res) => {
   }
 });
 
-// 🔥 הוספת תגובה (השב) למשימה קיימת
 app.post('/api/tasks/:id/replies', async (req, res) => {
   try {
-    // 1. מחפשים את המשימה הספציפית לפי ה-ID שלה
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'המשימה לא נמצאה' });
 
-    // 2. יוצרים את אובייקט התגובה החדשה עם הנתונים שקיבלנו מהאתר
     const newReply = {
       text: req.body.text,
-      author: req.body.author || 'צוות ניהול', // אם לא נשלח שם מחבר, נכתוב "צוות ניהול"
+      author: req.body.author || 'צוות ניהול', 
       createdAt: new Date()
     };
 
-    // 3. דוחפים את התגובה החדשה למערך התגובות של המשימה
     task.replies.push(newReply);
-    
-    // 4. שומרים את המשימה המעודכנת במסד הנתונים
     await task.save();
 
-    // 5. מחזירים לאתר את המשימה המעודכנת כדי שיציג את התגובה מיד
     res.status(201).json(task); 
   } catch (err) {
     console.error('שגיאה בהוספת תגובה:', err);
@@ -179,7 +162,6 @@ app.post('/api/tasks/:id/replies', async (req, res) => {
 // --- ניהול חונכים ---
 // ==========================================
 
-// הוספת חונך חדש
 app.post('/api/tutors', async (req, res) => {
   try {
     const newTutor = new Tutor(req.body);
@@ -190,7 +172,6 @@ app.post('/api/tutors', async (req, res) => {
   }
 });
 
-// שליפת כל החונכים
 app.get('/api/tutors', async (req, res) => {
   try {
     const allTutors = await Tutor.find();
@@ -200,7 +181,6 @@ app.get('/api/tutors', async (req, res) => {
   }
 });
 
-// שליפת חונך ספציפי
 app.get('/api/tutors/:id', async (req, res) => {
   try {
     const tutor = await Tutor.findById(req.params.id);
@@ -211,7 +191,6 @@ app.get('/api/tutors/:id', async (req, res) => {
   }
 });
 
-// עדכון חונך
 app.put('/api/tutors/:id', async (req, res) => {
   try {
     const updatedTutor = await Tutor.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -222,7 +201,6 @@ app.put('/api/tutors/:id', async (req, res) => {
   }
 });
 
-// מחיקת חונך
 app.delete('/api/tutors/:id', async (req, res) => {
   try {
     await Tutor.findByIdAndDelete(req.params.id);
@@ -236,10 +214,8 @@ app.delete('/api/tutors/:id', async (req, res) => {
 // --- ניהול שיבוצים ---
 // ==========================================
 
-// יצירת שיבוץ חדש
 app.post('/api/placements', async (req, res) => {
   try {
-    // 🔥 התיקון: מנקים את הנתונים שמגיעים מהאתר כדי לא לשמור בטעות את המשלם או התלמיד מחדש
     const placementData = { ...req.body };
     
     if (placementData.student && placementData.student._id) {
@@ -252,7 +228,6 @@ app.post('/api/placements', async (req, res) => {
     const newPlacement = new Placement(placementData);
     await newPlacement.save();
 
-    // שואבים את הפרטים המלאים של החונך והתלמיד כדי להחזיר לאתר
     const populatedPlacement = await Placement.findById(newPlacement._id).populate('student').populate('tutor');
     res.status(201).json({ message: '✅ השיבוץ נשמר בהצלחה!', placement: populatedPlacement });
   } catch (err) {
@@ -260,10 +235,8 @@ app.post('/api/placements', async (req, res) => {
   }
 });
 
-// שליפת כל השיבוצים
 app.get('/api/placements', async (req, res) => {
   try {
-    // הפקודה populate מחליפה את ה-ID בשמות האמיתיים
     const allPlacements = await Placement.find().populate('student').populate('tutor');
     res.status(200).json(allPlacements);
   } catch (err) {
@@ -271,7 +244,6 @@ app.get('/api/placements', async (req, res) => {
   }
 });
 
-// מחיקת שיבוץ
 app.delete('/api/placements/:id', async (req, res) => {
   try {
     await Placement.findByIdAndDelete(req.params.id);
@@ -281,10 +253,8 @@ app.delete('/api/placements/:id', async (req, res) => {
   }
 });
 
-// עדכון שיבוץ
 app.put('/api/placements/:id', async (req, res) => {
   try {
-    // 🔥 התיקון: אותו פילטר גם כשאנחנו עורכים שיבוץ קיים!
     const placementData = { ...req.body };
     
     if (placementData.student && placementData.student._id) {
@@ -313,18 +283,122 @@ app.put('/api/placements/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// --- ניהול מלגות (Scholarships) ---
+// ==========================================
+
+// שליפה ויצירה אוטומטית של מלגות לחודש נבחר
+app.get('/api/scholarships', async (req, res) => {
+  try {
+    const month = req.query.month; // פורמט "YYYY-MM" שמגיע מה-React
+    if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
+
+    // 1. מחפשים את כל המלגות שכבר קיימות לחודש הזה במסד הנתונים
+    let scholarships = await Scholarship.find({ month })
+      .populate({
+        path: 'placement',
+        populate: [
+          { path: 'student', select: 'firstName lastName' },
+          { path: 'tutor', select: 'firstName lastName' }
+        ]
+      });
+
+    // 2. אם כבר יש מלגות לחודש הזה, פשוט מחזירים אותן למסך
+    if (scholarships.length > 0) {
+      return res.status(200).json(scholarships);
+    }
+
+    // 3. אם לא קיימות - מריצים "תהליך חישוב": שולפים את כל השיבוצים הפעילים
+    const activePlacements = await Placement.find({ status: 'פעיל' });
+    
+    if (activePlacements.length === 0) {
+      return res.status(200).json([]); // מחזירים ריק אם אין שיבוצים פעילים
+    }
+
+    // 4. מייצרים רשומת מלגה (תלוש) חדשה עבור כל שיבוץ פעיל
+    const newScholarships = [];
+    
+    for (const placement of activePlacements) {
+      // כאן אנחנו קובעים את חוקי החישוב הכלכלי לפי האפיון:
+      let baseAmount = placement.paymentAmount || 0; 
+      let officeProfit = 200; // רווח גלובלי ברירת מחדל לפי האפיון (אפשר לשנות בהמשך)
+      
+      if (placement.paymentMethod === 'hourly') {
+         // דוגמה לחישוב שעתי: אם יש לנו מערכת שעות שמעבירה נתונים, החישוב יתבצע כאן.
+         // לעת עתה נשאיר את זה פשוט לפי הסכום הכללי שנקבע בשיבוץ
+         officeProfit = 20 * 4; // דוגמה ל-4 שעות בשבוע * 20 ש"ח רווח למשרד פר שעה
+      }
+
+      // חישוב הסכום שמגיע לחונך 
+      let tutorAmount = baseAmount - officeProfit;
+      if (tutorAmount < 0) tutorAmount = 0; // לא נרצה לשלם מינוס
+
+      const newRecord = new Scholarship({
+        month,
+        placement: placement._id,
+        baseAmount,
+        finalAmount: baseAmount,
+        officeProfit,
+        tutorAmount,
+        isPaid: false
+      });
+
+      await newRecord.save();
+      newScholarships.push(newRecord);
+    }
+
+    // 5. אחרי שיצרנו הכל, אנחנו שולפים אותם שוב עם שם החונך והתלמיד ומחזירים ל-React
+    scholarships = await Scholarship.find({ month })
+      .populate({
+        path: 'placement',
+        populate: [
+          { path: 'student', select: 'firstName lastName' },
+          { path: 'tutor', select: 'firstName lastName' }
+        ]
+      });
+
+    res.status(201).json(scholarships);
+
+  } catch (err) {
+    console.error('שגיאה ביצירת מלגות:', err);
+    res.status(500).json({ error: 'שגיאה בתהליך החישוב של המלגות' });
+  }
+});
+
+// עדכון מלגה (שינויים ידניים, JSON, או סטטוס שולם)
+app.put('/api/scholarships/:id', async (req, res) => {
+  try {
+    const updatedScholarship = await Scholarship.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true } 
+    ).populate({
+      path: 'placement',
+      populate: [
+        { path: 'student', select: 'firstName lastName' },
+        { path: 'tutor', select: 'firstName lastName' }
+      ]
+    });
+    
+    if (!updatedScholarship) return res.status(404).json({ error: 'מלגה לא נמצאה' });
+    res.status(200).json(updatedScholarship);
+  } catch (err) {
+    console.error('שגיאה בעדכון מלגה:', err);
+    res.status(500).json({ error: 'שגיאה בעדכון המלגה' });
+  }
+});
+
+
 const PORT = process.env.PORT || 5000;
 // ==============================================================
 // 📞 מערכת הטלפוניה (IVR - קול כשר) 📞
 // ==============================================================
 
-// 1. אימות חונך בכניסה למערכת
 app.post('/api/ivr/auth', async (req, res) => {
   try {
     const { tutor_id } = req.body;
     
-    // חיפוש חונך פעיל במסד הנתונים לפי תעודת זהות שהוקשה בטלפון
-    const Tutor = require('./models/Tutor'); // ודא שהנתיב למודל נכון
+    const Tutor = require('./models/Tutor'); 
     const tutor = await Tutor.findOne({ idNumber: tutor_id, status: 'פעיל' });
 
     if (tutor) {
@@ -345,13 +419,10 @@ app.post('/api/ivr/auth', async (req, res) => {
   }
 });
 
-// 2. דיווח שעות - קבלת הנתונים מהטלפון
 app.post('/api/ivr/report-hours', async (req, res) => {
   try {
     const { tutor_id, date, start_time, end_time } = req.body;
     
-    // כרגע רק מדפיס לקונסול כדי לראות שזה עובד מול קול כשר.
-    // בהמשך נוסיף פה את קוד השמירה למסד הנתונים.
     console.log(`התקבל דיווח שעות מחונך ${tutor_id}: מ-${start_time} עד ${end_time}`);
 
     return res.json({
@@ -364,20 +435,20 @@ app.post('/api/ivr/report-hours', async (req, res) => {
   }
 });
 
-// 3. בירור מצב מלגה 
 app.post('/api/ivr/scholarship-balance', async (req, res) => {
   try {
     const { tutor_id } = req.body;
     
     return res.json({
       status: "success",
-      balance_to_say: "1500" // נתון דמה לבינתיים
+      balance_to_say: "1500" 
     });
   } catch (error) {
     console.error("IVR Balance Error:", error);
     res.status(500).json({ status: "error", message: "Server error" });
   }
 });
+
 app.listen(PORT, () => {
   console.log(`✅ השרת רץ על פורט ${PORT}`);
 });
