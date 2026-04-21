@@ -14,9 +14,10 @@ import Billing from './pages/Billing';
 import Team from './pages/Team';
 import Tasks from './pages/Tasks';
 import TaskNotification from './components/TaskNotification';
-
-// 👇 1. הייבוא של מסך המלגות החדש
 import Scholarships from './pages/Scholarships'; 
+
+// 👇 1. הייבוא של מסך הגדרות המנהל החדש
+import AdminSettings from './pages/AdminSettings'; // או Components/AdminSettings תלוי איפה שמרת אותו
 
 function GlobalCleaner() {
   const location = useLocation();
@@ -58,7 +59,6 @@ return (
         
         <div className="container mt-4" style={{ flex: 1 }}>
           <Routes>
-            {/* 🔥 הנה השינוי: עמוד הבית מקבל עכשיו את נתוני המשתמש! */}
             <Route path="/" element={<Home currentUser={currentUser} />} />
             
             <Route path="/students" element={<Students />} />
@@ -73,9 +73,10 @@ return (
             <Route path="/billing" element={<Billing />} />
             <Route path="/team" element={<Team />} />
             <Route path="/tasks" element={<Tasks currentUser={currentUser} />} />
-            
-            {/* 👇 2. הדלת החדשה שפתחנו למסך המלגות! 👇 */}
             <Route path="/scholarships" element={<Scholarships />} />
+            
+            {/* 👇 2. הדלת החדשה למסך ההגדרות (יומן הדרכות) 👇 */}
+            <Route path="/settings" element={<AdminSettings />} />
             
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

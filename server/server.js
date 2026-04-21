@@ -634,6 +634,89 @@ app.post('/api/ivr/scholarship-balance', async (req, res) => {
     res.status(500).json({ status: "error", message: "Server error" });
   }
 });
+// ==========================================
+// --- ניהול הגדרות מערכת ו-Cron Jobs ---
+// ==========================================
+const Settings = require('./models/Settings');
+const cron = require('node-cron');
+
+// שליפת הגדרות (המערכת תיצור מסמך ברירת מחדל אם אין)
+app.get('/api/settings', async (req, res) => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = new Settings({ guidanceAlertDates: [] });
+      await settings.save();
+    }
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: 'שגיאה בשליפת הגדרות' });
+  }
+});
+
+// עדכון הגדרות (הוספה/הסרה של תאריכים)
+app.put('/api/settings', async (req, res) => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = new Settings(req.body);
+    } else {
+      settings.guidanceAlertDates = req.body.guidanceAlertDates;
+    }
+    await settings.save();
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: 'שגיאה בעדכון הגדרות' });
+  }
+});
+
+// 🔥 משימה מתוזמנת: רצה כל יום ב-08:00 בבוקר 🔥
+cron.schedule('0 8 * * *', async () => {
+  console.log('⏰ בודק אם יש משימות הדרכה להקפיץ היום...');
+  
+  try {
+    const settings = await Settings.findOne();
+    if (!settings || !settings.guidanceAlertDates || settings.guidanceAlertDates.length === 0) return;
+
+    // בודק מה התאריך של היום בפורמט YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
+
+    // אם היום נמצא ברשימת התאריכים שהמנהל הגדיר
+    if (settings.guidanceAlertDates.includes(today)) {
+      console.log('✅ נמצא תאריך יעד! מייצר משימות אוטומטיות...');
+
+      // שולף את כל השיבוצים הפעילים שדורשים הדרכה חודשית
+      const activePlacements = await Placement.find({ 
+        status: 'פעיל', 
+        requireMonthlyGuidance: true 
+      });
+
+      for (const placement of activePlacements) {
+        // משנה את הסטטוס חזרה ל"ממתין להדרכה"
+        placement.guidanceStatus = 'ממתין להדרכה';
+        await placement.save();
+
+        // מייצר את המשימה האדומה לרכז
+        const Task = require('./models/Task');
+        const autoTask = new Task({
+          title: '🚨 תזכורת חודשית - שיבוץ ממתין להדרכה!',
+          taskType: 'הדרכה',
+          content: 'הגיע התאריך החודשי שהוגדר מראש. חובה לבצע שיחת הדרכה עם החונך ולסמן V בסטטוס השיבוץ.',
+          urgency: 'דחוף',
+          placementId: placement._id,
+          studentId: placement.student,
+          tutorId: placement.tutor,
+          assignee: 'צוות רכזים',
+          createdBy: 'מערכת אוטומטית'
+        });
+        await autoTask.save();
+      }
+      console.log(`נוצרו משימות עבור ${activePlacements.length} שיבוצים.`);
+    }
+  } catch (err) {
+    console.error('שגיאה בהרצת ה-Cron Job:', err);
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`✅ השרת רץ על פורט ${PORT}`);

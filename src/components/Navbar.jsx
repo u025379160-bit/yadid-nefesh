@@ -21,7 +21,6 @@ function MainNavbar({ onLogout, currentUser }) {
 
   return (
     <>
-      {/* כאן השינוי: הורדנו את ה-bg-white והוספנו צבע רקע עדין לכל השורה */}
       <Navbar expand="xl" sticky="top" className="shadow-sm" style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
         <Container fluid className="px-lg-5">
           
@@ -74,9 +73,15 @@ function MainNavbar({ onLogout, currentUser }) {
               )}
 
               {['manager', 'admin'].includes(role) && (
-                <Nav.Link as={Link} to="/team" className={isActive('/team') ? 'nav-modern active' : 'nav-modern'}>
-                  צוות ניהול
-                </Nav.Link>
+                <>
+                  <Nav.Link as={Link} to="/team" className={isActive('/team') ? 'nav-modern active' : 'nav-modern'}>
+                    צוות ניהול
+                  </Nav.Link>
+                  {/* 👇 הוספנו את כפתור ההגדרות למנהלים בלבד 👇 */}
+                  <Nav.Link as={Link} to="/settings" className={isActive('/settings') ? 'nav-modern active' : 'nav-modern'}>
+                    הגדרות
+                  </Nav.Link>
+                </>
               )}
 
               <Nav.Link as={Link} to="/tasks" className={isActive('/tasks') ? 'nav-modern active' : 'nav-modern'}>
