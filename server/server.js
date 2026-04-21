@@ -47,8 +47,21 @@ app.post('/api/students', async (req, res) => {
 
 app.get('/api/students', async (req, res) => {
   try {
-    const allStudents = await Student.find(); 
-    res.status(200).json(allStudents);
+    // 1. שולפים את כל התלמידים כרשימה נקייה
+    const students = await Student.find().lean(); 
+    
+    // 2. שולפים את מזהי התלמידים שיש להם שיבוץ פעיל
+    const Placement = require('./models/Placement');
+    const activePlacements = await Placement.find({ status: 'פעיל' }).select('student');
+    const activeStudentIds = activePlacements.map(p => p.student.toString());
+
+    // 3. מצמידים לכל תלמיד דגל - האם יש לו שיבוץ פעיל? (ישמש אותנו לסינון בטבלה)
+    const studentsWithStatus = students.map(student => ({
+      ...student,
+      hasActivePlacement: activeStudentIds.includes(student._id.toString())
+    }));
+
+    res.status(200).json(studentsWithStatus);
   } catch (err) {
     res.status(500).json({ error: 'שגיאה בשליפת הנתונים מהענן' });
   }
@@ -65,7 +78,7 @@ app.delete('/api/students/:id', async (req, res) => {
 
 app.get('/api/students/:id', async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id); 
+    const student = await Student.findById(req.params.id).populate('payer'); 
     if (!student) return res.status(404).json({ error: 'התלמיד לא נמצא' });
     res.status(200).json(student); 
   } catch (err) {
@@ -79,7 +92,7 @@ app.put('/api/students/:id', async (req, res) => {
       req.params.id, 
       req.body, 
       { new: true } 
-    );
+    ).populate('payer');
     if (!updatedStudent) return res.status(404).json({ error: 'התלמיד לא נמצא' });
     res.status(200).json(updatedStudent);
   } catch (err) {

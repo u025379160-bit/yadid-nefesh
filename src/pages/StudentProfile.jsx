@@ -14,6 +14,9 @@ function StudentProfile() {
   const [payers, setPayers] = useState([]); 
   const [tutors, setTutors] = useState([]); 
   const [loading, setLoading] = useState(true);
+  
+  // תאריך עברי שמחושב אוטומטית
+  const [hebrewBirthDate, setHebrewBirthDate] = useState('');
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -69,7 +72,20 @@ function StudentProfile() {
         fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) 
       ]);
 
-      if (studentRes.ok) setStudent(await studentRes.json());
+      if (studentRes.ok) {
+        const studentData = await studentRes.json();
+        setStudent(studentData);
+        
+        // שליפה מ-API חינמי כדי להמיר תאריך לידה לעברי
+        if (studentData.birthDate) {
+          const d = new Date(studentData.birthDate);
+          fetch(`https://www.hebcal.com/converter?cfg=json&gy=${d.getFullYear()}&gm=${d.getMonth() + 1}&gd=${d.getDate()}&g2h=1`)
+            .then(res => res.json())
+            .then(data => setHebrewBirthDate(data.hebrew))
+            .catch(err => console.log('שגיאה בהמרת תאריך עברי', err));
+        }
+      }
+      
       if (tasksRes.ok) setTasks(await tasksRes.json());
       if (payersRes.ok) setPayers(await payersRes.json());
       if (tutorsRes.ok) setTutors(await tutorsRes.json());
@@ -90,6 +106,14 @@ function StudentProfile() {
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  // פונקציה לחישוב גיל
+  const calculateAge = (dob) => {
+    if (!dob) return '';
+    const diffMs = Date.now() - new Date(dob).getTime();
+    const ageDt = new Date(diffMs); 
+    return Math.abs(ageDt.getUTCFullYear() - 1970);
+  };
 
   const handleOpenPayerEdit = () => {
     const activePayer = payers.find(p => p._id === (student.payer?._id || student.payer));
@@ -214,9 +238,9 @@ function StudentProfile() {
   const handleCloseEdit = () => setShowEditModal(false);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // פונקציות ניהול אנשי קשר בעריכה
+  // פונקציות ניהול אנשי קשר (מעודכנות למבנה החדש)
   const handleAddContact = () => {
-    setFormData({ ...formData, contacts: [...(formData.contacts || []), { name: '', phone: '', relation: '' }] });
+    setFormData({ ...formData, contacts: [...(formData.contacts || []), { contactType: '', role: '', name: '', phone1: '', phone2: '' }] });
   };
 
   const handleContactChange = (index, field, value) => {
@@ -239,7 +263,6 @@ function StudentProfile() {
         body: JSON.stringify(formData),
       });
       if (response.ok) {
-        setStudent(await response.json());
         setShowEditModal(false);
         fetchData();
       } else {
@@ -308,31 +331,7 @@ function StudentProfile() {
   };
 
   const handleOpenPlacement = () => setShowPlacementModal(true);
-  const handleClosePlacement = () => setShowPlacementModal(false);
-  const handlePlacementChange = (e) => setPlacementData({ ...placementData, [e.target.name]: e.target.value });
-
-  const handleAddPlacement = async (e) => {
-    e.preventDefault();
-    try {
-      const dataToSend = { ...placementData, student: id }; 
-      const response = await fetch(import.meta.env.VITE_API_URL + '/api/placements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend),
-      });
-      if (response.ok) {
-        setShowPlacementModal(false);
-        setPlacementData({ tutor: '', startDate: new Date().toISOString().split('T')[0], paymentAmount: '', paymentMethod: 'credit_card', status: 'פעיל' });
-        fetchData();
-      } else {
-        const err = await response.json();
-        alert('🔴 שגיאה ביצירת שיבוץ: ' + err.message);
-      }
-    } catch (error) {
-      alert('🔴 שגיאת תקשורת ביצירת השיבוץ');
-    }
-  };
-
+  
   const payerOptions = payers.map(payer => ({
     value: payer._id,
     label: `${payer.name} (${payer.identifier}) - ${payer.payerType === 'individual' ? 'אדם פרטי' : 'מוסד'}`
@@ -376,7 +375,14 @@ function StudentProfile() {
                   </h6>
                   <div className="d-flex flex-column gap-3">
                     <div><small className="text-muted d-block">תעודת זהות</small><span className="fw-bold" style={{ color: 'var(--text-main)' }}>{student.idNumber}</span></div>
-                    <div><small className="text-muted d-block">תאריך לידה</small><span className="fw-bold">{student.birthDate ? new Date(student.birthDate).toLocaleDateString('he-IL') : '-'}</span></div>
+                    <div>
+                      <small className="text-muted d-block">תאריך לידה (גיל)</small>
+                      <span className="fw-bold">
+                        {student.birthDate ? new Date(student.birthDate).toLocaleDateString('he-IL') : '-'}
+                        {student.birthDate && <span className="ms-1" style={{color: 'var(--primary-accent)'}}>({calculateAge(student.birthDate)})</span>}
+                      </span>
+                      {hebrewBirthDate && <div className="text-muted small">{hebrewBirthDate}</div>}
+                    </div>
                     <div><small className="text-muted d-block">הורים</small><span className="fw-bold">{student.fatherName || '-'} ו{student.motherName || '-'}</span></div>
                     <div><small className="text-muted d-block">מוסד לימודי</small><span className="fw-bold">{student.institute || 'לא צוין'}</span></div>
                   </div>
@@ -421,16 +427,21 @@ function StudentProfile() {
 
               </Row>
 
-              {/* הצגת אנשי קשר נוספים */}
+              {/* טבלת אנשי קשר נוספים מעודכנת */}
               {student.contacts && student.contacts.length > 0 && (
                 <div className="mt-4 pt-3 border-top">
-                  <h6 className="fw-bold text-muted mb-3">אנשי קשר נוספים</h6>
+                  <h6 className="fw-bold text-muted mb-3">אנשי קשר וגורמי רווחה</h6>
                   <Row className="g-3">
                     {student.contacts.map((contact, idx) => (
                       <Col md={4} key={idx}>
-                        <div className="p-2 border rounded bg-light">
-                          <div className="fw-bold small">{contact.name} ({contact.relation})</div>
-                          <div className="text-muted small" dir="ltr">{contact.phone}</div>
+                        <div className="p-3 border rounded bg-light h-100 shadow-sm">
+                          <div className="d-flex justify-content-between align-items-start mb-1">
+                            <span className="fw-bold" style={{color: '#0f172a'}}>{contact.name || 'ללא שם'}</span>
+                            <Badge bg="secondary" className="rounded-pill px-2">{contact.contactType || 'אחר'}</Badge>
+                          </div>
+                          {contact.role && <div className="text-muted small mb-1">{contact.role}</div>}
+                          <div className="text-primary small fw-bold mt-2" dir="ltr">{contact.phone1}</div>
+                          {contact.phone2 && <div className="text-muted small" dir="ltr">{contact.phone2}</div>}
                         </div>
                       </Col>
                     ))}
@@ -472,6 +483,7 @@ function StudentProfile() {
 
       <Row className="g-4">
         
+        {/* אזור שיבוצים קיים נשאר אותו דבר... */}
         <Col lg={7}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
@@ -511,12 +523,7 @@ function StudentProfile() {
                           </td>
                           <td className="fw-bold text-primary">₪{Number(placement.paymentAmount || 0).toLocaleString()}</td>
                           <td className="text-end">
-                            <Button 
-                              variant="light" 
-                              size="sm"
-                              className="text-primary border fw-bold"
-                              onClick={() => placement.tutor && navigate(`/tutor/${placement.tutor._id}`)}
-                            >
+                            <Button variant="light" size="sm" className="text-primary border fw-bold" onClick={() => placement.tutor && navigate(`/tutor/${placement.tutor._id}`)}>
                               לפרופיל החונך
                             </Button>
                           </td>
@@ -530,6 +537,7 @@ function StudentProfile() {
           </Card>
         </Col>
 
+        {/* אזור משימות קיים... */}
         <Col lg={5}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
@@ -565,13 +573,7 @@ function StudentProfile() {
                           <Badge bg={badgeBg} className="rounded-pill">
                             {badgeText}
                           </Badge>
-                          <Button 
-                            variant="light" 
-                            size="sm" 
-                            className="border text-danger" 
-                            onClick={() => handleDeleteTask(task._id)}
-                            title="מחק משימה"
-                          >
+                          <Button variant="light" size="sm" className="border text-danger" onClick={() => handleDeleteTask(task._id)} title="מחק משימה">
                             <FiTrash2 />
                           </Button>
                         </div>
@@ -629,13 +631,7 @@ function StudentProfile() {
                   <Col md={4}>
                     <Form.Group>
                       <Form.Label className="small fw-bold text-muted">מוסד לימודי</Form.Label>
-                      <Form.Select name="institute" value={formData.institute || ''} onChange={handleChange}>
-                        <option value="">-- בחר מוסד --</option>
-                        <option value="מוסד א">מוסד א</option>
-                        <option value="מוסד ב">מוסד ב</option>
-                        <option value="מוסד ג">מוסד ג</option>
-                        <option value="אחר">אחר</option>
-                      </Form.Select>
+                      <Form.Control type="text" name="institute" value={formData.institute || ''} onChange={handleChange} placeholder="לדוגמה: ישיבת חברון, ישיבת מיר" />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -664,9 +660,10 @@ function StudentProfile() {
                   <Col md={3}><Form.Group><Form.Label className="small fw-bold text-muted">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode || ''} onChange={handleChange} /></Form.Group></Col>
                 </Row>
 
+                {/* טופס עריכה לאנשי קשר מותאם למבנה החדש */}
                 <div className="mt-4 p-3 bg-light rounded border">
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h6 className="fw-bold mb-0">אנשי קשר נוספים</h6>
+                    <h6 className="fw-bold mb-0">אנשי קשר וגורמי רווחה (JSON)</h6>
                     <Button variant="outline-primary" size="sm" onClick={handleAddContact} className="rounded-pill d-flex align-items-center gap-1">
                       <FiPlusCircle /> הוסף איש קשר
                     </Button>
@@ -677,17 +674,25 @@ function StudentProfile() {
                   ) : (
                     formData.contacts.map((contact, index) => (
                       <Row key={index} className="mb-2 align-items-end">
-                        <Col md={4}>
+                        <Col md={2}>
+                          <Form.Label className="small mb-1">סוג קשר</Form.Label>
+                          <Form.Control size="sm" value={contact.contactType || ''} onChange={(e) => handleContactChange(index, 'contactType', e.target.value)} placeholder="הורה, חירום..." />
+                        </Col>
+                        <Col md={2}>
                           <Form.Label className="small mb-1">שם</Form.Label>
                           <Form.Control size="sm" value={contact.name || ''} onChange={(e) => handleContactChange(index, 'name', e.target.value)} />
                         </Col>
-                        <Col md={3}>
-                          <Form.Label className="small mb-1">טלפון</Form.Label>
-                          <Form.Control size="sm" value={contact.phone || ''} onChange={(e) => handleContactChange(index, 'phone', e.target.value)} />
+                        <Col md={2}>
+                          <Form.Label className="small mb-1">תפקיד/קרבה</Form.Label>
+                          <Form.Control size="sm" value={contact.role || ''} onChange={(e) => handleContactChange(index, 'role', e.target.value)} placeholder="עו''ס / דוד" />
                         </Col>
-                        <Col md={4}>
-                          <Form.Label className="small mb-1">קרבה/תפקיד</Form.Label>
-                          <Form.Control size="sm" value={contact.relation || ''} onChange={(e) => handleContactChange(index, 'relation', e.target.value)} />
+                        <Col md={2}>
+                          <Form.Label className="small mb-1">טלפון 1</Form.Label>
+                          <Form.Control size="sm" value={contact.phone1 || ''} onChange={(e) => handleContactChange(index, 'phone1', e.target.value)} />
+                        </Col>
+                        <Col md={3}>
+                          <Form.Label className="small mb-1">טלפון 2</Form.Label>
+                          <Form.Control size="sm" value={contact.phone2 || ''} onChange={(e) => handleContactChange(index, 'phone2', e.target.value)} />
                         </Col>
                         <Col md={1} className="text-end">
                           <Button variant="link" className="text-danger p-0 mb-1" onClick={() => handleRemoveContact(index)}><FiMinusCircle size={20} /></Button>

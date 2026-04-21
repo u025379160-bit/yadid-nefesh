@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter } from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [payers, setPayers] = useState([]); 
   const [placements, setPlacements] = useState([]); 
+  
+  // -- סטייטים חדשים לסינון (לפי אפיון סעיף 4.6) --
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterInstitute, setFilterInstitute] = useState(''); // סינון לפי מוסד
+  const [filterPlacementStatus, setFilterPlacementStatus] = useState(''); // סינון לפי שיבוץ (הכל/פעיל/ללא)
   
   const [isLoading, setIsLoading] = useState(true);
+
+  // חילוץ רשימת המוסדות הייחודיים מתוך התלמידים (בשביל תפריט הסינון)
+  const uniqueInstitutes = [...new Set(students.map(s => s.institute).filter(Boolean))];
 
   useEffect(() => {
     fetchStudentsAndData(); 
@@ -44,10 +51,9 @@ function Students() {
     }
   };
 
-  const getPlacementStatus = (studentId) => {
-    const isActivePlaced = placements.some(p => p.student && p.student._id === studentId && p.status === 'פעיל');
-    
-    if (isActivePlaced) {
+  const getPlacementStatus = (hasActivePlacement) => {
+    // עכשיו הנתון הזה מגיע ישירות מהשרת!
+    if (hasActivePlacement) {
       return { text: 'משובץ', style: { backgroundColor: '#d1fae5', color: '#047857', border: '1px solid #a7f3d0' } };
     } else {
       return { text: 'ממתין לשיבוץ', style: { backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' } };
@@ -73,23 +79,35 @@ function Students() {
     }
   };
 
+  // מנוע הסינון המעודכן - משלב טקסט, מוסד ושיבוץ
   const filteredStudents = students.filter(student => {
     const fullName = `${student.firstName} ${student.lastName}`;
-    return fullName.includes(searchTerm) || (student.idNumber && student.idNumber.includes(searchTerm));
+    
+    // 1. סינון טקסט (שם או ת.ז)
+    const matchText = fullName.includes(searchTerm) || (student.idNumber && student.idNumber.includes(searchTerm));
+    
+    // 2. סינון מוסד לימודי
+    const matchInstitute = filterInstitute === '' || student.institute === filterInstitute;
+    
+    // 3. סינון סטטוס שיבוץ (מבוסס על הדגל שהוספנו בשרת)
+    let matchPlacement = true;
+    if (filterPlacementStatus === 'פעיל') matchPlacement = student.hasActivePlacement === true;
+    if (filterPlacementStatus === 'ללא') matchPlacement = student.hasActivePlacement === false;
+
+    return matchText && matchInstitute && matchPlacement;
   });
 
   const [showModal, setShowModal] = useState(false);
   const handleClose = () => setShowModal(false);
   const handleShow = () => setShowModal(true);
 
-  // סטייט מעודכן עם כל השדות החדשים מהאפיון
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', idNumber: '', birthDate: '',
     fatherName: '', motherName: '', 
     phone1: '', phone2: '', phone3: '', email: '',
     address: '', city: '507f1f77bcf86cd799439011', zipCode: '',
     institute: '', 
-    contacts: [], // מערך של אובייקטים לאנשי קשר נוספים
+    contacts: [], 
     payer: ''
   });
 
@@ -97,7 +115,6 @@ function Students() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // פונקציות לניהול מערך אנשי הקשר הדינאמי (JSON)
   const handleAddContact = () => {
     setFormData({ ...formData, contacts: [...formData.contacts, { name: '', phone: '', relation: '' }] });
   };
@@ -130,7 +147,6 @@ function Students() {
 
       if (response.ok) {
         setShowModal(false);
-        // איפוס הטופס
         setFormData({ 
           firstName: '', lastName: '', idNumber: '', birthDate: '', phone1: '', phone2: '', phone3: '', email: '',
           fatherName: '', motherName: '', address: '', zipCode: '', institute: '', contacts: [], payer: '', city: '507f1f77bcf86cd799439011' 
@@ -163,19 +179,47 @@ function Students() {
           </Button>
         </div>
 
-        <div style={{ maxWidth: '350px' }}>
-          <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-            <InputGroup.Text style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
-              <FiSearch color="#94a3b8" />
-            </InputGroup.Text>
-            <Form.Control
-              placeholder="חיפוש לפי שם או ת.ז..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none' }}
-            />
-          </InputGroup>
-        </div>
+        {/* --- אזור הסינונים החדש --- */}
+        <Row className="g-3">
+          <Col md={5} lg={4}>
+            <InputGroup className="shadow-sm h-100" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+              <InputGroup.Text style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
+                <FiSearch color="#94a3b8" />
+              </InputGroup.Text>
+              <Form.Control
+                placeholder="חיפוש לפי שם או ת.ז..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none' }}
+              />
+            </InputGroup>
+          </Col>
+          <Col md={3} lg={3}>
+            <Form.Select 
+              className="shadow-sm h-100" 
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', color: '#475569' }}
+              value={filterInstitute}
+              onChange={(e) => setFilterInstitute(e.target.value)}
+            >
+              <option value="">כל המוסדות</option>
+              {uniqueInstitutes.map((inst, idx) => (
+                <option key={idx} value={inst}>{inst}</option>
+              ))}
+            </Form.Select>
+          </Col>
+          <Col md={4} lg={3}>
+            <Form.Select 
+              className="shadow-sm h-100" 
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', color: '#475569' }}
+              value={filterPlacementStatus}
+              onChange={(e) => setFilterPlacementStatus(e.target.value)}
+            >
+              <option value="">סטטוס שיבוץ (הכל)</option>
+              <option value="פעיל">בעלי שיבוץ פעיל בלבד</option>
+              <option value="ללא">ממתינים לשיבוץ בלבד</option>
+            </Form.Select>
+          </Col>
+        </Row>
       </div>
 
       <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
@@ -186,7 +230,8 @@ function Students() {
                 <tr>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}><FiUser className="me-2" /> שם התלמיד</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>ת.ז.</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>כתובת</th>
+                  {/* עמודת מוסד לימודי שנוספה */}
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>מוסד לימודי</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>סטטוס שיבוץ</th> 
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }} className="text-end">פעולות</th>
                 </tr>
@@ -201,13 +246,15 @@ function Students() {
                   </tr>
                 ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => {
-                    const status = getPlacementStatus(student._id);
+                    // שימוש בדגל החדש מהשרת
+                    const status = getPlacementStatus(student.hasActivePlacement);
 
                     return (
                       <tr key={student._id} style={{ cursor: 'pointer', transition: 'background-color 0.2s' }} onClick={() => navigate(`/student/${student._id}`)}>
                         <td className="fw-bold" style={{ color: '#2563eb', padding: '16px 12px' }}>{student.firstName} {student.lastName}</td>
                         <td style={{ color: '#475569', padding: '16px 12px' }}>{student.idNumber}</td>
-                        <td style={{ color: '#475569', padding: '16px 12px' }}>{student.address}</td>
+                        {/* הצגת המוסד הלימודי בטבלה */}
+                        <td style={{ color: '#475569', padding: '16px 12px' }}>{student.institute || 'לא הוגדר'}</td>
                         <td style={{ padding: '16px 12px' }}>
                           <span className="rounded-pill d-inline-block text-center" style={{ padding: '6px 14px', fontSize: '0.85rem', fontWeight: '600', ...status.style }}>
                             {status.text}
@@ -226,7 +273,7 @@ function Students() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="5" className="text-center py-5 text-muted">לא נמצאו תלמידים התואמים לחיפוש.</td>
+                    <td colSpan="5" className="text-center py-5 text-muted">לא נמצאו תלמידים התואמים לסינון.</td>
                   </tr>
                 )}
               </tbody>
@@ -235,7 +282,7 @@ function Students() {
         </Card.Body>
       </Card>
 
-      {/* חלון מודל הוספת תלמיד - מורחב לפי האפיון */}
+      {/* חלון מודל הוספת תלמיד נשאר זהה למה שהיה... */}
       <Modal show={showModal} onHide={handleClose} size="xl" dir="rtl" backdrop="static">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>הוספת תלמיד חדש</Modal.Title>
