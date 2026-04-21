@@ -21,8 +21,8 @@ function MainNavbar({ onLogout, currentUser }) {
 
   return (
     <>
-      {/* הוספנו צל עדין לתפריט עצמו */}
-      <Navbar expand="xl" sticky="top" className="bg-white shadow-sm" style={{ borderBottom: '1px solid #f1f5f9' }}>
+      {/* כאן השינוי: הורדנו את ה-bg-white והוספנו צבע רקע עדין לכל השורה */}
+      <Navbar expand="xl" sticky="top" className="shadow-sm" style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
         <Container fluid className="px-lg-5">
           
           {/* צד ימין: לוגו */}
@@ -114,6 +114,8 @@ function MainNavbar({ onLogout, currentUser }) {
         </Container>
       </Navbar>
 
+      <div style={{ width: '100%', height: '4px', background: 'linear-gradient(90deg, #e0f2fe 0%, #bae6fd 100%)' }}></div>
+
       <style>{`
         /* העיצוב המודרני החדש לקישורים - דומה לכפתורי הטבלה */
         .nav-modern {
@@ -126,13 +128,14 @@ function MainNavbar({ onLogout, currentUser }) {
         }
         
         .nav-modern:hover {
-          background-color: #f8fafc;
+          background-color: #f1f5f9;
           color: #334155 !important;
         }
         
         .nav-modern.active {
-          background-color: #eff6ff !important; /* תכלת בהיר כמו הכפתורים שלך */
-          color: #2563eb !important; /* כחול בולט כמו כפתור ההוספה */
+          background-color: #e0f2fe !important; /* תכלת קצת יותר מודגש לרקע העדין */
+          color: #0369a1 !important; /* כחול בולט כמו כפתור ההוספה */
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
 
         /* עיצוב לכפתור ההתנתקות */
@@ -140,6 +143,7 @@ function MainNavbar({ onLogout, currentUser }) {
           color: #64748b !important;
           background-color: #ffffff;
           transition: all 0.2s ease;
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
         
         .logout-modern:hover {
