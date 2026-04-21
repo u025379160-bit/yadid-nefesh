@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Badge, Form, Modal, Row, Col, InputGroup, Spinner } from 'react-bootstrap';
-import { FiDollarSign, FiEdit, FiCheckCircle, FiClock, FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
+import { FiDollarSign, FiEdit, FiCheckCircle, FiClock, FiPlusCircle, FiMinusCircle, FiFileText } from 'react-icons/fi';
 
 function Scholarships() {
   const [scholarships, setScholarships] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false); // סטייט לכפתור היצירה היזום
   
   // ברירת מחדל: החודש הנוכחי בפורמט YYYY-MM
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -12,13 +13,14 @@ function Scholarships() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  // סטייט עבור מודל שינויים ידניים
   const [showChangesModal, setShowChangesModal] = useState(false);
   const [activeScholarship, setActiveScholarship] = useState(null);
   
-  // טופס לשינוי חדש
   const [newChange, setNewChange] = useState({ amount: '', reason: '' });
   const [isSaving, setIsSaving] = useState(false);
+
+  // סטייט חדש עבור סימון שורות מרובות (V)
+  const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
     fetchScholarships();
@@ -26,8 +28,8 @@ function Scholarships() {
 
   const fetchScholarships = async () => {
     setLoading(true);
+    setSelectedIds([]); // מאפסים בחירות במעבר בין חודשים
     try {
-      // בשרת נבנה ראוט שיודע לסנן לפי חודש (month)
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/scholarships?month=${selectedMonth}`);
       if (response.ok) {
         setScholarships(await response.json());
@@ -39,30 +41,66 @@ function Scholarships() {
     }
   };
 
-  // פונקציה לעדכון סטטוס תשלום
-  const handleTogglePaid = async (scholarship) => {
+  // פונקציה חדשה: הפעלת תהליך יצירת המלגות באופן יזום
+  const handleGenerateScholarships = async () => {
+    setIsGenerating(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/scholarships/${scholarship._id}`, {
-        method: 'PUT',
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/scholarships/generate`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPaid: !scholarship.isPaid })
+        body: JSON.stringify({ month: selectedMonth })
       });
       if (response.ok) {
-        fetchScholarships();
+        fetchScholarships(); // מרעננים את הטבלה אחרי היצירה
+      } else {
+        alert('שגיאה ביצירת הטבלה. ייתכן שהטבלה כבר נוצרה לחודש זה.');
       }
     } catch (error) {
-      alert('שגיאה בעדכון סטטוס התשלום');
+      console.error('שגיאה ביצירת מלגות:', error);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  // פתיחת חלון שינויים ידניים
+  // פעולת סימון V לשורה בודדת
+  const toggleSelection = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // פעולת סימון V לכל השורות
+  const toggleAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(scholarships.map(s => s._id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // פעולה קבוצתית: שינוי סטטוס תשלום ל"בוצע" לכל המסומנים
+  const handleMarkAsPaid = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/scholarships/bulk-pay`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds, isPaid: true })
+      });
+      if (response.ok) {
+        fetchScholarships(); // רענון לאחר העדכון
+      }
+    } catch (error) {
+      alert('שגיאה בעדכון הסטטוס');
+    }
+  };
+
   const handleOpenChanges = (scholarship) => {
     setActiveScholarship(scholarship);
     setNewChange({ amount: '', reason: '' });
     setShowChangesModal(true);
   };
 
-  // הוספת שינוי ידני למלגה
   const handleAddChange = async (e) => {
     e.preventDefault();
     if (!newChange.amount || !newChange.reason) return;
@@ -73,12 +111,12 @@ function Scholarships() {
         amount: Number(newChange.amount),
         reason: newChange.reason,
         date: new Date().toISOString(),
-        updatedBy: 'צוות ניהול' // כאן בהמשך אפשר לשים את שם המשתמש המחובר
+        updatedBy: 'צוות ניהול' 
       }];
 
-      // חישוב הסכום הסופי החדש
-      const newFinalAmount = updatedChanges.reduce((total, change) => total + change.amount, activeScholarship.baseAmount);
-      // חישוב מחדש של הסכום לחונך
+      // חישוב הסכום הסופי החדש כולל יתרת העבר!
+      const totalBase = (activeScholarship.baseAmount || 0) + (activeScholarship.carriedBalance || 0);
+      const newFinalAmount = updatedChanges.reduce((total, change) => total + change.amount, totalBase);
       const newTutorAmount = newFinalAmount - activeScholarship.officeProfit;
 
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/scholarships/${activeScholarship._id}`, {
@@ -95,7 +133,7 @@ function Scholarships() {
         const updatedScholarship = await response.json();
         setActiveScholarship(updatedScholarship);
         setNewChange({ amount: '', reason: '' });
-        fetchScholarships(); // רענון הטבלה
+        fetchScholarships(); 
       }
     } catch (error) {
       alert('שגיאה בשמירת השינוי');
@@ -104,28 +142,38 @@ function Scholarships() {
     }
   };
 
-  // סיכומים לכרטיסיות למעלה
   const totalTutorPayments = scholarships.reduce((sum, s) => sum + (s.tutorAmount || 0), 0);
   const totalOfficeProfit = scholarships.reduce((sum, s) => sum + (s.officeProfit || 0), 0);
 
   return (
     <Container className="pt-4 mb-5" dir="rtl">
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
           <h2 style={{ color: 'var(--text-main)', fontWeight: '800' }} className="mb-1">
             ניהול מלגות ותשלומים
           </h2>
-          <p className="text-muted mb-0">מעקב אחר תשלומי שיבוצים, שינויים ידניים ורווח למשרד</p>
+          <p className="text-muted mb-0">מעקב אחר תשלומי חונכים, שינויים ידניים, יתרות עבר ורווח למשרד</p>
         </div>
         
-        <div className="d-flex align-items-center gap-2 bg-white p-2 rounded-pill shadow-sm border">
-          <span className="fw-bold text-muted small ms-2 ps-2 border-start">בחר חודש:</span>
-          <Form.Control
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            style={{ border: 'none', fontWeight: 'bold', cursor: 'pointer', outline: 'none', boxShadow: 'none', backgroundColor: 'transparent' }}
-          />
+        <div className="d-flex align-items-center gap-3">
+          <Button 
+            variant="primary" 
+            className="rounded-pill fw-bold shadow-sm"
+            onClick={handleGenerateScholarships}
+            disabled={isGenerating}
+          >
+            {isGenerating ? <Spinner size="sm" animation="border" /> : 'צור טבלת מלגות לחודש זה'}
+          </Button>
+
+          <div className="d-flex align-items-center gap-2 bg-white p-2 rounded-pill shadow-sm border">
+            <span className="fw-bold text-muted small ms-2 ps-2 border-start">בחר חודש:</span>
+            <Form.Control
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{ border: 'none', fontWeight: 'bold', cursor: 'pointer', outline: 'none', boxShadow: 'none', backgroundColor: 'transparent' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -154,60 +202,85 @@ function Scholarships() {
         </Col>
       </Row>
 
+      {/* שורת פעולות קבוצתיות במידה ויש שורות מסומנות */}
+      {selectedIds.length > 0 && (
+        <div className="mb-3 p-3 bg-light rounded border d-flex align-items-center justify-content-between">
+          <span className="fw-bold text-primary">{selectedIds.length} חונכים נבחרו</span>
+          <Button variant="success" className="rounded-pill fw-bold" onClick={handleMarkAsPaid}>
+            <FiCheckCircle className="me-2" /> העבר סטטוס ל"בוצע"
+          </Button>
+        </div>
+      )}
+
       <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
         <Table hover responsive className="align-middle mb-0 text-nowrap">
           <thead className="bg-light">
             <tr>
-              <th className="py-3 px-4 text-muted fw-bold border-0">שיבוץ (תלמיד וחונך)</th>
-              <th className="py-3 text-muted fw-bold border-0 text-center">סכום בסיס</th>
-              <th className="py-3 text-muted fw-bold border-0 text-center">שינויים ידניים</th>
-              <th className="py-3 text-muted fw-bold border-0 text-center">רווח למשרד</th>
+              <th className="py-3 px-4 border-0">
+                <Form.Check 
+                  type="checkbox" 
+                  onChange={toggleAll} 
+                  checked={scholarships.length > 0 && selectedIds.length === scholarships.length} 
+                />
+              </th>
+              <th className="py-3 text-muted fw-bold border-0">שם החונך</th>
+              <th className="py-3 text-muted fw-bold border-0 text-center">בסיס + יתרות עבר</th>
+              <th className="py-3 text-muted fw-bold border-0 text-center">פרטי בנק והערות</th>
+              <th className="py-3 text-muted fw-bold border-0 text-center">שינויים (תוספת/קיזוז)</th>
               <th className="py-3 text-muted fw-bold border-0 text-center">לתשלום לחונך</th>
               <th className="py-3 text-muted fw-bold border-0 text-center">סטטוס תשלום</th>
-              <th className="py-3 text-muted fw-bold border-0 text-end px-4">פעולות</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan="7" className="text-center py-5"><Spinner animation="border" variant="primary" /></td></tr>
             ) : scholarships.length === 0 ? (
-              <tr><td colSpan="7" className="text-center py-5 text-muted">לא נמצאו מלגות לחודש {selectedMonth}. ייתכן שעדיין לא הורץ תהליך החישוב.</td></tr>
+              <tr><td colSpan="7" className="text-center py-5 text-muted">לא נמצאו מלגות לחודש {selectedMonth}. לחץ על הכפתור למעלה כדי לייצר את הטבלה לחודש זה.</td></tr>
             ) : (
               scholarships.map(scholarship => {
-                const placementName = scholarship.placement?.student?.firstName ? 
-                  `${scholarship.placement.student.firstName} ⟵ ${scholarship.placement.tutor?.firstName}` : 
-                  'שיבוץ חסר';
-                  
+                const tutorName = scholarship.tutor ? `${scholarship.tutor.firstName} ${scholarship.tutor.lastName}` : 'חונך חסר';
                 const changesCount = scholarship.manualChanges?.length || 0;
+                const isSelected = selectedIds.includes(scholarship._id);
+                
+                // הסכום המלא של הבסיס כולל יתרת העבר
+                const combinedBase = (scholarship.baseAmount || 0) + (scholarship.carriedBalance || 0);
 
                 return (
-                  <tr key={scholarship._id}>
-                    <td className="px-4 fw-bold" style={{ color: 'var(--text-main)' }}>{placementName}</td>
-                    <td className="text-center text-muted">₪{scholarship.baseAmount?.toLocaleString() || 0}</td>
-                    <td className="text-center">
-                      <Badge bg={changesCount > 0 ? "warning" : "light"} text={changesCount > 0 ? "dark" : "muted"} className="rounded-pill border">
-                        {changesCount} שינויים
-                      </Badge>
+                  <tr key={scholarship._id} className={isSelected ? 'bg-light' : ''}>
+                    <td className="px-4">
+                      <Form.Check 
+                        type="checkbox" 
+                        checked={isSelected} 
+                        onChange={() => toggleSelection(scholarship._id)} 
+                      />
                     </td>
-                    <td className="text-center fw-bold text-success">₪{scholarship.officeProfit?.toLocaleString() || 0}</td>
+                    <td className="fw-bold" style={{ color: 'var(--text-main)' }}>{tutorName}</td>
+                    <td className="text-center text-muted">
+                      ₪{combinedBase.toLocaleString()}
+                      {scholarship.carriedBalance > 0 && <Badge bg="info" className="ms-2">כולל חוב עבר</Badge>}
+                    </td>
+                    <td className="text-center">
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="text-secondary p-0" 
+                        title={`פרטי בנק: ${scholarship.tutor?.bankDetails || 'לא הוזנו'}\nהערות כרטיס: ${scholarship.tutor?.notes || 'אין הערות'}`}
+                      >
+                        <FiFileText size={20} />
+                      </Button>
+                    </td>
+                    <td className="text-center">
+                      <Button variant="light" size="sm" className="border rounded-pill text-primary fw-bold" onClick={() => handleOpenChanges(scholarship)}>
+                        {changesCount > 0 ? <><FiEdit className="me-1"/> ערוך ({changesCount})</> : <><FiPlusCircle className="me-1"/> הוסף שינוי</>}
+                      </Button>
+                    </td>
                     <td className="text-center fw-bold" style={{ fontSize: '1.1rem', color: 'var(--primary-accent)' }}>
                       ₪{scholarship.tutorAmount?.toLocaleString() || 0}
                     </td>
                     <td className="text-center">
-                      <Button 
-                        variant={scholarship.isPaid ? 'success' : 'outline-secondary'} 
-                        size="sm" 
-                        className="rounded-pill fw-bold d-flex align-items-center justify-content-center gap-1 mx-auto"
-                        onClick={() => handleTogglePaid(scholarship)}
-                      >
-                        {scholarship.isPaid ? <FiCheckCircle /> : <FiClock />}
-                        {scholarship.isPaid ? 'שולם' : 'ממתין'}
-                      </Button>
-                    </td>
-                    <td className="text-end px-4">
-                      <Button variant="light" size="sm" className="border text-primary fw-bold" onClick={() => handleOpenChanges(scholarship)}>
-                        <FiEdit className="me-1" /> ערוך סכום
-                      </Button>
+                      <Badge bg={scholarship.isPaid ? 'success' : 'warning'} text={scholarship.isPaid ? 'light' : 'dark'} className="px-3 py-2 rounded-pill shadow-sm">
+                        {scholarship.isPaid ? 'בוצע' : 'ממתין'}
+                      </Badge>
                     </td>
                   </tr>
                 );
@@ -228,7 +301,7 @@ function Scholarships() {
           {activeScholarship && (
             <>
               <div className="d-flex justify-content-between mb-4 p-3 bg-light rounded border">
-                <div><small className="text-muted d-block">סכום בסיס</small><span className="fw-bold">₪{activeScholarship.baseAmount}</span></div>
+                <div><small className="text-muted d-block">בסיס + יתרת עבר</small><span className="fw-bold">₪{(activeScholarship.baseAmount + (activeScholarship.carriedBalance || 0))}</span></div>
                 <div><small className="text-muted d-block">רווח למשרד</small><span className="fw-bold text-success">₪{activeScholarship.officeProfit}</span></div>
                 <div><small className="text-muted d-block">סכום סופי לחונך</small><span className="fw-bold text-primary fs-5">₪{activeScholarship.tutorAmount}</span></div>
               </div>

@@ -9,7 +9,6 @@ const Student = require('./models/Student');
 const Task = require('./models/Task'); 
 const Tutor = require('./models/Tutor'); 
 const Placement = require('./models/Placement');
-// הייבוא החדש שלנו!
 const Scholarship = require('./models/Scholarship'); 
 
 const app = express();
@@ -287,59 +286,93 @@ app.put('/api/placements/:id', async (req, res) => {
 // --- ניהול מלגות (Scholarships) ---
 // ==========================================
 
-// שליפה ויצירה אוטומטית של מלגות לחודש נבחר
+// 1. שליפת מלגות קיימות לחודש המבוקש
 app.get('/api/scholarships', async (req, res) => {
   try {
-    const month = req.query.month; // פורמט "YYYY-MM" שמגיע מה-React
+    const month = req.query.month;
     if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
 
-    // 1. מחפשים את כל המלגות שכבר קיימות לחודש הזה במסד הנתונים
-    let scholarships = await Scholarship.find({ month })
+    const scholarships = await Scholarship.find({ month })
+      .populate('tutor')
       .populate({
-        path: 'placement',
+        path: 'includedPlacements',
         populate: [
-          { path: 'student', select: 'firstName lastName' },
-          { path: 'tutor', select: 'firstName lastName' }
+          { path: 'student', select: 'firstName lastName' }
         ]
       });
 
-    // 2. אם כבר יש מלגות לחודש הזה, פשוט מחזירים אותן למסך
-    if (scholarships.length > 0) {
-      return res.status(200).json(scholarships);
+    res.status(200).json(scholarships);
+  } catch (err) {
+    console.error('שגיאה בשליפת מלגות:', err);
+    res.status(500).json({ error: 'שגיאה בשליפת המלגות' });
+  }
+});
+
+// 2. יצירה יזומה של טבלת מלגות לחודש נבחר (לפי חונך + יתרות עבר)
+app.post('/api/scholarships/generate', async (req, res) => {
+  try {
+    const { month } = req.body;
+    if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
+
+    // בודקים אם כבר יצרנו טבלה לחודש הזה כדי לא ליצור כפילויות
+    const existingRecords = await Scholarship.findOne({ month });
+    if (existingRecords) {
+      return res.status(400).json({ error: 'טבלת המלגות לחודש זה כבר נוצרה' });
     }
 
-    // 3. אם לא קיימות - מריצים "תהליך חישוב": שולפים את כל השיבוצים הפעילים
+    // שולפים את כל השיבוצים הפעילים
     const activePlacements = await Placement.find({ status: 'פעיל' });
     
     if (activePlacements.length === 0) {
-      return res.status(200).json([]); // מחזירים ריק אם אין שיבוצים פעילים
+      return res.status(200).json({ message: 'אין שיבוצים פעילים', count: 0 });
     }
 
-    // 4. מייצרים רשומת מלגה (תלוש) חדשה עבור כל שיבוץ פעיל
-    const newScholarships = [];
-    
+    // מקבצים את השיבוצים לפי החונך
+    const groupedByTutor = {};
     for (const placement of activePlacements) {
-      // כאן אנחנו קובעים את חוקי החישוב הכלכלי לפי האפיון:
-      let baseAmount = placement.paymentAmount || 0; 
-      let officeProfit = 200; // רווח גלובלי ברירת מחדל לפי האפיון (אפשר לשנות בהמשך)
+      if (!placement.tutor) continue;
+
+      const tutorId = placement.tutor.toString();
+      if (!groupedByTutor[tutorId]) {
+        groupedByTutor[tutorId] = {
+          placements: [],
+          totalBaseAmount: 0
+        };
+      }
       
-      if (placement.paymentMethod === 'hourly') {
-         // דוגמה לחישוב שעתי: אם יש לנו מערכת שעות שמעבירה נתונים, החישוב יתבצע כאן.
-         // לעת עתה נשאיר את זה פשוט לפי הסכום הכללי שנקבע בשיבוץ
-         officeProfit = 20 * 4; // דוגמה ל-4 שעות בשבוע * 20 ש"ח רווח למשרד פר שעה
+      groupedByTutor[tutorId].placements.push(placement._id);
+      groupedByTutor[tutorId].totalBaseAmount += (placement.paymentAmount || 0);
+    }
+
+    const newScholarships = [];
+
+    // עוברים על כל חונך, מחשבים יתרות ומייצרים רשומת מלגה אחת לחונך
+    for (const tutorId in groupedByTutor) {
+      const tutorData = groupedByTutor[tutorId];
+
+      // משיכת חובות עבר: מחפשים מלגות קודמות של חונך זה שלא סומנו כ"שולם"
+      const pastUnpaid = await Scholarship.find({ tutor: tutorId, isPaid: false });
+      let carriedBalance = 0;
+      if (pastUnpaid.length > 0) {
+        carriedBalance = pastUnpaid.reduce((sum, s) => sum + (s.tutorAmount || 0), 0);
       }
 
-      // חישוב הסכום שמגיע לחונך 
-      let tutorAmount = baseAmount - officeProfit;
-      if (tutorAmount < 0) tutorAmount = 0; // לא נרצה לשלם מינוס
+      let officeProfit = 200; // רווח גלובלי למשרד כברירת מחדל
+
+      // חישוב הסכומים: בסיס החודש + חובות עבר
+      const totalFinalAmount = tutorData.totalBaseAmount + carriedBalance;
+      let tutorAmount = totalFinalAmount - officeProfit;
+      if (tutorAmount < 0) tutorAmount = 0;
 
       const newRecord = new Scholarship({
         month,
-        placement: placement._id,
-        baseAmount,
-        finalAmount: baseAmount,
-        officeProfit,
-        tutorAmount,
+        tutor: tutorId,
+        includedPlacements: tutorData.placements,
+        baseAmount: tutorData.totalBaseAmount,
+        carriedBalance: carriedBalance,
+        finalAmount: totalFinalAmount,
+        officeProfit: officeProfit,
+        tutorAmount: tutorAmount,
         isPaid: false
       });
 
@@ -347,17 +380,7 @@ app.get('/api/scholarships', async (req, res) => {
       newScholarships.push(newRecord);
     }
 
-    // 5. אחרי שיצרנו הכל, אנחנו שולפים אותם שוב עם שם החונך והתלמיד ומחזירים ל-React
-    scholarships = await Scholarship.find({ month })
-      .populate({
-        path: 'placement',
-        populate: [
-          { path: 'student', select: 'firstName lastName' },
-          { path: 'tutor', select: 'firstName lastName' }
-        ]
-      });
-
-    res.status(201).json(scholarships);
+    res.status(201).json({ message: 'המלגות נוצרו בהצלחה', count: newScholarships.length });
 
   } catch (err) {
     console.error('שגיאה ביצירת מלגות:', err);
@@ -365,20 +388,34 @@ app.get('/api/scholarships', async (req, res) => {
   }
 });
 
-// עדכון מלגה (שינויים ידניים, JSON, או סטטוס שולם)
+// 3. פעולה קבוצתית - סימון כמה מלגות כ"שולם" במכה אחת
+app.put('/api/scholarships/bulk-pay', async (req, res) => {
+  try {
+    const { ids, isPaid } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: 'רשימת מזהים חסרה' });
+    }
+
+    await Scholarship.updateMany(
+      { _id: { $in: ids } },
+      { $set: { isPaid: isPaid } }
+    );
+
+    res.status(200).json({ message: 'סטטוס תשלום עודכן בהצלחה לכל הרשומות המסומנות' });
+  } catch (err) {
+    console.error('שגיאה בעדכון קבוצתי:', err);
+    res.status(500).json({ error: 'שגיאה בעדכון סטטוס התשלום' });
+  }
+});
+
+// 4. עדכון מלגה בודדת (שינויים ידניים, או סטטוס שולם לשורה בודדת)
 app.put('/api/scholarships/:id', async (req, res) => {
   try {
     const updatedScholarship = await Scholarship.findByIdAndUpdate(
       req.params.id, 
       req.body, 
       { new: true } 
-    ).populate({
-      path: 'placement',
-      populate: [
-        { path: 'student', select: 'firstName lastName' },
-        { path: 'tutor', select: 'firstName lastName' }
-      ]
-    });
+    ).populate('tutor');
     
     if (!updatedScholarship) return res.status(404).json({ error: 'מלגה לא נמצאה' });
     res.status(200).json(updatedScholarship);

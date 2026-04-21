@@ -4,12 +4,18 @@ const scholarshipSchema = new mongoose.Schema({
   // שיוך לחודש ושנה (פורמט מומלץ לשמירה: 'YYYY-MM' כדי שיהיה קל לסנן)
   month: { type: String, required: true }, 
   
-  // מזהה השיבוץ הרלוונטי (ממנו נשאב מי זה התלמיד ומי זה החונך)
-  placement: { type: mongoose.Schema.Types.ObjectId, ref: 'Placement', required: true },
+  // 🔥 שינוי: המלגה עכשיו משויכת לחונך אחד, ולא משנה כמה שיבוצים יש לו
+  tutor: { type: mongoose.Schema.Types.ObjectId, ref: 'Tutor', required: true },
+  
+  // 🔥 תוספת: נשמור פה את רשימת השיבוצים המדויקת שנכללה בחודש הזה (למען התיעוד)
+  includedPlacements: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Placement' }],
 
   // סכום הבסיס (המחושב אוטומטית לפני שינויים ידניים)
   // בשעתי: שעות * תעריף | בגלובלי: תעריף קבוע
   baseAmount: { type: Number, required: true },
+
+  // 🔥 תוספת: יתרה נגררת מחודשים קודמים (אם לא לחצו לו על "בוצע" חודש שעבר)
+  carriedBalance: { type: Number, default: 0 },
 
   // שינויים ידניים - נשמר כמערך אובייקטים (JSON) כדי לשמור היסטוריה מלאה
   manualChanges: [{
