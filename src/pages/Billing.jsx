@@ -1,74 +1,75 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Spinner, Row, Col, Modal, InputGroup, Form } from 'react-bootstrap';
-import { FiDollarSign, FiCreditCard, FiUsers, FiSend, FiFileText, FiSearch } from 'react-icons/fi';
+import { FiDollarSign, FiCreditCard, FiUsers, FiSend, FiFileText, FiSearch, FiCalendar } from 'react-icons/fi';
 
 function Billing() {
   const [billingList, setBillingList] = useState([]);
   const [totalExpected, setTotalExpected] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   
-  // הסטייט החדש לחיפוש
+  // הסטייט לחיפוש
   const [searchTerm, setSearchTerm] = useState('');
+
+  // סטייט לבחירת החודש (ברירת מחדל - החודש הנוכחי)
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // לניהול המודל שמציג את פירוט החיוב
   const [showDetails, setShowDetails] = useState(false);
   const [selectedPayer, setSelectedPayer] = useState(null);
 
+  // בכל פעם שהחודש משתנה, נמשוך נתונים מחדש
   useEffect(() => {
     fetchDataAndCalculate();
-  }, []);
+  }, [selectedMonth]);
 
   const fetchDataAndCalculate = async () => {
     setIsLoading(true);
     try {
-      // מושכים במקביל גם את השיבוצים וגם את המשלמים
-      const [placementsRes, payersRes] = await Promise.all([
-        fetch(import.meta.env.VITE_API_URL + '/api/placements'),
-        fetch(import.meta.env.VITE_API_URL + '/api/payers')
-      ]);
+      // עכשיו אנחנו מושכים נתונים מהראוט החדש שיצרנו בשרת, לפי החודש הנבחר!
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/billing?month=${selectedMonth}`);
 
-      if (placementsRes.ok && payersRes.ok) {
-        const placementsData = await placementsRes.json();
-        const payersData = await payersRes.json();
+      if (response.ok) {
+        const billingRecords = await response.json();
         
-        // --- מנוע הקיבוץ (Group By) ---
+        // --- מנוע הקיבוץ: נאחד את כל החיובים של אותו משלם לשורה אחת בטבלה ---
         const grouped = {};
         let totalSum = 0;
 
-        placementsData.forEach(placement => {
-          // לוקחים רק שיבוצים פעילים, שיש להם תלמיד, ולתלמיד יש משלם!
-          if (placement.status !== 'פעיל' || !placement.student || !placement.student.payer) return;
+        billingRecords.forEach(record => {
+          if (!record.payer) return;
 
-          const payerId = placement.student.payer;
-          const amount = Number(placement.paymentAmount) || 0; // אם אין סכום, נחשב כ-0
+          const payerId = record.payer._id;
+          const amount = record.totalAmount || 0;
 
           if (!grouped[payerId]) {
             grouped[payerId] = {
               payerId,
+              payerName: record.payer.name || 'משלם לא ידוע',
+              payerType: record.payer.payerType || 'individual',
               totalAmount: 0,
               studentNames: new Set(),
-              placementsList: []
+              recordsList: [] // כאן נשמור את הרשומות המלאות לפירוט
             };
           }
 
           // מוסיפים את הסכום והנתונים למשלם הספציפי הזה
           grouped[payerId].totalAmount += amount;
           totalSum += amount;
-          grouped[payerId].studentNames.add(`${placement.student.firstName} ${placement.student.lastName}`);
-          grouped[payerId].placementsList.push(placement);
+          
+          if (record.placement && record.placement.student) {
+             grouped[payerId].studentNames.add(`${record.placement.student.firstName} ${record.placement.student.lastName}`);
+          }
+          
+          grouped[payerId].recordsList.push(record);
         });
 
-        // משדכים את התוצאה לשמות האמיתיים של המשלמים מתוך השרת
-        const finalList = Object.values(grouped).map(group => {
-          const payerObj = payersData.find(p => p._id === group.payerId);
-          return {
-            ...group,
-            studentNamesArray: Array.from(group.studentNames),
-            payerName: payerObj ? payerObj.name : 'משלם לא ידוע',
-            payerType: payerObj ? payerObj.payerType : 'individual',
-            payerPhone: payerObj ? payerObj.phone : ''
-          };
-        });
+        const finalList = Object.values(grouped).map(group => ({
+          ...group,
+          studentNamesArray: Array.from(group.studentNames)
+        }));
 
         // מסדרים לפי הסכום הגבוה לנמוך
         finalList.sort((a, b) => b.totalAmount - a.totalAmount);
@@ -96,7 +97,6 @@ function Billing() {
   // מנגנון הסינון (חיפוש)
   const filteredBillingList = billingList.filter(item => {
     const searchLower = searchTerm.toLowerCase();
-    // מאפשר חיפוש לפי שם משלם או שם התלמיד המשויך אליו
     return (
       item.payerName.toLowerCase().includes(searchLower) ||
       item.studentNamesArray.some(studentName => studentName.toLowerCase().includes(searchLower))
@@ -106,15 +106,29 @@ function Billing() {
   return (
     <Container className="mt-5 mb-5" dir="rtl">
       
-      {/* כותרת מודרנית */}
-      <div className="d-flex justify-content-between align-items-center mb-5">
+      {/* כותרת מודרנית ואזור בחירת חודש */}
+      <div className="d-flex justify-content-between align-items-center mb-5 flex-wrap gap-3">
         <div>
           <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1">ריכוז חיובים חודשי</h2>
-          <p style={{ color: '#64748b', fontSize: '1.05rem' }} className="mb-0">המערכת סורקת את כל השיבוצים הפעילים ומאחדת חיובים אוטומטית לפי משלם</p>
+          <p style={{ color: '#64748b', fontSize: '1.05rem' }} className="mb-0">המערכת מייצרת ושומרת היסטוריית חיובים אוטומטית לפי משלם</p>
         </div>
-        <Button variant="outline-primary" className="d-flex align-items-center gap-2 px-4 py-2 rounded-pill shadow-sm" style={{ fontWeight: '600' }} onClick={fetchDataAndCalculate}>
-          רענן נתונים
-        </Button>
+        
+        <div className="d-flex align-items-center gap-3">
+          <div className="d-flex align-items-center gap-2 bg-white p-2 rounded-pill shadow-sm border">
+            <span className="fw-bold text-muted small ms-2 ps-2 border-start d-flex align-items-center gap-1">
+              <FiCalendar /> חודש גבייה:
+            </span>
+            <Form.Control
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{ border: 'none', fontWeight: 'bold', cursor: 'pointer', outline: 'none', boxShadow: 'none', backgroundColor: 'transparent' }}
+            />
+          </div>
+          <Button variant="outline-primary" className="d-flex align-items-center gap-2 px-4 py-2 rounded-pill shadow-sm" style={{ fontWeight: '600' }} onClick={fetchDataAndCalculate}>
+            רענן נתונים
+          </Button>
+        </div>
       </div>
 
       {/* כרטיסיות תקציר מודרניות */}
@@ -127,7 +141,7 @@ function Billing() {
                   <FiDollarSign size={28} />
                 </div>
               </div>
-              <h6 className="fw-normal mb-1" style={{ color: '#bfdbfe', fontSize: '1.1rem' }}>צפי גבייה כולל לחודש זה</h6>
+              <h6 className="fw-normal mb-1" style={{ color: '#bfdbfe', fontSize: '1.1rem' }}>סך חיובים כולל ({selectedMonth})</h6>
               <h1 className="fw-bold mb-0" style={{ fontSize: '3rem', letterSpacing: '-1px' }}>₪{totalExpected.toLocaleString()}</h1>
             </Card.Body>
           </Card>
@@ -165,12 +179,10 @@ function Billing() {
             </InputGroup>
           </div>
 
-          {/* הגדרת גובה מקסימלי לטבלה וגלילה אנכית לשמירת הכותרת דבוקה */}
           <div className="table-responsive" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
             <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr>
-                  {/* הגדרת position: sticky לכל כותרת כדי למנוע דריסות של סגנונות */}
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}><FiCreditCard className="me-2" /> שם המשלם</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}>סוג</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '16px 12px', position: 'sticky', top: 0, borderBottom: '2px solid #e2e8f0' }}>תלמידים משויכים</th>
@@ -200,7 +212,7 @@ function Billing() {
                       <td style={{ color: '#64748b', padding: '16px 12px', maxWidth: '250px' }} className="text-truncate">
                         {item.studentNamesArray.join(', ')}
                       </td>
-                      <td style={{ color: '#475569', padding: '16px 12px', fontWeight: '500' }}>{item.placementsList.length} חונכים</td>
+                      <td style={{ color: '#475569', padding: '16px 12px', fontWeight: '500' }}>{item.recordsList.length} חיובים</td>
                       <td className="fw-bold fs-5" style={{ color: '#059669', padding: '16px 12px' }}>₪{item.totalAmount.toLocaleString()}</td>
                       <td className="text-end" style={{ padding: '16px 12px', minWidth: '220px' }}>
                         <Button 
@@ -228,8 +240,8 @@ function Billing() {
                   <tr>
                     <td colSpan="6" className="text-center py-5 text-muted">
                       <div className="mb-3"><FiDollarSign size={40} className="opacity-25" /></div>
-                      <h5 style={{ color: '#64748b' }}>לא נמצאו חיובים</h5>
-                      <p className="small mb-0">נסה לחפש שם אחר, או ודא שיש שיבוצים פעילים עם סכום המשויכים למשלם.</p>
+                      <h5 style={{ color: '#64748b' }}>לא נמצאו חיובים לחודש {selectedMonth}</h5>
+                      <p className="small mb-0">ייתכן שאין שיבוצים פעילים עם משלם המוגדרים למערכת.</p>
                     </td>
                   </tr>
                 )}
@@ -239,21 +251,20 @@ function Billing() {
         </Card.Body>
       </Card>
 
-      {/* מודל פירוט חיוב - מעוצב מחדש כקבלה דיגיטלית */}
+      {/* מודל פירוט חיוב - מציג את רשומות החיוב מהשרת */}
       <Modal show={showDetails} onHide={() => setShowDetails(false)} size="lg" dir="rtl" centered>
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>
-            פירוט חיוב למשלם
+            פירוט חיוב - חודש {selectedMonth}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-0" style={{ backgroundColor: '#f1f5f9' }}>
           {selectedPayer && (
             <div className="p-4">
-              {/* כותרת הקבלה */}
               <div className="d-flex justify-content-between align-items-center mb-4 p-4 bg-white rounded-4 shadow-sm" style={{ border: '1px solid #e2e8f0' }}>
                 <div>
                   <h4 className="fw-bold mb-1" style={{ color: '#2563eb' }}>{selectedPayer.payerName}</h4>
-                  <div style={{ color: '#64748b' }}>סך חיובים מרוכזים: {selectedPayer.placementsList.length} שיבוצים</div>
+                  <div style={{ color: '#64748b' }}>סך חיובים מרוכזים: {selectedPayer.recordsList.length} סעיפים</div>
                 </div>
                 <div className="text-end">
                   <div className="small fw-bold text-muted mb-1">סה"כ לתשלום</div>
@@ -261,26 +272,32 @@ function Billing() {
                 </div>
               </div>
 
-              {/* טבלת הפירוט הפנימית */}
               <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
                 <Table hover className="mb-0 align-middle">
                   <thead style={{ backgroundColor: '#f8fafc' }}>
                     <tr>
                       <th style={{ color: '#64748b', fontWeight: '600', padding: '16px', borderBottom: '1px solid #e2e8f0' }}>תלמיד</th>
                       <th style={{ color: '#64748b', fontWeight: '600', padding: '16px', borderBottom: '1px solid #e2e8f0' }}>חונך מלווה</th>
-                      <th style={{ color: '#64748b', fontWeight: '600', padding: '16px', borderBottom: '1px solid #e2e8f0' }}>סוג תשלום</th>
-                      <th style={{ color: '#64748b', fontWeight: '600', padding: '16px', borderBottom: '1px solid #e2e8f0' }} className="text-end">סכום שחויב</th>
+                      <th style={{ color: '#64748b', fontWeight: '600', padding: '16px', borderBottom: '1px solid #e2e8f0' }}>סטטוס פנימי</th>
+                      <th style={{ color: '#64748b', fontWeight: '600', padding: '16px', borderBottom: '1px solid #e2e8f0' }} className="text-end">סכום</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedPayer.placementsList.map((p, idx) => (
+                    {selectedPayer.recordsList.map((record, idx) => (
                       <tr key={idx}>
-                        <td className="fw-bold" style={{ color: '#0f172a', padding: '16px' }}>{p.student.firstName} {p.student.lastName}</td>
-                        <td style={{ color: '#475569', padding: '16px' }}>{p.tutor ? `${p.tutor.firstName} ${p.tutor.lastName}` : 'לא צוין'}</td>
-                        <td style={{ padding: '16px' }}>
-                          <span className="badge bg-light text-secondary border" style={{ fontWeight: '500' }}>{p.paymentMethod}</span>
+                        <td className="fw-bold" style={{ color: '#0f172a', padding: '16px' }}>
+                          {record.placement?.student ? `${record.placement.student.firstName} ${record.placement.student.lastName}` : 'חסר נתון'}
                         </td>
-                        <td className="text-end fw-bold" style={{ color: '#059669', padding: '16px', fontSize: '1.1rem' }}>₪{p.paymentAmount || 0}</td>
+                        <td style={{ color: '#475569', padding: '16px' }}>
+                          {record.placement?.tutor ? `${record.placement.tutor.firstName} ${record.placement.tutor.lastName}` : 'חסר נתון'}
+                        </td>
+                        <td style={{ padding: '16px' }}>
+                          {record.isPaid ? 
+                            <span className="badge bg-success">שולם</span> : 
+                            <span className="badge bg-warning text-dark">ממתין לתשלום</span>
+                          }
+                        </td>
+                        <td className="text-end fw-bold" style={{ color: '#059669', padding: '16px', fontSize: '1.1rem' }}>₪{record.totalAmount.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -389,6 +389,85 @@ app.put('/api/scholarships/:id', async (req, res) => {
 });
 
 
+// ==========================================
+// --- ניהול חיובים וגבייה (Billing) ---
+// ==========================================
+
+const BillingRecord = require('./models/BillingRecord');
+
+// שליפה ויצירה אוטומטית של טבלת גבייה חודשית
+app.get('/api/billing', async (req, res) => {
+  try {
+    const month = req.query.month; // החודש המבוקש (למשל: "2026-04")
+    if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
+
+    // 1. בודקים אם כבר נוצרה טבלת גבייה לחודש הזה
+    let records = await BillingRecord.find({ month })
+      .populate({
+        path: 'placement',
+        populate: [
+          { path: 'student', select: 'firstName lastName' },
+          { path: 'tutor', select: 'firstName lastName' }
+        ]
+      })
+      .populate('payer'); 
+
+    // 2. אם כבר יש חיובים לחודש הזה, מחזירים אותם ל-React
+    if (records.length > 0) {
+      return res.status(200).json(records);
+    }
+
+    // 3. אם אין - הגיע הזמן לייצר אותם!
+    // שולפים את כל השיבוצים הפעילים שיש להם משלם מוגדר
+    const activePlacements = await Placement.find({ status: 'פעיל', payer: { $exists: true, $ne: null } });
+
+    if (activePlacements.length === 0) {
+      return res.status(200).json([]); // אין שיבוצים פעילים עם משלם
+    }
+
+    const newRecords = [];
+
+    for (const placement of activePlacements) {
+      // שואבים את סכום הבסיס של השיבוץ
+      const baseAmount = placement.paymentAmount || 0;
+      
+      // כאן מכינים את פירוט החיוב (ה-JSON שהוגדר באפיון)
+      const breakdown = [
+        { description: `חיוב בסיס לחודש ${month}`, amount: baseAmount }
+      ];
+
+      // יוצרים את רשומת החיוב החדשה
+      const newBilling = new BillingRecord({
+        month,
+        placement: placement._id,
+        payer: placement.payer,
+        totalAmount: baseAmount, // בשלב הבא נוכל להוסיף לכאן יתרות עבר
+        amountBreakdown: breakdown,
+        isPaid: false
+      });
+
+      await newBilling.save();
+      newRecords.push(newBilling);
+    }
+
+    // 4. אחרי שיצרנו הכל, שולפים שוב עם כל השמות (Populate) ומחזירים למסך
+    records = await BillingRecord.find({ month })
+      .populate({
+        path: 'placement',
+        populate: [
+          { path: 'student', select: 'firstName lastName' },
+          { path: 'tutor', select: 'firstName lastName' }
+        ]
+      })
+      .populate('payer');
+
+    res.status(201).json(records);
+
+  } catch (err) {
+    console.error('שגיאה ביצירת תהליך הגבייה:', err);
+    res.status(500).json({ error: 'שגיאה בתהליך יצירת החיובים' });
+  }
+});
 const PORT = process.env.PORT || 5000;
 // ==============================================================
 // 📞 מערכת הטלפוניה (IVR - קול כשר) 📞
