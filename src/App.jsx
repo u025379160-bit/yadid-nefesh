@@ -15,6 +15,9 @@ import Team from './pages/Team';
 import Tasks from './pages/Tasks';
 import TaskNotification from './components/TaskNotification';
 
+// 👇 1. הייבוא של מסך המלגות החדש
+import Scholarships from './pages/Scholarships'; 
+
 function GlobalCleaner() {
   const location = useLocation();
   useEffect(() => {
@@ -70,6 +73,9 @@ return (
             <Route path="/billing" element={<Billing />} />
             <Route path="/team" element={<Team />} />
             <Route path="/tasks" element={<Tasks currentUser={currentUser} />} />
+            
+            {/* 👇 2. הדלת החדשה שפתחנו למסך המלגות! 👇 */}
+            <Route path="/scholarships" element={<Scholarships />} />
             
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
