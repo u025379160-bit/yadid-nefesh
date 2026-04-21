@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings, FiLock } from 'react-icons/fi';
-import Select from 'react-select'; // הוספנו את רכיב החיפוש החכם
+import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings, FiLock, FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
+import Select from 'react-select'; 
 
 function StudentProfile() {
   const { id } = useParams(); 
@@ -23,17 +23,15 @@ function StudentProfile() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({});
 
-  // --- סטייט לעריכת משלם ---
   const [showPayerEditModal, setShowPayerEditModal] = useState(false);
   const [payerFormData, setPayerFormData] = useState({});
 
-  // --- משימות (הגרסה החדשה והמתקדמת!) ---
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [isSavingTask, setIsSavingTask] = useState(false);
   const taskTypes = ['תיעוד פעילות', 'בקשת עזרה', 'עדכון סטטוס', 'אחר'];
   const [taskData, setTaskData] = useState({
     associatedToType: 'student',
-    associatedToId: id, // שואב אוטומטית את ה-ID של התלמיד מהכתובת!
+    associatedToId: id, 
     taskType: 'תיעוד פעילות',
     content: '',
     status: 'published',
@@ -65,7 +63,7 @@ function StudentProfile() {
     try {
       const [studentRes, tasksRes, placementsRes, payersRes, tutorsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`),
-        fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`), // מביא את המשימות של התלמיד
+        fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}/tasks`), 
         fetch(`${import.meta.env.VITE_API_URL}/api/placements`),
         fetch(`${import.meta.env.VITE_API_URL}/api/payers`),
         fetch(`${import.meta.env.VITE_API_URL}/api/tutors`) 
@@ -93,7 +91,6 @@ function StudentProfile() {
     fetchData();
   }, [id]);
 
-  // --- פונקציות עריכת משלם ---
   const handleOpenPayerEdit = () => {
     const activePayer = payers.find(p => p._id === (student.payer?._id || student.payer));
     if (activePayer) {
@@ -115,7 +112,6 @@ function StudentProfile() {
         body: JSON.stringify(payerFormData),
       });
       if (response.ok) {
-        alert('פרטי המשלם עודכנו בהצלחה!');
         setShowPayerEditModal(false);
         fetchData(); 
       } else {
@@ -135,7 +131,7 @@ function StudentProfile() {
     const existingPayer = payers.find(p => p.name.trim() === student.fatherName.trim());
 
     if (existingPayer) {
-      if (window.confirm(`💡 מצאנו במערכת משלם קיים בשם "${existingPayer.name}".\n\nהאם ברצונך לשייך את התלמיד אליו (ולחסוך כפילות)?`)) {
+      if (window.confirm(`💡 מצאנו במערכת משלם קיים בשם "${existingPayer.name}".\n\nהאם ברצונך לשייך את התלמיד אליו?`)) {
         try {
           setLoading(true);
           const studentUpdateRes = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`, {
@@ -144,7 +140,6 @@ function StudentProfile() {
             body: JSON.stringify({ payer: existingPayer._id }),
           });
           if (studentUpdateRes.ok) {
-            alert("התלמיד שויך למשלם הקיים בהצלחה! לא נוצרה כפילות במערכת.");
             fetchData(); 
           }
         } catch (error) {
@@ -182,7 +177,6 @@ function StudentProfile() {
       });
 
       if (studentUpdateRes.ok) {
-        alert("המשלם החדש נוצר ושויך בהצלחה!");
         fetchData(); 
       }
     } catch (error) {
@@ -207,14 +201,34 @@ function StudentProfile() {
   const handleOpenEdit = () => {
     let formattedDate = '';
     if (student.birthDate) formattedDate = new Date(student.birthDate).toISOString().split('T')[0];
-    // משיכת ה-ID המדויק של המשלם (למקרה שהוא אובייקט מאוכלס)
     const payerId = student.payer?._id || student.payer || '';
-    setFormData({ ...student, birthDate: formattedDate, payer: payerId });
+    setFormData({ 
+      ...student, 
+      birthDate: formattedDate, 
+      payer: payerId,
+      contacts: student.contacts || [] 
+    });
     setShowEditModal(true);
   };
   
   const handleCloseEdit = () => setShowEditModal(false);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  // פונקציות ניהול אנשי קשר בעריכה
+  const handleAddContact = () => {
+    setFormData({ ...formData, contacts: [...(formData.contacts || []), { name: '', phone: '', relation: '' }] });
+  };
+
+  const handleContactChange = (index, field, value) => {
+    const newContacts = [...formData.contacts];
+    newContacts[index][field] = value;
+    setFormData({ ...formData, contacts: newContacts });
+  };
+
+  const handleRemoveContact = (index) => {
+    const newContacts = formData.contacts.filter((_, i) => i !== index);
+    setFormData({ ...formData, contacts: newContacts });
+  };
 
   const handleUpdateStudent = async (e) => {
     e.preventDefault();
@@ -236,7 +250,6 @@ function StudentProfile() {
     }
   };
 
-  // --- פונקציות המשימות ---
   const handleOpenTask = () => {
     setTaskData({
       associatedToType: 'student',
@@ -308,7 +321,6 @@ function StudentProfile() {
         body: JSON.stringify(dataToSend),
       });
       if (response.ok) {
-        alert('🎉 השיבוץ נוצר בהצלחה!');
         setShowPlacementModal(false);
         setPlacementData({ tutor: '', startDate: new Date().toISOString().split('T')[0], paymentAmount: '', paymentMethod: 'credit_card', status: 'פעיל' });
         fetchData();
@@ -321,7 +333,6 @@ function StudentProfile() {
     }
   };
 
-  // המרת המשלמים לפורמט של react-select
   const payerOptions = payers.map(payer => ({
     value: payer._id,
     label: `${payer.name} (${payer.identifier}) - ${payer.payerType === 'individual' ? 'אדם פרטי' : 'מוסד'}`
@@ -365,50 +376,68 @@ function StudentProfile() {
                   </h6>
                   <div className="d-flex flex-column gap-3">
                     <div><small className="text-muted d-block">תעודת זהות</small><span className="fw-bold" style={{ color: 'var(--text-main)' }}>{student.idNumber}</span></div>
-                    <div><small className="text-muted d-block">הורים</small><span className="fw-bold">{student.fatherName} ו{student.motherName}</span></div>
-                    <div><small className="text-muted d-block">טלפון ראשי</small><span dir="ltr" className="fw-bold text-primary">{student.phone1}</span></div>
                     <div><small className="text-muted d-block">תאריך לידה</small><span className="fw-bold">{student.birthDate ? new Date(student.birthDate).toLocaleDateString('he-IL') : '-'}</span></div>
+                    <div><small className="text-muted d-block">הורים</small><span className="fw-bold">{student.fatherName || '-'} ו{student.motherName || '-'}</span></div>
+                    <div><small className="text-muted d-block">מוסד לימודי</small><span className="fw-bold">{student.institute || 'לא צוין'}</span></div>
                   </div>
                 </Col>
 
                 <Col md={6}>
                   <h6 className="fw-bold text-muted mb-4 d-flex align-items-center gap-2 border-bottom pb-2">
-                    <FiMapPin /> פרטי מגורים וגביה
+                    <FiMapPin /> התקשרות וגביה
                   </h6>
                   <div className="d-flex flex-column gap-3">
-                    <div><small className="text-muted d-block">כתובת</small><span className="fw-bold">{student.address || 'לא צוינה כתובת'}</span></div>
+                    <div>
+                      <small className="text-muted d-block">טלפונים</small>
+                      <span dir="ltr" className="fw-bold text-primary d-block">{student.phone1}</span>
+                      {student.phone2 && <span dir="ltr" className="text-muted small d-block">{student.phone2}</span>}
+                      {student.phone3 && <span dir="ltr" className="text-muted small d-block">{student.phone3}</span>}
+                    </div>
+                    <div><small className="text-muted d-block">אימייל</small><span className="fw-bold">{student.email || '-'}</span></div>
+                    <div><small className="text-muted d-block">כתובת</small><span className="fw-bold">{student.address || 'לא צוינה'}, מיקוד: {student.zipCode || '-'}</span></div>
                     
                     <div className="p-3 rounded border mt-2" style={{ backgroundColor: activePayerObj ? '#f0fdf4' : '#fff5f5', borderColor: activePayerObj ? '#bbf7d0' : '#fecaca' }}>
                       <div className="d-flex justify-content-between align-items-center mb-1">
-                        <small className="text-muted fw-bold small"><FiCreditCard className="me-1"/> משלם קבוע (ארנק חיוב)</small>
-                        
-                        {/* תיקון UX: כפתור החלפת משלם נפרד מעריכת הרשומה */}
+                        <small className="text-muted fw-bold small"><FiCreditCard className="me-1"/> משלם קבוע</small>
                         {!activePayerObj ? (
                           <Button variant="link" className="p-0 text-decoration-none small fw-bold" onClick={handleQuickSetPayer} style={{fontSize: '0.75rem'}}>
                             <FiUserCheck className="me-1"/> הגדר אבא כמשלם
                           </Button>
                         ) : (
                           <div className="d-flex gap-2">
-                            <Button variant="link" className="p-0 text-primary text-decoration-none small fw-bold" onClick={handleOpenEdit} style={{fontSize: '0.75rem'}} title="בחר משלם אחר לרשומה זו">
+                            <Button variant="link" className="p-0 text-primary text-decoration-none small fw-bold" onClick={handleOpenEdit} style={{fontSize: '0.75rem'}}>
                               <FiUserCheck className="me-1"/> החלף משלם
                             </Button>
-                            <Button variant="link" className="p-0 text-muted text-decoration-none small fw-bold" onClick={handleOpenPayerEdit} style={{fontSize: '0.75rem'}} title="ערוך את פרטי המשלם עצמו">
-                              <FiSettings className="me-1"/> ערוך שם/טלפון
+                            <Button variant="link" className="p-0 text-muted text-decoration-none small fw-bold" onClick={handleOpenPayerEdit} style={{fontSize: '0.75rem'}}>
+                              <FiSettings className="me-1"/> ערוך
                             </Button>
                           </div>
                         )}
                       </div>
                       <span className={`fw-bold ${activePayerObj ? 'text-success' : 'text-danger'}`}>{activePayerName}</span>
                     </div>
-
-                    <div className="mt-2">
-                      <small className="text-muted d-block mb-1">סטטוס</small>
-                      <Badge bg="success" className="px-3 py-2 rounded-pill">פעיל במערכת</Badge>
-                    </div>
                   </div>
                 </Col>
 
               </Row>
+
+              {/* הצגת אנשי קשר נוספים */}
+              {student.contacts && student.contacts.length > 0 && (
+                <div className="mt-4 pt-3 border-top">
+                  <h6 className="fw-bold text-muted mb-3">אנשי קשר נוספים</h6>
+                  <Row className="g-3">
+                    {student.contacts.map((contact, idx) => (
+                      <Col md={4} key={idx}>
+                        <div className="p-2 border rounded bg-light">
+                          <div className="fw-bold small">{contact.name} ({contact.relation})</div>
+                          <div className="text-muted small" dir="ltr">{contact.phone}</div>
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                </div>
+              )}
+
             </Card.Body>
           </Card>
         </Col>
@@ -556,10 +585,10 @@ function StudentProfile() {
         </Col>
       </Row>
 
-      {/* --- חלון עריכת פרטי תלמיד עם בחירת משלם מתקדמת --- */}
-      <Modal show={showEditModal} onHide={handleCloseEdit} size="lg" dir="rtl">
+      {/* --- חלון עריכת פרטי תלמיד --- */}
+      <Modal show={showEditModal} onHide={handleCloseEdit} size="xl" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד וגבייה</Modal.Title>
+          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד מלאים</Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light p-4" style={{ minHeight: '60vh', overflow: 'visible' }}>
           <Card className="border-0 shadow-sm">
@@ -568,182 +597,109 @@ function StudentProfile() {
                 
                 <Row className="mb-3">
                   <Col md={12}>
-                    <Form.Group className="p-3 bg-white border rounded" style={{ borderColor: 'var(--primary-blue)' }}>
+                    <Form.Group className="p-3 bg-white border rounded">
                       <Form.Label className="fw-bold text-primary small mb-2 d-flex align-items-center gap-2">
                         <FiUser /> שיוך למשלם קבוע (ארנק חיוב)
                       </Form.Label>
-                      
-                      {/* התיקון שלנו: רכיב החיפוש החכם של משלמים */}
                       <Select
                         options={payerOptions}
                         value={payerOptions.find(opt => opt.value === formData.payer) || null}
                         onChange={(selected) => setFormData({ ...formData, payer: selected ? selected.value : '' })}
                         placeholder="הקלד שם משלם לחיפוש..."
-                        isSearchable
-                        isClearable
-                        isRtl
-                        noOptionsMessage={() => "לא נמצאו משלמים"}
+                        isSearchable isClearable isRtl
                         menuPortalTarget={document.body}
                         styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({...base, borderRadius: '8px'}) }}
                       />
-                      
                     </Form.Group>
                   </Col>
                 </Row>
-                <hr className="text-muted opacity-25 mb-4"/>
 
                 <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטים בסיסיים</h6>
                 <Row className="mb-3">
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם פרטי</Form.Label><Form.Control type="text" name="firstName" value={formData.firstName || ''} onChange={handleChange} required /></Form.Group></Col>
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם משפחה</Form.Label><Form.Control type="text" name="lastName" value={formData.lastName || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-muted">שם פרטי</Form.Label><Form.Control type="text" name="firstName" value={formData.firstName || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-muted">שם משפחה</Form.Label><Form.Control type="text" name="lastName" value={formData.lastName || ''} onChange={handleChange} required /></Form.Group></Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>תעודת זהות</Form.Label><Form.Control type="text" name="idNumber" value={formData.idNumber || ''} onChange={handleChange} required className="bg-light border-danger" /></Form.Group></Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>תאריך לידה</Form.Label><Form.Control type="date" name="birthDate" value={formData.birthDate || ''} onChange={handleChange} required className="bg-light border-danger"/></Form.Group></Col>
                 </Row>
+
+                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">הורים ומוסד לימודים</h6>
                 <Row className="mb-3">
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">תעודת זהות</Form.Label><Form.Control type="text" name="idNumber" value={formData.idNumber || ''} onChange={handleChange} required /></Form.Group></Col>
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">תאריך לידה</Form.Label><Form.Control type="date" name="birthDate" value={formData.birthDate || ''} onChange={handleChange} required /></Form.Group></Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} /></Form.Group></Col>
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName || ''} onChange={handleChange} /></Form.Group></Col>
-                </Row>
-                <Row className="mb-4">
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">טלפון</Form.Label><Form.Control type="text" name="phone1" value={formData.phone1 || ''} onChange={handleChange} required /></Form.Group></Col>
-                  <Col md={6}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-muted">כתובת מגורים</Form.Label><Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} /></Form.Group></Col>
-                </Row>
-
-                <div className="d-flex justify-content-end pt-3 border-top">
-                  <Button variant="light" onClick={handleCloseEdit} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים</Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Modal.Body>
-      </Modal>
-
-      <Modal show={showPlacementModal} onHide={handleClosePlacement} dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>שיבוץ חונך לתלמיד</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-light p-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <Form onSubmit={handleAddPlacement}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold text-muted">בחר חונך מרשימת החונכים *</Form.Label>
-                  <Form.Select name="tutor" required value={placementData.tutor} onChange={handlePlacementChange}>
-                    <option value="">-- בחר חונך --</option>
-                    {tutors.map(t => (
-                      <option key={t._id} value={t._id}>{t.firstName} {t.lastName} (ת.ז: {t.idNumber})</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-                
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label className="small fw-bold text-muted">תאריך התחלה *</Form.Label>
-                      <Form.Control type="date" name="startDate" required value={placementData.startDate} onChange={handlePlacementChange} />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label className="small fw-bold text-muted">סכום חיוב חודשי (₪) *</Form.Label>
-                      <Form.Control type="number" name="paymentAmount" required placeholder="לדוגמה: 1500" value={placementData.paymentAmount} onChange={handlePlacementChange} />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <div className="d-flex justify-content-end pt-3 border-top mt-2">
-                  <Button variant="light" onClick={handleClosePlacement} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm d-flex align-items-center gap-2">
-                    <FiUserPlus /> צור שיבוץ עכשיו
-                  </Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Modal.Body>
-      </Modal>
-
-      <Modal show={showTaskModal} onHide={handleCloseTask} size="lg" dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>יצירת תיעוד / משימה לתלמיד</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-light p-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <Form onSubmit={handleAddTask}>
-                
-                <Row className="mb-3">
-                  <Col md={12}>
+                  <Col md={4}><Form.Group><Form.Label className="small fw-bold text-muted">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} /></Form.Group></Col>
+                  <Col md={4}><Form.Group><Form.Label className="small fw-bold text-muted">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName || ''} onChange={handleChange} /></Form.Group></Col>
+                  <Col md={4}>
                     <Form.Group>
-                      <Form.Label className="fw-bold text-muted small">סוג המשימה *</Form.Label>
-                      <Form.Select name="taskType" value={taskData.taskType} onChange={handleTaskChange}>
-                        {taskTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                      <Form.Label className="small fw-bold text-muted">מוסד לימודי</Form.Label>
+                      <Form.Select name="institute" value={formData.institute || ''} onChange={handleChange}>
+                        <option value="">-- בחר מוסד --</option>
+                        <option value="מוסד א">מוסד א</option>
+                        <option value="מוסד ב">מוסד ב</option>
+                        <option value="מוסד ג">מוסד ג</option>
+                        <option value="אחר">אחר</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
                 </Row>
 
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-bold text-muted small">תוכן המשימה / תיעוד *</Form.Label>
-                  <Form.Control as="textarea" rows={5} name="content" value={taskData.content} onChange={handleTaskChange} placeholder="הקלד את פרטי המשימה כאן..." required />
-                </Form.Group>
+                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">דרכי התקשרות (מוצפן)</h6>
+                <Row className="mb-3">
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>טלפון 1</Form.Label><Form.Control type="text" name="phone1" value={formData.phone1 || ''} onChange={handleChange} required className="bg-light border-danger"/></Form.Group></Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={formData.phone2 || ''} onChange={handleChange} className="bg-light border-danger"/></Form.Group></Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>טלפון 3</Form.Label><Form.Control type="text" name="phone3" value={formData.phone3 || ''} onChange={handleChange} className="bg-light border-danger"/></Form.Group></Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>אימייל</Form.Label><Form.Control type="email" name="email" value={formData.email || ''} onChange={handleChange} className="bg-light border-danger"/></Form.Group></Col>
+                </Row>
 
-                <div className="bg-white p-3 rounded border mb-4">
-                  <h6 className="fw-bold mb-3 border-bottom pb-2">הגדרות אבטחה והתראות</h6>
-                  <Form.Check type="checkbox" id="isEncrypted" name="isEncrypted" label={<span className="text-danger fw-bold"><FiLock className="me-1" /> הצפן תוכן משימה (יוצג רק למורשים)</span>} checked={taskData.isEncrypted} onChange={handleTaskChange} className="mb-2" />
-                  <Form.Check type="checkbox" id="sendSystemAlert" name="sendSystemAlert" label="שלח התראת מערכת לנמענים" checked={taskData.sendSystemAlert} onChange={handleTaskChange} className="mb-2" />
-                  <Form.Check type="checkbox" id="sendEmailAlert" name="sendEmailAlert" label="שלח התראה במייל לנמענים" checked={taskData.sendEmailAlert} onChange={handleTaskChange} />
-                </div>
+                <Row className="mb-4">
+                  <Col md={6}><Form.Group><Form.Label className="small fw-bold text-muted">כתובת מגורים</Form.Label><Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} /></Form.Group></Col>
+                  <Col md={3}>
+                    <Form.Group>
+                      <Form.Label className="small fw-bold text-muted">עיר</Form.Label>
+                      <Form.Select name="city" value={formData.city || ''} onChange={handleChange}>
+                        <option value="507f1f77bcf86cd799439011">ירושלים</option>
+                        <option value="507f1f77bcf86cd799439012">בני ברק</option>
+                        <option value="507f1f77bcf86cd799439013">בית שמש</option>
+                        <option value="507f1f77bcf86cd799439014">אחר</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-muted">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode || ''} onChange={handleChange} /></Form.Group></Col>
+                </Row>
 
-                <div className="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
-                  <Form.Select name="status" value={taskData.status} onChange={handleTaskChange} style={{ width: '150px' }} className="fw-bold">
-                    <option value="published">🟢 פרסם מיד</option>
-                    <option value="draft">🟡 שמור כטיוטה</option>
-                  </Form.Select>
-                  
-                  <div>
-                    <Button variant="light" onClick={handleCloseTask} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                    <Button variant="primary" type="submit" disabled={isSavingTask} className="px-4 fw-bold shadow-sm">
-                      {isSavingTask ? <Spinner size="sm" animation="border" /> : 'שמור משימה'}
+                <div className="mt-4 p-3 bg-light rounded border">
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h6 className="fw-bold mb-0">אנשי קשר נוספים</h6>
+                    <Button variant="outline-primary" size="sm" onClick={handleAddContact} className="rounded-pill d-flex align-items-center gap-1">
+                      <FiPlusCircle /> הוסף איש קשר
                     </Button>
                   </div>
+                  
+                  {(!formData.contacts || formData.contacts.length === 0) ? (
+                    <div className="text-muted small text-center py-2">לא הוגדרו אנשי קשר.</div>
+                  ) : (
+                    formData.contacts.map((contact, index) => (
+                      <Row key={index} className="mb-2 align-items-end">
+                        <Col md={4}>
+                          <Form.Label className="small mb-1">שם</Form.Label>
+                          <Form.Control size="sm" value={contact.name || ''} onChange={(e) => handleContactChange(index, 'name', e.target.value)} />
+                        </Col>
+                        <Col md={3}>
+                          <Form.Label className="small mb-1">טלפון</Form.Label>
+                          <Form.Control size="sm" value={contact.phone || ''} onChange={(e) => handleContactChange(index, 'phone', e.target.value)} />
+                        </Col>
+                        <Col md={4}>
+                          <Form.Label className="small mb-1">קרבה/תפקיד</Form.Label>
+                          <Form.Control size="sm" value={contact.relation || ''} onChange={(e) => handleContactChange(index, 'relation', e.target.value)} />
+                        </Col>
+                        <Col md={1} className="text-end">
+                          <Button variant="link" className="text-danger p-0 mb-1" onClick={() => handleRemoveContact(index)}><FiMinusCircle size={20} /></Button>
+                        </Col>
+                      </Row>
+                    ))
+                  )}
                 </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Modal.Body>
-      </Modal>
 
-      {/* --- חלון עריכת משלם --- */}
-      <Modal show={showPayerEditModal} onHide={() => setShowPayerEditModal(false)} dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי משלם במסד הנתונים</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-light p-4">
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <Form onSubmit={handleUpdatePayer}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold text-muted">שם המשלם (אדם או מוסד)</Form.Label>
-                  <Form.Control type="text" name="name" value={payerFormData.name || ''} onChange={handlePayerChange} required />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold text-muted">ח"פ / ת.ז של המשלם</Form.Label>
-                  <Form.Control type="text" name="identifier" value={payerFormData.identifier || ''} onChange={handlePayerChange} required />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold text-muted">טלפון ליצירת קשר</Form.Label>
-                  <Form.Control type="text" name="phone" value={payerFormData.phone || ''} onChange={handlePayerChange} />
-                </Form.Group>
-                <Form.Group className="mb-4">
-                  <Form.Label className="small fw-bold text-muted">הערות גבייה</Form.Label>
-                  <Form.Control as="textarea" rows={2} name="notes" value={payerFormData.notes || ''} onChange={handlePayerChange} />
-                </Form.Group>
-                <div className="d-flex justify-content-end pt-3 border-top mt-2">
-                  <Button variant="light" onClick={() => setShowPayerEditModal(false)} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים במשלם</Button>
+                <div className="d-flex justify-content-end pt-3 border-top mt-4">
+                  <Button variant="light" onClick={handleCloseEdit} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
+                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים</Button>
                 </div>
               </Form>
             </Card.Body>
