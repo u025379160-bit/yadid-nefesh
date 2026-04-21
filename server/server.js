@@ -10,7 +10,7 @@ const Task = require('./models/Task');
 const Tutor = require('./models/Tutor'); 
 const Placement = require('./models/Placement');
 const Scholarship = require('./models/Scholarship'); 
-const BillingRecord = require('./models/BillingRecord'); // ייבוא מודל הגבייה החדש
+const BillingRecord = require('./models/BillingRecord'); 
 
 const app = express();
 app.use(cors());
@@ -47,15 +47,12 @@ app.post('/api/students', async (req, res) => {
 
 app.get('/api/students', async (req, res) => {
   try {
-    // 1. שולפים את כל התלמידים כרשימה נקייה
     const students = await Student.find().lean(); 
     
-    // 2. שולפים את מזהי התלמידים שיש להם שיבוץ פעיל
     const Placement = require('./models/Placement');
     const activePlacements = await Placement.find({ status: 'פעיל' }).select('student');
     const activeStudentIds = activePlacements.map(p => p.student.toString());
 
-    // 3. מצמידים לכל תלמיד דגל - האם יש לו שיבוץ פעיל? (ישמש אותנו לסינון בטבלה)
     const studentsWithStatus = students.map(student => ({
       ...student,
       hasActivePlacement: activeStudentIds.includes(student._id.toString())
@@ -241,8 +238,22 @@ app.post('/api/placements', async (req, res) => {
     const newPlacement = new Placement(placementData);
     await newPlacement.save();
 
+    // 🔥 הקפצת משימת הדרכה אוטומטית לרכז! (שלב 3) 🔥
+    const autoTask = new Task({
+      title: '🚨 שיבוץ חדש - ממתין להדרכה!',
+      taskType: 'הדרכה',
+      content: 'נוצר שיבוץ חדש במערכת. חובה לבצע שיחת הדרכה עם החונך ולסמן V בסטטוס השיבוץ.',
+      urgency: 'דחוף', 
+      placementId: newPlacement._id,
+      studentId: newPlacement.student,
+      tutorId: newPlacement.tutor,
+      assignee: 'צוות רכזים',
+      createdBy: 'מערכת אוטומטית'
+    });
+    await autoTask.save();
+
     const populatedPlacement = await Placement.findById(newPlacement._id).populate('student').populate('tutor');
-    res.status(201).json({ message: '✅ השיבוץ נשמר בהצלחה!', placement: populatedPlacement });
+    res.status(201).json({ message: '✅ השיבוץ נשמר בהצלחה ומשימת הדרכה הוקפצה!', placement: populatedPlacement });
   } catch (err) {
     res.status(500).json({ error: 'שגיאה ביצירת השיבוץ', details: err.message });
   }
@@ -300,7 +311,6 @@ app.put('/api/placements/:id', async (req, res) => {
 // --- ניהול מלגות (Scholarships) ---
 // ==========================================
 
-// 1. שליפת מלגות קיימות לחודש המבוקש
 app.get('/api/scholarships', async (req, res) => {
   try {
     const month = req.query.month;
@@ -322,7 +332,6 @@ app.get('/api/scholarships', async (req, res) => {
   }
 });
 
-// 2. יצירה יזומה של טבלת מלגות לחודש נבחר
 app.post('/api/scholarships/generate', async (req, res) => {
   try {
     const { month } = req.body;
@@ -393,7 +402,6 @@ app.post('/api/scholarships/generate', async (req, res) => {
   }
 });
 
-// 3. פעולה קבוצתית - סימון מלגות כ"שולם"
 app.put('/api/scholarships/bulk-pay', async (req, res) => {
   try {
     const { ids, isPaid } = req.body;
@@ -412,13 +420,11 @@ app.put('/api/scholarships/bulk-pay', async (req, res) => {
   }
 });
 
-// 4. עדכון מלגה בודדת (עם מנגנון נעילה אם הופקה גבייה!)
 app.put('/api/scholarships/:id', async (req, res) => {
   try {
     const scholarshipToUpdate = await Scholarship.findById(req.params.id);
     if (!scholarshipToUpdate) return res.status(404).json({ error: 'מלגה לא נמצאה' });
 
-    // 🔥 מנגנון נעילה לפי אפיון סעיף 4.4: בדיקה אם קיימת גבייה לחודש הזה
     const billingExists = await BillingRecord.findOne({ month: scholarshipToUpdate.month });
     if (billingExists) {
       return res.status(403).json({ 
@@ -443,7 +449,6 @@ app.put('/api/scholarships/:id', async (req, res) => {
 // --- ניהול חיובים וגבייה (Billing) ---
 // ==========================================
 
-// 1. שליפת רשומות גבייה קיימות לחודש נבחר
 app.get('/api/billing', async (req, res) => {
   try {
     const month = req.query.month;
@@ -466,13 +471,11 @@ app.get('/api/billing', async (req, res) => {
   }
 });
 
-// 2. יצירה יזומה של טבלת הגבייה לחודש (לפי משלם + גרירת חובות)
 app.post('/api/billing/generate', async (req, res) => {
   try {
     const { month } = req.body;
     if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
 
-    // בדיקה אם כבר נוצר
     const existingRecords = await BillingRecord.findOne({ month });
     if (existingRecords) {
       return res.status(400).json({ error: 'טבלת הגבייה לחודש זה כבר נוצרה' });
@@ -483,7 +486,6 @@ app.post('/api/billing/generate', async (req, res) => {
       return res.status(200).json({ message: 'אין שיבוצים פעילים עם משלם', count: 0 });
     }
 
-    // קיבוץ לפי משלם
     const groupedByPayer = {};
     for (const placement of activePlacements) {
       const payerId = placement.payer.toString();
@@ -497,11 +499,9 @@ app.post('/api/billing/generate', async (req, res) => {
 
     const newRecords = [];
 
-    // חישוב יתרות ויצירת רשומות
     for (const payerId in groupedByPayer) {
       const payerData = groupedByPayer[payerId];
 
-      // גרירת חובות עבר למשלם
       const pastUnpaid = await BillingRecord.find({ payer: payerId, isPaid: false });
       let carriedBalance = 0;
       if (pastUnpaid.length > 0) {
@@ -540,7 +540,6 @@ app.post('/api/billing/generate', async (req, res) => {
   }
 });
 
-// 3. פעולה קבוצתית - סימון חיובים כ"בוצע"
 app.put('/api/billing/bulk-pay', async (req, res) => {
   try {
     const { ids, isPaid } = req.body;
@@ -559,7 +558,6 @@ app.put('/api/billing/bulk-pay', async (req, res) => {
   }
 });
 
-// 4. עדכון רשומת חיוב בודדת
 app.put('/api/billing/:id', async (req, res) => {
   try {
     const updatedBilling = await BillingRecord.findByIdAndUpdate(

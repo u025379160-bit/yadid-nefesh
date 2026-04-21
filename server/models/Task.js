@@ -14,7 +14,7 @@ const taskSchema = new mongoose.Schema({
   isCompleted: { type: Boolean, default: false },
 
   // ==========================================
-  // --- שדות חדשים לפי האפיון החדש ---
+  // --- שדות חדשים לפי האפיון ---
   // ==========================================
   associatedToType: { 
     type: String, 
@@ -40,6 +40,21 @@ const taskSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  
+  // 🔥 השדות שהוספנו עכשיו בשביל שיבוצים ומשימות אוטומטיות 🔥
+  isConfidential: { 
+    type: Boolean, 
+    default: false 
+  },
+  tutorId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Tutor' 
+  },
+  placementId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Placement' 
+  },
+  
   sendSystemAlert: { 
     type: Boolean, 
     default: false 
@@ -54,6 +69,9 @@ const taskSchema = new mongoose.Schema({
   assignedTo: { 
     type: String, 
     default: '' // שומר למי המשימה מיועדת לטיפול
+  },
+  assignee: { 
+    type: String // נוסף כדי לתמוך בשם הנמען (למשל "צוות רכזים")
   },
 
   // ==========================================

@@ -39,7 +39,15 @@ const placementSchema = new mongoose.Schema({
   
   lastCoordinatorCall: { type: Date },
 
-  status: { type: String, default: 'פעיל', enum: ['פעיל', 'הסתיים'] }
+  status: { type: String, default: 'פעיל', enum: ['פעיל', 'הסתיים'] },
+
+  // 🔥 שדות חדשים למערך ההדרכות (שלב 1) 🔥
+  guidanceStatus: { 
+    type: String, 
+    enum: ['ממתין להדרכה', 'קיבל הדרכה'], 
+    default: 'ממתין להדרכה' 
+  },
+  requireMonthlyGuidance: { type: Boolean, default: true }
 
 }, { timestamps: true });
 
