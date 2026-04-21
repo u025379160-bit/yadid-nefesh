@@ -10,6 +10,7 @@ const Task = require('./models/Task');
 const Tutor = require('./models/Tutor'); 
 const Placement = require('./models/Placement');
 const Scholarship = require('./models/Scholarship'); 
+const BillingRecord = require('./models/BillingRecord'); // ייבוא מודל הגבייה החדש
 
 const app = express();
 app.use(cors());
@@ -308,36 +309,30 @@ app.get('/api/scholarships', async (req, res) => {
   }
 });
 
-// 2. יצירה יזומה של טבלת מלגות לחודש נבחר (לפי חונך + יתרות עבר)
+// 2. יצירה יזומה של טבלת מלגות לחודש נבחר
 app.post('/api/scholarships/generate', async (req, res) => {
   try {
     const { month } = req.body;
     if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
 
-    // בודקים אם כבר יצרנו טבלה לחודש הזה כדי לא ליצור כפילויות
     const existingRecords = await Scholarship.findOne({ month });
     if (existingRecords) {
       return res.status(400).json({ error: 'טבלת המלגות לחודש זה כבר נוצרה' });
     }
 
-    // שולפים את כל השיבוצים הפעילים
     const activePlacements = await Placement.find({ status: 'פעיל' });
     
     if (activePlacements.length === 0) {
       return res.status(200).json({ message: 'אין שיבוצים פעילים', count: 0 });
     }
 
-    // מקבצים את השיבוצים לפי החונך
     const groupedByTutor = {};
     for (const placement of activePlacements) {
       if (!placement.tutor) continue;
 
       const tutorId = placement.tutor.toString();
       if (!groupedByTutor[tutorId]) {
-        groupedByTutor[tutorId] = {
-          placements: [],
-          totalBaseAmount: 0
-        };
+        groupedByTutor[tutorId] = { placements: [], totalBaseAmount: 0 };
       }
       
       groupedByTutor[tutorId].placements.push(placement._id);
@@ -346,20 +341,17 @@ app.post('/api/scholarships/generate', async (req, res) => {
 
     const newScholarships = [];
 
-    // עוברים על כל חונך, מחשבים יתרות ומייצרים רשומת מלגה אחת לחונך
     for (const tutorId in groupedByTutor) {
       const tutorData = groupedByTutor[tutorId];
 
-      // משיכת חובות עבר: מחפשים מלגות קודמות של חונך זה שלא סומנו כ"שולם"
       const pastUnpaid = await Scholarship.find({ tutor: tutorId, isPaid: false });
       let carriedBalance = 0;
       if (pastUnpaid.length > 0) {
         carriedBalance = pastUnpaid.reduce((sum, s) => sum + (s.tutorAmount || 0), 0);
       }
 
-      let officeProfit = 200; // רווח גלובלי למשרד כברירת מחדל
+      let officeProfit = 200; 
 
-      // חישוב הסכומים: בסיס החודש + חובות עבר
       const totalFinalAmount = tutorData.totalBaseAmount + carriedBalance;
       let tutorAmount = totalFinalAmount - officeProfit;
       if (tutorAmount < 0) tutorAmount = 0;
@@ -388,7 +380,7 @@ app.post('/api/scholarships/generate', async (req, res) => {
   }
 });
 
-// 3. פעולה קבוצתית - סימון כמה מלגות כ"שולם" במכה אחת
+// 3. פעולה קבוצתית - סימון מלגות כ"שולם"
 app.put('/api/scholarships/bulk-pay', async (req, res) => {
   try {
     const { ids, isPaid } = req.body;
@@ -401,23 +393,32 @@ app.put('/api/scholarships/bulk-pay', async (req, res) => {
       { $set: { isPaid: isPaid } }
     );
 
-    res.status(200).json({ message: 'סטטוס תשלום עודכן בהצלחה לכל הרשומות המסומנות' });
+    res.status(200).json({ message: 'סטטוס תשלום עודכן בהצלחה' });
   } catch (err) {
-    console.error('שגיאה בעדכון קבוצתי:', err);
     res.status(500).json({ error: 'שגיאה בעדכון סטטוס התשלום' });
   }
 });
 
-// 4. עדכון מלגה בודדת (שינויים ידניים, או סטטוס שולם לשורה בודדת)
+// 4. עדכון מלגה בודדת (עם מנגנון נעילה אם הופקה גבייה!)
 app.put('/api/scholarships/:id', async (req, res) => {
   try {
+    const scholarshipToUpdate = await Scholarship.findById(req.params.id);
+    if (!scholarshipToUpdate) return res.status(404).json({ error: 'מלגה לא נמצאה' });
+
+    // 🔥 מנגנון נעילה לפי אפיון סעיף 4.4: בדיקה אם קיימת גבייה לחודש הזה
+    const billingExists = await BillingRecord.findOne({ month: scholarshipToUpdate.month });
+    if (billingExists) {
+      return res.status(403).json({ 
+        error: 'נעול: לא ניתן לשנות מלגה לחודש זה מכיוון שכבר נוצרה עבורו טבלת גבייה. עדכונים יצטרכו לחכות לחודש הבא.' 
+      });
+    }
+
     const updatedScholarship = await Scholarship.findByIdAndUpdate(
       req.params.id, 
       req.body, 
       { new: true } 
     ).populate('tutor');
     
-    if (!updatedScholarship) return res.status(404).json({ error: 'מלגה לא נמצאה' });
     res.status(200).json(updatedScholarship);
   } catch (err) {
     console.error('שגיאה בעדכון מלגה:', err);
@@ -425,60 +426,91 @@ app.put('/api/scholarships/:id', async (req, res) => {
   }
 });
 
-
 // ==========================================
 // --- ניהול חיובים וגבייה (Billing) ---
 // ==========================================
 
-const BillingRecord = require('./models/BillingRecord');
-
-// שליפה ויצירה אוטומטית של טבלת גבייה חודשית
+// 1. שליפת רשומות גבייה קיימות לחודש נבחר
 app.get('/api/billing', async (req, res) => {
   try {
-    const month = req.query.month; // החודש המבוקש (למשל: "2026-04")
+    const month = req.query.month;
     if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
 
-    // 1. בודקים אם כבר נוצרה טבלת גבייה לחודש הזה
-    let records = await BillingRecord.find({ month })
+    const records = await BillingRecord.find({ month })
+      .populate('payer')
       .populate({
-        path: 'placement',
+        path: 'includedPlacements',
         populate: [
           { path: 'student', select: 'firstName lastName' },
           { path: 'tutor', select: 'firstName lastName' }
         ]
-      })
-      .populate('payer'); 
+      });
 
-    // 2. אם כבר יש חיובים לחודש הזה, מחזירים אותם ל-React
-    if (records.length > 0) {
-      return res.status(200).json(records);
+    res.status(200).json(records);
+  } catch (err) {
+    console.error('שגיאה בשליפת חיובים:', err);
+    res.status(500).json({ error: 'שגיאה בשליפת נתוני הגבייה' });
+  }
+});
+
+// 2. יצירה יזומה של טבלת הגבייה לחודש (לפי משלם + גרירת חובות)
+app.post('/api/billing/generate', async (req, res) => {
+  try {
+    const { month } = req.body;
+    if (!month) return res.status(400).json({ error: 'חובה לציין חודש' });
+
+    // בדיקה אם כבר נוצר
+    const existingRecords = await BillingRecord.findOne({ month });
+    if (existingRecords) {
+      return res.status(400).json({ error: 'טבלת הגבייה לחודש זה כבר נוצרה' });
     }
 
-    // 3. אם אין - הגיע הזמן לייצר אותם!
-    // שולפים את כל השיבוצים הפעילים שיש להם משלם מוגדר
     const activePlacements = await Placement.find({ status: 'פעיל', payer: { $exists: true, $ne: null } });
-
     if (activePlacements.length === 0) {
-      return res.status(200).json([]); // אין שיבוצים פעילים עם משלם
+      return res.status(200).json({ message: 'אין שיבוצים פעילים עם משלם', count: 0 });
+    }
+
+    // קיבוץ לפי משלם
+    const groupedByPayer = {};
+    for (const placement of activePlacements) {
+      const payerId = placement.payer.toString();
+      if (!groupedByPayer[payerId]) {
+        groupedByPayer[payerId] = { placements: [], totalBaseAmount: 0 };
+      }
+      
+      groupedByPayer[payerId].placements.push(placement._id);
+      groupedByPayer[payerId].totalBaseAmount += (placement.paymentAmount || 0);
     }
 
     const newRecords = [];
 
-    for (const placement of activePlacements) {
-      // שואבים את סכום הבסיס של השיבוץ
-      const baseAmount = placement.paymentAmount || 0;
-      
-      // כאן מכינים את פירוט החיוב (ה-JSON שהוגדר באפיון)
-      const breakdown = [
-        { description: `חיוב בסיס לחודש ${month}`, amount: baseAmount }
-      ];
+    // חישוב יתרות ויצירת רשומות
+    for (const payerId in groupedByPayer) {
+      const payerData = groupedByPayer[payerId];
 
-      // יוצרים את רשומת החיוב החדשה
+      // גרירת חובות עבר למשלם
+      const pastUnpaid = await BillingRecord.find({ payer: payerId, isPaid: false });
+      let carriedBalance = 0;
+      if (pastUnpaid.length > 0) {
+        carriedBalance = pastUnpaid.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+      }
+
+      const totalAmount = payerData.totalBaseAmount + carriedBalance;
+
+      const breakdown = [
+        { description: `חיוב בסיס לחודש ${month}`, amount: payerData.totalBaseAmount }
+      ];
+      if (carriedBalance > 0) {
+        breakdown.push({ description: 'יתרת חוב מחודשים קודמים', amount: carriedBalance });
+      }
+
       const newBilling = new BillingRecord({
         month,
-        placement: placement._id,
-        payer: placement.payer,
-        totalAmount: baseAmount, // בשלב הבא נוכל להוסיף לכאן יתרות עבר
+        payer: payerId,
+        includedPlacements: payerData.placements,
+        baseAmount: payerData.totalBaseAmount,
+        carriedBalance: carriedBalance,
+        totalAmount: totalAmount,
         amountBreakdown: breakdown,
         isPaid: false
       });
@@ -487,24 +519,51 @@ app.get('/api/billing', async (req, res) => {
       newRecords.push(newBilling);
     }
 
-    // 4. אחרי שיצרנו הכל, שולפים שוב עם כל השמות (Populate) ומחזירים למסך
-    records = await BillingRecord.find({ month })
-      .populate({
-        path: 'placement',
-        populate: [
-          { path: 'student', select: 'firstName lastName' },
-          { path: 'tutor', select: 'firstName lastName' }
-        ]
-      })
-      .populate('payer');
-
-    res.status(201).json(records);
+    res.status(201).json({ message: 'טבלת הגבייה נוצרה בהצלחה', count: newRecords.length });
 
   } catch (err) {
-    console.error('שגיאה ביצירת תהליך הגבייה:', err);
+    console.error('שגיאה ביצירת הגבייה:', err);
     res.status(500).json({ error: 'שגיאה בתהליך יצירת החיובים' });
   }
 });
+
+// 3. פעולה קבוצתית - סימון חיובים כ"בוצע"
+app.put('/api/billing/bulk-pay', async (req, res) => {
+  try {
+    const { ids, isPaid } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: 'רשימת מזהים חסרה' });
+    }
+
+    await BillingRecord.updateMany(
+      { _id: { $in: ids } },
+      { $set: { isPaid: isPaid } }
+    );
+
+    res.status(200).json({ message: 'סטטוס גבייה עודכן בהצלחה' });
+  } catch (err) {
+    res.status(500).json({ error: 'שגיאה בעדכון סטטוס הגבייה' });
+  }
+});
+
+// 4. עדכון רשומת חיוב בודדת
+app.put('/api/billing/:id', async (req, res) => {
+  try {
+    const updatedBilling = await BillingRecord.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true } 
+    ).populate('payer');
+    
+    if (!updatedBilling) return res.status(404).json({ error: 'רשומת חיוב לא נמצאה' });
+    res.status(200).json(updatedBilling);
+  } catch (err) {
+    console.error('שגיאה בעדכון חיוב:', err);
+    res.status(500).json({ error: 'שגיאה בעדכון החיוב' });
+  }
+});
+
+
 const PORT = process.env.PORT || 5000;
 // ==============================================================
 // 📞 מערכת הטלפוניה (IVR - קול כשר) 📞

@@ -1,31 +1,40 @@
 const mongoose = require('mongoose');
 
 const billingRecordSchema = new mongoose.Schema({
-  // תאריך - שדה תאריך לשמירת חודש ושנה (נשמור בפורמט 'YYYY-MM')
+  // חודש ושנה בפורמט 'YYYY-MM'
   month: { type: String, required: true },
 
-  // שיבוץ - מזהה השיבוץ
-  placement: { type: mongoose.Schema.Types.ObjectId, ref: 'Placement', required: true },
-
-  // משלם - מזהה משלם
+  // משלם - מזהה משלם (מרכז את כל החיובים לאותו הורה/מוסד)
   payer: { type: mongoose.Schema.Types.ObjectId, ref: 'Payer', required: true },
 
-  // סכום - נשאב מטבלת מלגות של אותו חודש + יתרה/חוסר מחודש קודם
+  // רשימת השיבוצים שנכללו בחשבון של המשלם לחודש זה
+  includedPlacements: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Placement' }],
+
+  // סכום הבסיס של החודש הנוכחי (לפני חובות עבר)
+  baseAmount: { type: Number, required: true },
+
+  // יתרת חובה שנגררה מחודשים קודמים (אם לא שולם)
+  carriedBalance: { type: Number, default: 0 },
+
+  // הסכום הסופי לחיוב (בסיס + חובות עבר)
   totalAmount: { type: Number, required: true },
 
   // פירוט הסכום - מכיל JSON עם נתונים מאיפה הגענו לסכום הזה
   amountBreakdown: [{
-    description: { type: String, required: true }, // למשל: "חיוב בסיס חודש 04", "חוב עבר", "קיזוז"
+    description: { type: String, required: true }, 
     amount: { type: Number, required: true },
     dateAdded: { type: Date, default: Date.now }
   }],
 
-  // סטטוס - האם הסכום שולם
-  isPaid: { type: Boolean, default: false }
+  // סטטוס - האם הסכום שולם במלואו
+  isPaid: { type: Boolean, default: false },
+
+  // מזהה עסקה למערכת סליקה (כמו נדרים פלוס)
+  transactionId: { type: String }
 
 }, { timestamps: true });
 
-// אינדקס כדי למנוע כפילויות של אותו חיוב לאותו שיבוץ באותו חודש
-billingRecordSchema.index({ month: 1, placement: 1 }, { unique: true });
+// אינדקס מעודכן: מונע כפילויות של אותו חיוב לאותו *משלם* באותו חודש
+billingRecordSchema.index({ month: 1, payer: 1 }, { unique: true });
 
 module.exports = mongoose.model('BillingRecord', billingRecordSchema);
