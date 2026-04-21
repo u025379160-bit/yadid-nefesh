@@ -74,9 +74,7 @@ function MainNavbar({ onLogout, currentUser }) {
 
               {['manager', 'admin'].includes(role) && (
                 <>
-                  <Nav.Link as={Link} to="/team" className={isActive('/team') ? 'nav-modern active' : 'nav-modern'}>
-                    צוות ניהול
-                  </Nav.Link>
+                  
                   {/* 👇 הוספנו את כפתור ההגדרות למנהלים בלבד 👇 */}
                   <Nav.Link as={Link} to="/settings" className={isActive('/settings') ? 'nav-modern active' : 'nav-modern'}>
                     הגדרות
