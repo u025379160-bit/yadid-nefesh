@@ -17,7 +17,7 @@ import TaskNotification from './components/TaskNotification';
 import Scholarships from './pages/Scholarships'; 
 
 // 👇 1. הייבוא של מסך הגדרות המנהל החדש
-import AdminSettings from './pages/AdminSettings'; // או Components/AdminSettings תלוי איפה שמרת אותו
+import AdminSettings from './components/AdminSettings';
 
 function GlobalCleaner() {
   const location = useLocation();
