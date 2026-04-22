@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter, FiCalendar } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter, FiCalendar, FiMapPin } from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
@@ -100,10 +100,21 @@ function Students() {
   const handleShow = () => setShowModal(true);
 
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', idNumber: '', birthDate: '',
-    fatherName: '', motherName: '', 
-    phone1: '', phone2: '', phone3: '', email: '',
-    street: '', houseNumber: '', city: '507f1f77bcf86cd799439011', zipCode: '91000',
+    firstName: '', 
+    lastName: '', 
+    idNumber: '', 
+    birthDate: '',
+    fatherName: '', 
+    motherName: '', 
+    phone1: '', 
+    phone2: '', 
+    phone3: '', 
+    email: '',
+    street: '', 
+    houseNumber: '', 
+    address: '', 
+    city: '507f1f77bcf86cd799439011', 
+    zipCode: '91000',
     institute: '', 
     contacts: [], 
     payer: ''
@@ -233,8 +244,16 @@ function Students() {
         <Row className="g-3">
           <Col md={5} lg={4}>
             <InputGroup className="shadow-sm h-100" style={{ borderRadius: '12px', overflow: 'hidden' }}>
-              <InputGroup.Text className="bg-white border-end-0"><FiSearch color="#94a3b8" /></InputGroup.Text>
-              <Form.Control placeholder="חיפוש לפי שם או ת.ז..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-start-0" style={{ boxShadow: 'none' }} />
+              <InputGroup.Text className="bg-white border-end-0">
+                <FiSearch color="#94a3b8" />
+              </InputGroup.Text>
+              <Form.Control 
+                placeholder="חיפוש לפי שם או ת.ז..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                className="border-start-0" 
+                style={{ boxShadow: 'none' }} 
+              />
             </InputGroup>
           </Col>
           <Col md={3} lg={3}>
@@ -313,9 +332,9 @@ function Students() {
 
             <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטים אישיים</h6>
             <Row className="align-items-start mb-3">
-              <Col md={2}><Form.Group><Form.Label className="small fw-bold">שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
-              <Col md={2}><Form.Group><Form.Label className="small fw-bold">שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
-              <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
+              <Col md={2}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={2}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
               <Col md={5}><Form.Label className="small fw-bold text-danger d-block"><FiCalendar className="me-1"/> תאריך לידה *</Form.Label>
                 <div className="d-flex gap-2">
                   <Form.Control type="date" name="birthDate" required value={formData.birthDate} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', flex: 1 }} />
@@ -326,9 +345,9 @@ function Students() {
 
             <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">הורים ומוסד</h6>
             <Row className="mb-4">
-              <Col md={4}><Form.Group><Form.Label className="small fw-bold">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group><Form.Label className="small fw-bold">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group><Form.Label className="small fw-bold">מוסד לימודי</Form.Label><Form.Select name="institute" value={formData.institute} onChange={handleChange} style={{ borderRadius: '8px' }}><option value="">-- בחר מוסד --</option><option value="ישיבת חברון">ישיבת חברון</option><option value="ישיבת מיר">ישיבת מיר</option><option value="אחר">אחר</option></Form.Select></Form.Group></Col>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold">מוסד לימודי</Form.Label><Form.Select name="institute" value={formData.institute} onChange={handleChange} style={{ borderRadius: '8px' }}><option value="">-- בחר מוסד --</option><option value="ישיבת חברון">ישיבת חברון</option><option value="ישיבת מיר">ישיבת מיר</option><option value="אחר">אחר</option></Form.Select></Form.Group></Col>
             </Row>
 
             <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">כתובת ומיקום (מסודר)</h6>
@@ -359,15 +378,15 @@ function Students() {
                   </datalist>
                 </Form.Group>
               </Col>
-              <Col md={2}><Form.Group><Form.Label className="small fw-bold">מס' בניין *</Form.Label><Form.Control type="text" name="houseNumber" value={formData.houseNumber} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
-              <Col md={3}><Form.Group><Form.Label className="small fw-bold">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={2}><Form.Group className="mb-3"><Form.Label className="small fw-bold">מס' בניין *</Form.Label><Form.Control type="text" name="houseNumber" value={formData.houseNumber} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="small fw-bold">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
             </Row>
 
             <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">פרטי התקשרות</h6>
             <Row className="mb-4">
-              <Col md={4}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 1 *</Form.Label><Form.Control type="text" name="phone1" required value={formData.phone1} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={formData.phone2} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> אימייל</Form.Label><Form.Control type="email" name="email" value={formData.email} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 1 *</Form.Label><Form.Control type="text" name="phone1" required value={formData.phone1} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={formData.phone2} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> אימייל</Form.Label><Form.Control type="email" name="email" value={formData.email} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
             </Row>
 
             <div className="mt-4 p-3 bg-light rounded-3 border">
