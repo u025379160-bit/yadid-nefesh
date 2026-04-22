@@ -2,6 +2,9 @@ import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
 import { FiLogOut } from 'react-icons/fi';
 
+// 👇 הנה הייבוא של הלוגו ישירות מתיקיית assets 👇
+import myLogo from '../assets/logo.png';
+
 function MainNavbar({ onLogout, currentUser }) {
   const location = useLocation();
 
@@ -26,8 +29,9 @@ function MainNavbar({ onLogout, currentUser }) {
           
           {/* צד ימין: לוגו */}
           <Navbar.Brand as={Link} to="/" className="me-4 d-flex align-items-center">
+            {/* 👇 עדכנו את הנתיב למשתנה של הלוגו שלנו 👇 */}
             <img
-              src="/logo.png"
+              src={myLogo}
               alt="ידיד נפש לוגו"
               height="45"
               className="d-inline-block align-top"
