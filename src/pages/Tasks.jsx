@@ -189,6 +189,7 @@ function Tasks({ currentUser }) {
     setShowRepliesModal(true);
   };
 
+  // 🔥 כאן שדרגנו את שליחת התגובה כך שתסגור את המשימה אוטומטית 🔥
   const handleSubmitReply = async (e) => {
     e.preventDefault();
     if (!replyText.trim() || !selectedTaskForReplies) return;
@@ -201,6 +202,7 @@ function Tasks({ currentUser }) {
     }
 
     try {
+      // 1. שומרים את התגובה
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${selectedTaskForReplies._id}/replies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -211,11 +213,20 @@ function Tasks({ currentUser }) {
       });
 
       if (response.ok) {
-        const updatedTask = await response.json();
-        setTasks(tasks.map(t => t._id === updatedTask._id ? updatedTask : t));
-        setSelectedTaskForReplies(updatedTask);
+        // 2. אם המשימה לא הייתה מסומנת כ"בוצעה", מסמנים אותה עכשיו אוטומטית!
+        if (!selectedTaskForReplies.isCompleted) {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/tasks/${selectedTaskForReplies._id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isCompleted: true })
+          });
+        }
+
+        // 3. מנקים נתונים, סוגרים את חלון הצ'אט ומרעננים את הטבלה
         setReplyText('');
         setTaggedUserForReply(''); 
+        setShowRepliesModal(false); 
+        fetchTasks();
       } else {
         alert('שגיאה בשמירת התגובה');
       }
@@ -312,6 +323,7 @@ function Tasks({ currentUser }) {
                         </td>
                         
                         <td className="text-center" style={{ padding: '16px 12px' }}>
+                          {/* 🔥 כאן חסמנו את הלחיצה הישירה אם המשימה פתוחה 🔥 */}
                           <Button 
                             variant="light" 
                             size="sm" 
@@ -322,7 +334,16 @@ function Tasks({ currentUser }) {
                               color: isCompleted ? '#059669' : '#64748b',
                               border: `1px solid ${isCompleted ? '#a7f3d0' : '#e2e8f0'}`
                             }}
-                            onClick={() => handleToggleComplete(task)}
+                            onClick={() => {
+                              if (isCompleted) {
+                                // מאפשרים לבטל V רק אם הוחלט שזו הייתה טעות
+                                handleToggleComplete(task);
+                              } else {
+                                // אם המשימה פתוחה - קופצת התראה ומיד נפתח חלון התגובות!
+                                alert('שימו לב: כדי לסמן משימה זו כ"בוצעה", חובה להיכנס לצ\'אט / תגובות ולכתוב סיכום קצר של הטיפול בה.');
+                                handleOpenReplies(task);
+                              }
+                            }}
                           >
                             {isCompleted ? <><FiCheckCircle className="me-1"/> בוצע</> : <><FiCircle className="me-1"/> לטיפול</>}
                           </Button>
@@ -497,7 +518,7 @@ function Tasks({ currentUser }) {
             ) : (
               <div className="text-center text-muted mt-5 py-5">
                 <FiMessageCircle size={30} className="mb-2 opacity-50" />
-                <p>אין עדיין תגובות למשימה זו. היה הראשון להגיב!</p>
+                <p>אין עדיין תגובות למשימה זו. חובה לכתוב סיכום כדי לסגור אותה.</p>
               </div>
             )}
           </div>
@@ -527,7 +548,7 @@ function Tasks({ currentUser }) {
                 <Form.Control
                   as="textarea"
                   rows={2}
-                  placeholder="הקלד תגובה או עדכון כאן..."
+                  placeholder="הקלד תגובה או סיכום הדרכה כאן..."
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   style={{ borderRadius: '0 12px 12px 0', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', resize: 'none' }}
@@ -539,7 +560,7 @@ function Tasks({ currentUser }) {
                   className="px-4 d-flex align-items-center justify-content-center gap-2"
                   style={{ borderRadius: '12px 0 0 12px', fontWeight: '600' }}
                 >
-                  {isSavingReply ? <Spinner size="sm" animation="border" /> : <><FiSend /> שלח</>}
+                  {isSavingReply ? <Spinner size="sm" animation="border" /> : <><FiSend /> שלח וסיים</>}
                 </Button>
               </InputGroup>
             </Form>
