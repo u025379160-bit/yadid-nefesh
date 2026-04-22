@@ -259,7 +259,6 @@ function Placements() {
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: '#2563eb'}} /></Container>;
 
   return (
-    // 🔥 ביטלנו את ה-Flexbox המורכב שעשה בעיות בגלילה. פשוט פריסה רגילה עם שוליים.
     <Container className="pt-4 pb-4" dir="rtl">
       
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -271,7 +270,6 @@ function Placements() {
         </Button>
       </div>
 
-      {/* 🔥 הקטנו את הדאשבורד משמעותית! padding מזערי, אייקונים קטנים יותר, טקסט קומפקטי. */}
       <Row className="mb-3 g-2">
         <Col md={4}>
           <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', borderRadius: '10px' }}>
@@ -321,7 +319,6 @@ function Placements() {
       <Card className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
         <Card.Body className="p-3">
           
-          {/* 🔥 הוסר האימוג'י, נשאר טקסט נקי ומקצועי. פאנל חיפוש קומפקטי. */}
           <div className="d-flex flex-column flex-md-row gap-2 mb-3" style={{ maxWidth: '850px' }}>
             <InputGroup style={{ borderRadius: '10px', overflow: 'hidden', flex: 2 }}>
               <InputGroup.Text style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
@@ -358,7 +355,6 @@ function Placements() {
             </Form.Select>
           </div>
 
-          {/* 🔥 הפתרון המוחלט לגלילה! קבענו maxHeight קבוע שמחושב לפי גודל המסך, ככה הטבלה תמיד תגלול כמו שצריך! 🔥 */}
           <div className="table-responsive placement-table-container" style={{ maxHeight: 'calc(100vh - 320px)', overflowY: 'auto', borderRadius: '8px' }}>
             <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
