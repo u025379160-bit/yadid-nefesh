@@ -10,6 +10,7 @@ import {
   FiLock,
   FiPlusCircle,
   FiMinusCircle,
+  FiFilter,
   FiCalendar,
   FiMapPin
 } from 'react-icons/fi';
@@ -26,28 +27,23 @@ function Students() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // מאגר ערים ורחובות - התחלה עם רשימה קבועה כדי למנוע דף ריק
-  const [cities, setCities] = useState([
-    "ירושלים", "בני ברק", "בית שמש", "אלעד", "מודיעין עילית", "ביתר עילית", "צפת", "אשדוד", "תל אביב-יפו"
-  ]);
+  // מאגר ערים ורחובות - נטען מהשרת המקומי שלך
+  const [cities, setCities] = useState([]);
   const [streets, setStreets] = useState([]);
   const [isSearchingStreets, setIsSearchingStreets] = useState(false);
 
   useEffect(() => {
     fetchStudentsAndData();
 
-    // ניסיון להעשיר את רשימת הערים מהמאגר הממשלתי (בלי לחסום את התצוגה)
-    fetch('https://data.gov.il/api/3/action/datastore_search?resource_id=5c78e9f6-323a-4d3b-9864-299f36c4de32&limit=2000')
+    // שליפת רשימת הערים מהשרת שלך (מה-CSV)
+    fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
       .then(res => res.json())
       .then(data => {
-        if (data.result && data.result.records) {
-          const allCities = data.result.records
-            .map(r => r.שם_ישוב.trim())
-            .sort((a, b) => a.localeCompare(b, 'he'));
-          setCities(allCities);
+        if (Array.isArray(data)) {
+          setCities(data);
         }
       })
-      .catch(err => console.error("שגיאה בטעינת ערים חיצונית, משתמש ברשימה מקומית", err));
+      .catch(err => console.error("שגיאה בטעינת ערים מהשרת:", err));
 
     return () => {
       document.body.classList.remove('modal-open');
@@ -77,20 +73,24 @@ function Students() {
     }
   };
 
-  const fetchStreets = useCallback((cityName) => {
-    if (!cityName) return;
+  // פונקציה לשליפת רחובות מהשרת לפי עיר נבחרת
+  const fetchStreetsFromServer = useCallback(async (cityName) => {
+    if (!cityName) {
+      setStreets([]);
+      return;
+    }
     setIsSearchingStreets(true);
-    fetch(`https://data.gov.il/api/3/action/datastore_search?resource_id=9ad3b624-416d-45a4-a328-efef4d6a46f3&q=${cityName}&limit=1000`)
-      .then(res => res.json())
-      .then(data => {
-        const resultStreets = data.result.records
-          .filter(r => r.שם_ישוב.trim() === cityName)
-          .map(r => r.שם_רחוב.trim())
-          .sort((a, b) => a.localeCompare(b, 'he'));
-        setStreets(resultStreets);
-      })
-      .catch(err => console.error("שגיאה בטעינת רחובות", err))
-      .finally(() => setIsSearchingStreets(false));
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/geo/streets?city=${encodeURIComponent(cityName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStreets(data);
+      }
+    } catch (err) {
+      console.error("שגיאה בטעינת רחובות מהשרת:", err);
+    } finally {
+      setIsSearchingStreets(false);
+    }
   }, []);
 
   const getPlacementStatus = (hasActivePlacement) => {
@@ -142,11 +142,12 @@ function Students() {
     let updatedData = { ...formData, [name]: value };
 
     if (name === 'city') {
-      fetchStreets(value);
-      updatedData.street = '';
-      // מיקוד אוטומטי בסיסי
-      if (value === "ירושלים") updatedData.zipCode = "91000";
-      if (value === "בני ברק") updatedData.zipCode = "51000";
+      fetchStreetsFromServer(value); // קריאה לשרת לשליפת רחובות העיר
+      updatedData.street = ''; // איפוס רחוב כשמחליפים עיר
+      
+      // מיקוד אוטומטי בסיסי לערים נפוצות (אופציונלי)
+      if (value.includes("ירושלים")) updatedData.zipCode = "91000";
+      if (value.includes("בני ברק")) updatedData.zipCode = "51000";
     }
     setFormData(updatedData);
   };
@@ -366,7 +367,7 @@ function Students() {
               </Col>
             </Row>
 
-            <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">כתובת ומיקום (כל הארץ)</h6>
+            <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">כתובת ומיקום (מהמאגר שלך)</h6>
             <Row className="mb-3">
               <Col md={3}>
                 <Form.Group>
@@ -380,7 +381,15 @@ function Students() {
               <Col md={4}>
                 <Form.Group>
                   <Form.Label className="small fw-bold">רחוב * {isSearchingStreets && <Spinner size="sm" animation="border" />}</Form.Label>
-                  <Form.Control list="streets-datalist" name="street" placeholder="הקלד שם רחוב..." value={formData.street} onChange={handleChange} style={{ borderRadius: '8px' }} />
+                  <Form.Control 
+                    list="streets-datalist" 
+                    name="street" 
+                    placeholder="הקלד שם רחוב..." 
+                    value={formData.street} 
+                    onChange={handleChange} 
+                    style={{ borderRadius: '8px' }} 
+                    disabled={!formData.city}
+                  />
                   <datalist id="streets-datalist">
                     {streets.map((s, i) => <option key={i} value={s} />)}
                   </datalist>
