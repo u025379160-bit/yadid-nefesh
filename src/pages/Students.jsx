@@ -230,7 +230,6 @@ function Students() {
                 <tr>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}><FiUser className="me-2" /> שם התלמיד</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>ת.ז.</th>
-                  {/* עמודת מוסד לימודי שנוספה */}
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>מוסד לימודי</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}>סטטוס שיבוץ</th> 
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }} className="text-end">פעולות</th>
@@ -246,14 +245,12 @@ function Students() {
                   </tr>
                 ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => {
-                    // שימוש בדגל החדש מהשרת
                     const status = getPlacementStatus(student.hasActivePlacement);
 
                     return (
                       <tr key={student._id} style={{ cursor: 'pointer', transition: 'background-color 0.2s' }} onClick={() => navigate(`/student/${student._id}`)}>
                         <td className="fw-bold" style={{ color: '#2563eb', padding: '16px 12px' }}>{student.firstName} {student.lastName}</td>
                         <td style={{ color: '#475569', padding: '16px 12px' }}>{student.idNumber}</td>
-                        {/* הצגת המוסד הלימודי בטבלה */}
                         <td style={{ color: '#475569', padding: '16px 12px' }}>{student.institute || 'לא הוגדר'}</td>
                         <td style={{ padding: '16px 12px' }}>
                           <span className="rounded-pill d-inline-block text-center" style={{ padding: '6px 14px', fontSize: '0.85rem', fontWeight: '600', ...status.style }}>
@@ -282,11 +279,14 @@ function Students() {
         </Card.Body>
       </Card>
 
-      {/* חלון מודל הוספת תלמיד נשאר זהה למה שהיה... */}
       <Modal show={showModal} onHide={handleClose} size="xl" dir="rtl" backdrop="static">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>הוספת תלמיד חדש</Modal.Title>
-        </Modal.Header>
+        
+        {/* כותרת מותאמת אישית שדוחפת את האיקס שמאלה */}
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>הוספת תלמיד חדש</h4>
+          <button type="button" onClick={handleClose} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
+
         <Modal.Body className="p-4" style={{ backgroundColor: '#ffffff', maxHeight: '75vh', overflowY: 'auto' }}>
           <Form onSubmit={handleSubmit}>
 
