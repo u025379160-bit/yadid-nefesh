@@ -15,7 +15,7 @@ function StudentProfile() {
   const [tutors, setTutors] = useState([]); 
   const [loading, setLoading] = useState(true);
   
-  // תאריך עברי שמחושב אוטומטית
+  // תאריך עברי שמחושב אוטומטית (נשאר לצורך תצוגה כללית אם צריך)
   const [hebrewBirthDate, setHebrewBirthDate] = useState('');
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -107,7 +107,6 @@ function StudentProfile() {
     fetchData();
   }, [id]);
 
-  // פונקציה לחישוב גיל
   const calculateAge = (dob) => {
     if (!dob) return '';
     const diffMs = Date.now() - new Date(dob).getTime();
@@ -115,10 +114,11 @@ function StudentProfile() {
     return Math.abs(ageDt.getUTCFullYear() - 1970);
   };
 
-  // 👇 פונקציית עזר להמרת מספרים לשנים עבריות 👇
-  const numberToHebrewYear = (year) => {
-    let n = year % 1000;
+  // 👇 פונקציית הקסם המשודרגת (הופכת גם שנים וגם ימים לאותיות גימטריה) 👇
+  const numberToGematria = (num) => {
+    let n = num > 1000 ? num % 1000 : num; // אם זה שנת 5786, נשתמש ב-786. אם זה יום 18, נשתמש ב-18.
     let str = '';
+    
     if (n >= 400) { str += 'ת'; n -= 400; }
     if (n >= 400) { str += 'ת'; n -= 400; }
     if (n >= 300) { str += 'ש'; n -= 300; }
@@ -146,7 +146,7 @@ function StudentProfile() {
     return str.slice(0, -1) + '"' + str.slice(-1);
   };
 
-  // 👇 המרת תאריך לועזי לעברי בזמן אמת 👇
+  // 👇 תרגום מלא כולל יום (18 -> י"ח) ושנה (5786 -> תשפ"ו) 👇
   const getHebrewDate = (gregorianDateStr) => {
     if (!gregorianDateStr) return '';
     try {
@@ -157,11 +157,18 @@ function StudentProfile() {
         year: 'numeric'
       }).format(date);
       
+      // תופס את המספר הראשון (היום, למשל 18) ומחליף אותו באותיות (י"ח)
+      const dayMatch = formatted.match(/^\d+/);
+      if (dayMatch) {
+        const numDay = parseInt(dayMatch[0], 10);
+        formatted = formatted.replace(dayMatch[0], numberToGematria(numDay));
+      }
+
+      // תופס את המספר בן 4 ספרות (השנה, למשל 5786) ומחליף אותו באותיות (תשפ"ו)
       const yearMatch = formatted.match(/\d{4}/);
       if (yearMatch) {
         const numYear = parseInt(yearMatch[0], 10);
-        const hebrewYear = numberToHebrewYear(numYear);
-        formatted = formatted.replace(yearMatch[0], hebrewYear);
+        formatted = formatted.replace(yearMatch[0], numberToGematria(numYear));
       }
       return formatted;
     } catch (error) {
@@ -480,6 +487,7 @@ function StudentProfile() {
 
               </Row>
 
+              {/* טבלת אנשי קשר נוספים מעודכנת */}
               {student.contacts && student.contacts.length > 0 && (
                 <div className="mt-4 pt-3 border-top">
                   <h6 className="fw-bold text-muted mb-3">אנשי קשר וגורמי רווחה</h6>
@@ -671,6 +679,7 @@ function StudentProfile() {
               <Col md={2}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
               <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger" title="שדה זה יישמר כמוצפן במסד הנתונים"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
               
+              {/* 👇 שדה התאריך הכפול והחכם 👇 */}
               <Col md={5}>
                 <Form.Label className="fw-bold small text-danger d-block"><FiCalendar className="me-1"/> תאריך לידה *</Form.Label>
                 <div className="d-flex gap-2">
@@ -737,7 +746,7 @@ function StudentProfile() {
 
             <div className="mt-4 p-3" style={{ backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <h6 className="fw-bold mb-0" style={{ color: '#334155' }}>אנשי קשר וגורמי רווחה (JSON)</h6>
+                <h6 className="fw-bold mb-0" style={{ color: '#334155' }}>אנשי קשר נוספים</h6>
                 <Button variant="outline-primary" size="sm" onClick={handleAddContact} className="rounded-pill d-flex align-items-center gap-1">
                   <FiPlusCircle /> הוסף איש קשר
                 </Button>
