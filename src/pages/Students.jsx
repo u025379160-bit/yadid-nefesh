@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiCalendar } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter, FiCalendar } from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
@@ -106,10 +106,11 @@ function Students() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 👇 הוספנו פונקציית עזר שהופכת מספר (5786) לאותיות (תשפ"ו) 👇
-  const numberToHebrewYear = (year) => {
-    let n = year % 1000;
+  // 👇 פונקציית הגימטריה הכללית שמתקנת גם יום וגם שנה 👇
+  const numberToGematria = (num) => {
+    let n = num > 1000 ? num % 1000 : num; 
     let str = '';
+    
     if (n >= 400) { str += 'ת'; n -= 400; }
     if (n >= 400) { str += 'ת'; n -= 400; }
     if (n >= 300) { str += 'ש'; n -= 300; }
@@ -137,6 +138,7 @@ function Students() {
     return str.slice(0, -1) + '"' + str.slice(-1);
   };
 
+  // 👇 המרת תאריך לועזי לעברי בזמן אמת 👇
   const getHebrewDate = (gregorianDateStr) => {
     if (!gregorianDateStr) return '';
     try {
@@ -147,12 +149,18 @@ function Students() {
         year: 'numeric'
       }).format(date);
       
-      // תופס את המספר (למשל 5786) ומחליף אותו באותיות (תשפ"ו)
+      // תופס את המספר הראשון (היום) וממיר לאותיות
+      const dayMatch = formatted.match(/^\d+/);
+      if (dayMatch) {
+        const numDay = parseInt(dayMatch[0], 10);
+        formatted = formatted.replace(dayMatch[0], numberToGematria(numDay));
+      }
+
+      // תופס את המספר בן 4 ספרות (השנה) וממיר לאותיות
       const yearMatch = formatted.match(/\d{4}/);
       if (yearMatch) {
         const numYear = parseInt(yearMatch[0], 10);
-        const hebrewYear = numberToHebrewYear(numYear);
-        formatted = formatted.replace(yearMatch[0], hebrewYear);
+        formatted = formatted.replace(yearMatch[0], numberToGematria(numYear));
       }
       return formatted;
     } catch (error) {
@@ -355,6 +363,7 @@ function Students() {
               <Col md={2}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
               <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger" title="שדה זה יישמר כמוצפן במסד הנתונים"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
               
+              {/* 👇 התאריך הכפול והחכם 👇 */}
               <Col md={5}>
                 <Form.Label className="fw-bold small text-danger d-block"><FiCalendar className="me-1"/> תאריך לידה *</Form.Label>
                 <div className="d-flex gap-2">
