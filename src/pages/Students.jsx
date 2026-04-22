@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter, FiCalendar } from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
@@ -9,14 +9,12 @@ function Students() {
   const [payers, setPayers] = useState([]); 
   const [placements, setPlacements] = useState([]); 
   
-  // -- סטייטים חדשים לסינון (לפי אפיון סעיף 4.6) --
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterInstitute, setFilterInstitute] = useState(''); // סינון לפי מוסד
-  const [filterPlacementStatus, setFilterPlacementStatus] = useState(''); // סינון לפי שיבוץ (הכל/פעיל/ללא)
+  const [filterInstitute, setFilterInstitute] = useState(''); 
+  const [filterPlacementStatus, setFilterPlacementStatus] = useState(''); 
   
   const [isLoading, setIsLoading] = useState(true);
 
-  // חילוץ רשימת המוסדות הייחודיים מתוך התלמידים (בשביל תפריט הסינון)
   const uniqueInstitutes = [...new Set(students.map(s => s.institute).filter(Boolean))];
 
   useEffect(() => {
@@ -52,7 +50,6 @@ function Students() {
   };
 
   const getPlacementStatus = (hasActivePlacement) => {
-    // עכשיו הנתון הזה מגיע ישירות מהשרת!
     if (hasActivePlacement) {
       return { text: 'משובץ', style: { backgroundColor: '#d1fae5', color: '#047857', border: '1px solid #a7f3d0' } };
     } else {
@@ -79,17 +76,11 @@ function Students() {
     }
   };
 
-  // מנוע הסינון המעודכן - משלב טקסט, מוסד ושיבוץ
   const filteredStudents = students.filter(student => {
     const fullName = `${student.firstName} ${student.lastName}`;
-    
-    // 1. סינון טקסט (שם או ת.ז)
     const matchText = fullName.includes(searchTerm) || (student.idNumber && student.idNumber.includes(searchTerm));
-    
-    // 2. סינון מוסד לימודי
     const matchInstitute = filterInstitute === '' || student.institute === filterInstitute;
     
-    // 3. סינון סטטוס שיבוץ (מבוסס על הדגל שהוספנו בשרת)
     let matchPlacement = true;
     if (filterPlacementStatus === 'פעיל') matchPlacement = student.hasActivePlacement === true;
     if (filterPlacementStatus === 'ללא') matchPlacement = student.hasActivePlacement === false;
@@ -113,6 +104,21 @@ function Students() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // 👇 פונקציית הקסם להמרת תאריך לועזי לעברי בזמן אמת 👇
+  const getHebrewDate = (gregorianDateStr) => {
+    if (!gregorianDateStr) return '';
+    try {
+      const date = new Date(gregorianDateStr);
+      return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(date);
+    } catch (error) {
+      return '';
+    }
   };
 
   const handleAddContact = () => {
@@ -179,7 +185,6 @@ function Students() {
           </Button>
         </div>
 
-        {/* --- אזור הסינונים החדש --- */}
         <Row className="g-3">
           <Col md={5} lg={4}>
             <InputGroup className="shadow-sm h-100" style={{ borderRadius: '12px', overflow: 'hidden' }}>
@@ -281,7 +286,6 @@ function Students() {
 
       <Modal show={showModal} onHide={handleClose} size="xl" dir="rtl" backdrop="static">
         
-        {/* כותרת מותאמת אישית שדוחפת את האיקס שמאלה */}
         <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
           <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>הוספת תלמיד חדש</h4>
           <button type="button" onClick={handleClose} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
@@ -307,11 +311,38 @@ function Students() {
             </div>
 
             <h6 className="fw-bold pb-2 mb-3 mt-2" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>פרטים אישיים</h6>
-            <Row>
-              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
-              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+            <Row className="align-items-start">
+              <Col md={2}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={2}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
               <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger" title="שדה זה יישמר כמוצפן במסד הנתונים"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
-              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger" title="שדה זה יישמר כמוצפן במסד הנתונים"><FiLock className="me-1"/> תאריך לידה *</Form.Label><Form.Control type="date" name="birthDate" required value={formData.birthDate} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
+              
+              {/* 👇 פה הקסם קורה: קובייה לועזית וקובייה עברית צמודות 👇 */}
+              <Col md={5}>
+                <Form.Label className="fw-bold small text-danger d-block"><FiCalendar className="me-1"/> תאריך לידה *</Form.Label>
+                <div className="d-flex gap-2">
+                  <Form.Control 
+                    type="date" 
+                    name="birthDate" 
+                    required 
+                    value={formData.birthDate} 
+                    onChange={handleChange} 
+                    style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca', flex: 1 }} 
+                  />
+                  <div 
+                    className="d-flex align-items-center justify-content-center px-3" 
+                    style={{ 
+                      borderRadius: '8px', 
+                      backgroundColor: '#f8fafc', 
+                      border: '1px solid #e2e8f0', 
+                      flex: 1,
+                      color: formData.birthDate ? '#0f172a' : '#94a3b8',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {getHebrewDate(formData.birthDate) || 'תאריך עברי'}
+                  </div>
+                </div>
+              </Col>
             </Row>
 
             <h6 className="fw-bold pb-2 mb-3 mt-3" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>הורים ומוסד לימודים</h6>
