@@ -1,43 +1,61 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter, FiCalendar, FiMapPin } from 'react-icons/fi';
+import {
+  FiSearch,
+  FiPlus,
+  FiUser,
+  FiFileText,
+  FiTrash2,
+  FiLock,
+  FiPlusCircle,
+  FiMinusCircle,
+  FiFilter,
+  FiCalendar,
+  FiMapPin
+} from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
-  const [payers, setPayers] = useState([]); 
-  const [placements, setPlacements] = useState([]); 
-  
+  const [payers, setPayers] = useState([]);
+  const [placements, setPlacements] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterInstitute, setFilterInstitute] = useState(''); 
-  const [filterPlacementStatus, setFilterPlacementStatus] = useState(''); 
-  
+  const [filterInstitute, setFilterInstitute] = useState('');
+  const [filterPlacementStatus, setFilterPlacementStatus] = useState('');
+
   const [isLoading, setIsLoading] = useState(true);
 
-  // מאגר רחובות להקפצה אוטומטית לפי עיר
-  const streetsData = {
-    "ירושלים": ["יפו", "המלך ג'ורג'", "בן יהודה", "שטראוס", "חזון איש", "רבי עקיבא", "שמואל הנביא", "בר אילן", "ירמיהו", "מלכי ישראל"],
-    "בני ברק": ["רבי עקיבא", "חזון איש", "סוקולוב", "הרב שך", "אהרונוביץ'", "כהנמן", "הירקון", "עזרא", "דבורה הנביאה"],
-    "בית שמש": ["נהר הירדן", "רבי יהושע", "הירקון", "לוי אשכול", "השלושה", "נחל שורק", "נחל לוז", "חבקוק"]
-  };
-
-  const uniqueInstitutes = [...new Set(students.map(s => s.institute).filter(Boolean))];
+  // מאגר ערים ורחובות דינמי ממאגר הממשלתי
+  const [cities, setCities] = useState([]);
+  const [streets, setStreets] = useState([]);
+  const [isSearchingStreets, setIsSearchingStreets] = useState(false);
 
   useEffect(() => {
-    fetchStudentsAndData(); 
+    fetchStudentsAndData();
+
+    // טעינת רשימת כל הערים בישראל בטעינה ראשונה מהמאגר הממשלתי
+    fetch('https://data.gov.il/api/3/action/datastore_search?resource_id=5c78e9f6-323a-4d3b-9864-299f36c4de32&limit=2000')
+      .then(res => res.json())
+      .then(data => {
+        const sortedCities = data.result.records
+          .map(r => r.שם_ישוב.trim())
+          .sort((a, b) => a.localeCompare(b, 'he'));
+        setCities(sortedCities);
+      })
+      .catch(err => console.error("שגיאה בטעינת ערים", err));
 
     return () => {
       document.body.classList.remove('modal-open');
       document.body.style.overflow = 'auto';
-      document.body.style.paddingRight = '0px';
       const backdrops = document.querySelectorAll('.modal-backdrop');
       backdrops.forEach(backdrop => backdrop.remove());
     };
   }, []);
 
   const fetchStudentsAndData = async () => {
-    setIsLoading(true); 
+    setIsLoading(true);
     try {
       const [studentsRes, payersRes, placementsRes] = await Promise.all([
         fetch(import.meta.env.VITE_API_URL + '/api/students'),
@@ -48,13 +66,30 @@ function Students() {
       if (studentsRes.ok) setStudents(await studentsRes.json());
       if (payersRes.ok) setPayers(await payersRes.json());
       if (placementsRes.ok) setPlacements(await placementsRes.json());
-      
+
     } catch (error) {
       console.error('שגיאה בשליפת נתונים:', error);
     } finally {
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
+
+  // פונקציה לשליפת רחובות לפי עיר נבחרת
+  const fetchStreets = useCallback((cityName) => {
+    if (!cityName) return;
+    setIsSearchingStreets(true);
+    fetch(`https://data.gov.il/api/3/action/datastore_search?resource_id=9ad3b624-416d-45a4-a328-efef4d6a46f3&q=${cityName}&limit=1000`)
+      .then(res => res.json())
+      .then(data => {
+        const resultStreets = data.result.records
+          .filter(r => r.שם_ישוב.trim() === cityName)
+          .map(r => r.שם_רחוב.trim())
+          .sort((a, b) => a.localeCompare(b, 'he'));
+        setStreets(resultStreets);
+      })
+      .catch(err => console.error("שגיאה בטעינת רחובות", err))
+      .finally(() => setIsSearchingStreets(false));
+  }, []);
 
   const getPlacementStatus = (hasActivePlacement) => {
     if (hasActivePlacement) {
@@ -67,19 +102,15 @@ function Students() {
   const handleDelete = async (e, id, name) => {
     e.stopPropagation();
     if (!window.confirm(`האם אתה בטוח שברצונך למחוק את ${name}?`)) return;
-
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`, { method: 'DELETE' });
       if (response.ok) {
         setStudents(students.filter(student => student._id !== id));
       } else {
-        alert('🔴 שגיאה במחיקה מול השרת');
+        alert('🔴 שגיאה במחיקה');
       }
     } catch (error) {
-      alert('🔴 שגיאה בתקשורת מול השרת');
+      alert('🔴 שגיאת תקשורת');
     }
   };
 
@@ -87,11 +118,9 @@ function Students() {
     const fullName = `${student.firstName} ${student.lastName}`;
     const matchText = fullName.includes(searchTerm) || (student.idNumber && student.idNumber.includes(searchTerm));
     const matchInstitute = filterInstitute === '' || student.institute === filterInstitute;
-    
     let matchPlacement = true;
     if (filterPlacementStatus === 'פעיל') matchPlacement = student.hasActivePlacement === true;
     if (filterPlacementStatus === 'ללא') matchPlacement = student.hasActivePlacement === false;
-
     return matchText && matchInstitute && matchPlacement;
   });
 
@@ -100,42 +129,26 @@ function Students() {
   const handleShow = () => setShowModal(true);
 
   const [formData, setFormData] = useState({
-    firstName: '', 
-    lastName: '', 
-    idNumber: '', 
-    birthDate: '',
-    fatherName: '', 
-    motherName: '', 
-    phone1: '', 
-    phone2: '', 
-    phone3: '', 
-    email: '',
-    street: '', 
-    houseNumber: '', 
-    address: '', 
-    city: '507f1f77bcf86cd799439011', 
-    zipCode: '91000',
-    institute: '', 
-    contacts: [], 
-    payer: ''
+    firstName: '', lastName: '', idNumber: '', birthDate: '',
+    fatherName: '', motherName: '', phone1: '', phone2: '', phone3: '', email: '',
+    street: '', houseNumber: '', address: '', city: '', zipCode: '',
+    institute: '', contacts: [], payer: ''
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let updatedData = { ...formData, [name]: value };
 
-    // עדכון מיקוד אוטומטי לפי עיר (דוגמה בסיסית)
     if (name === 'city') {
-      if (value === '507f1f77bcf86cd799439011') updatedData.zipCode = '91000'; // ירושלים
-      if (value === '507f1f77bcf86cd799439012') updatedData.zipCode = '51000'; // בני ברק
-      if (value === '507f1f77bcf86cd799439013') updatedData.zipCode = '99000'; // בית שמש
+      fetchStreets(value);
+      updatedData.street = ''; // איפוס רחוב בעת החלפת עיר
     }
-
     setFormData(updatedData);
   };
 
+  // פונקציות עזר לגימטריה ותאריך עברי נשמרות
   const numberToGematria = (num) => {
-    let n = num > 1000 ? num % 1000 : num; 
+    let n = num > 1000 ? num % 1000 : num;
     let str = '';
     if (n >= 400) { str += 'ת'; n -= 400; }
     if (n >= 400) { str += 'ת'; n -= 400; }
@@ -193,43 +206,37 @@ function Students() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // איחוד רחוב ומספר לשדה כתובת אחד עבור השרת
     const fullAddress = `${formData.street} ${formData.houseNumber}`.trim();
     const dataToSend = { ...formData, address: fullAddress };
-
-    if (!dataToSend.payer || dataToSend.payer === "") {
-      delete dataToSend.payer;
-    }
+    if (!dataToSend.payer || dataToSend.payer === "") delete dataToSend.payer;
 
     try {
       const response = await fetch(import.meta.env.VITE_API_URL + '/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend), 
+        body: JSON.stringify(dataToSend),
       });
 
       if (response.ok) {
-        setShowModal(false);
-        setFormData({ 
+        handleClose();
+        setFormData({
           firstName: '', lastName: '', idNumber: '', birthDate: '', phone1: '', phone2: '', phone3: '', email: '',
-          fatherName: '', motherName: '', street: '', houseNumber: '', address: '', zipCode: '91000', institute: '', contacts: [], payer: '', city: '507f1f77bcf86cd799439011' 
+          street: '', houseNumber: '', address: '', city: '', zipCode: '', institute: '', contacts: [], payer: ''
         });
-        fetchStudentsAndData(); 
+        fetchStudentsAndData();
       } else {
         const data = await response.json();
-        alert('🔴 שגיאה מהשרת: ' + (data.details || data.error || data.message));
+        alert('🔴 שגיאה: ' + (data.message || 'שגיאה בשמירה'));
       }
     } catch (error) {
-      alert('🔴 שגיאה בתקשורת מול השרת');
+      alert('🔴 שגיאת תקשורת');
     }
   };
 
-  const cityName = formData.city === '507f1f77bcf86cd799439012' ? 'בני ברק' : formData.city === '507f1f77bcf86cd799439013' ? 'בית שמש' : 'ירושלים';
+  const uniqueInstitutesList = [...new Set(students.map(s => s.institute).filter(Boolean))];
 
   return (
     <Container className="pt-3 mb-5" dir="rtl">
-      
       <div className="pb-4 pt-3 mb-4" style={{ position: 'sticky', top: '68px', backgroundColor: '#f8fafc', zIndex: 100, borderBottom: '1px solid #e2e8f0' }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
@@ -247,19 +254,13 @@ function Students() {
               <InputGroup.Text className="bg-white border-end-0">
                 <FiSearch color="#94a3b8" />
               </InputGroup.Text>
-              <Form.Control 
-                placeholder="חיפוש לפי שם או ת.ז..." 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-                className="border-start-0" 
-                style={{ boxShadow: 'none' }} 
-              />
+              <Form.Control placeholder="חיפוש..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="border-start-0" />
             </InputGroup>
           </Col>
           <Col md={3} lg={3}>
             <Form.Select className="shadow-sm h-100" style={{ borderRadius: '12px' }} value={filterInstitute} onChange={(e) => setFilterInstitute(e.target.value)}>
               <option value="">כל המוסדות</option>
-              {uniqueInstitutes.map((inst, idx) => (<option key={idx} value={inst}>{inst}</option>))}
+              {uniqueInstitutesList.map((inst, idx) => (<option key={idx} value={inst}>{inst}</option>))}
             </Form.Select>
           </Col>
           <Col md={4} lg={3}>
@@ -281,13 +282,13 @@ function Students() {
                   <th className="bg-light text-muted fw-bold p-3">שם התלמיד</th>
                   <th className="bg-light text-muted fw-bold p-3">ת.ז.</th>
                   <th className="bg-light text-muted fw-bold p-3">מוסד</th>
-                  <th className="bg-light text-muted fw-bold p-3">סטטוס</th> 
+                  <th className="bg-light text-muted fw-bold p-3">סטטוס</th>
                   <th className="bg-light text-muted fw-bold p-3 text-end">פעולות</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan="5" className="text-center py-5"><Spinner animation="border" style={{color: '#2563eb'}} /><div className="mt-2 text-muted fw-bold">טוען...</div></td></tr>
+                  <tr><td colSpan="5" className="text-center py-5"><Spinner animation="border" style={{color: '#2563eb'}} /></td></tr>
                 ) : filteredStudents.length > 0 ? (
                   filteredStudents.map((student) => {
                     const status = getPlacementStatus(student.hasActivePlacement);
@@ -298,8 +299,8 @@ function Students() {
                         <td className="p-3">{student.institute || 'לא הוגדר'}</td>
                         <td className="p-3"><span className="rounded-pill d-inline-block text-center px-3 py-1 fw-bold" style={{ fontSize: '0.85rem', ...status.style }}>{status.text}</span></td>
                         <td className="text-end p-3" onClick={(e) => e.stopPropagation()}>
-                           <Button variant="light" size="sm" className="me-2 rounded-pill shadow-sm" style={{ color: '#0284c7' }} onClick={() => navigate(`/student/${student._id}`)}><FiFileText className="me-1"/> כרטיס</Button>
-                           <Button variant="light" size="sm" className="rounded-pill shadow-sm" style={{ color: '#e11d48' }} onClick={(e) => handleDelete(e, student._id, student.firstName)}><FiTrash2 className="me-1"/> מחק</Button>
+                           <Button variant="light" size="sm" className="me-2 rounded-pill shadow-sm" onClick={() => navigate(`/student/${student._id}`)}><FiFileText /></Button>
+                           <Button variant="light" size="sm" className="rounded-pill shadow-sm text-danger" onClick={(e) => handleDelete(e, student._id, student.firstName)}><FiTrash2 /></Button>
                         </td>
                       </tr>
                     );
@@ -324,7 +325,7 @@ function Students() {
             <div className="p-3 mb-4 rounded-3 border" style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }}>
               <Form.Group><Form.Label className="fw-bold small mb-2 d-flex align-items-center gap-2" style={{ color: '#0284c7' }}><FiUser /> שיוך למשלם קבוע</Form.Label>
                 <Form.Select name="payer" value={formData.payer || ''} onChange={handleChange} style={{ borderRadius: '8px' }}>
-                  <option value="">-- ללא משלם קבוע כרגע --</option>
+                  <option value="">-- ללא משלם קבוע --</option>
                   {payers.map(payer => (<option key={payer._id} value={payer._id}>{payer.name} ({payer.identifier})</option>))}
                 </Form.Select>
               </Form.Group>
@@ -332,61 +333,64 @@ function Students() {
 
             <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטים אישיים</h6>
             <Row className="align-items-start mb-3">
-              <Col md={2}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
-              <Col md={2}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
-              <Col md={3}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
-              <Col md={5}><Form.Label className="small fw-bold text-danger d-block"><FiCalendar className="me-1"/> תאריך לידה *</Form.Label>
+              <Col md={3}><Form.Group><Form.Label className="small fw-bold">שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group><Form.Label className="small fw-bold">שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={2}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock /> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={4}>
+                <Form.Label className="small fw-bold text-danger"><FiCalendar /> תאריך לידה *</Form.Label>
                 <div className="d-flex gap-2">
-                  <Form.Control type="date" name="birthDate" required value={formData.birthDate} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', flex: 1 }} />
-                  <div className="d-flex align-items-center justify-content-center px-3" style={{ borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', flex: 1, fontWeight: '600' }}>{getHebrewDate(formData.birthDate) || 'תאריך עברי'}</div>
+                  <Form.Control type="date" name="birthDate" required value={formData.birthDate} onChange={handleChange} style={{ borderRadius: '8px', flex: 1 }} />
+                  <div className="d-flex align-items-center justify-content-center px-2 bg-light border rounded" style={{ flex: 1, fontSize: '0.85rem' }}>{getHebrewDate(formData.birthDate) || 'תאריך עברי'}</div>
                 </div>
               </Col>
             </Row>
 
             <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">הורים ומוסד</h6>
             <Row className="mb-4">
-              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold">מוסד לימודי</Form.Label><Form.Select name="institute" value={formData.institute} onChange={handleChange} style={{ borderRadius: '8px' }}><option value="">-- בחר מוסד --</option><option value="ישיבת חברון">ישיבת חברון</option><option value="ישיבת מיר">ישיבת מיר</option><option value="אחר">אחר</option></Form.Select></Form.Group></Col>
+              <Col md={4}><Form.Group><Form.Label className="small fw-bold">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group><Form.Label className="small fw-bold">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold">מוסד לימודי</Form.Label>
+                  <Form.Select name="institute" value={formData.institute} onChange={handleChange} style={{ borderRadius: '8px' }}>
+                    <option value="">-- בחר מוסד --</option>
+                    <option value="ישיבת חברון">ישיבת חברון</option>
+                    <option value="ישיבת מיר">ישיבת מיר</option>
+                    <option value="אחר">אחר</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
             </Row>
 
-            <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">כתובת ומיקום (מסודר)</h6>
+            <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">כתובת ומיקום (כל הארץ)</h6>
             <Row className="mb-3">
               <Col md={3}>
                 <Form.Group>
                   <Form.Label className="small fw-bold text-primary"><FiMapPin className="me-1"/>עיר *</Form.Label>
-                  <Form.Select name="city" value={formData.city} onChange={handleChange} style={{ borderRadius: '8px', border: '2px solid #2563eb' }}>
-                    <option value="507f1f77bcf86cd799439011">ירושלים</option>
-                    <option value="507f1f77bcf86cd799439012">בני ברק</option>
-                    <option value="507f1f77bcf86cd799439013">בית שמש</option>
-                  </Form.Select>
+                  <Form.Control as="select" name="city" value={formData.city} onChange={handleChange} style={{ borderRadius: '8px', border: '2px solid #2563eb' }}>
+                    <option value="">-- בחר עיר --</option>
+                    {cities.map((city, i) => <option key={i} value={city}>{city}</option>)}
+                  </Form.Control>
                 </Form.Group>
               </Col>
               <Col md={4}>
                 <Form.Group>
-                  <Form.Label className="small fw-bold">רחוב *</Form.Label>
-                  <Form.Control 
-                    list="streets-list"
-                    name="street" 
-                    placeholder="הקלד שם רחוב..." 
-                    value={formData.street} 
-                    onChange={handleChange} 
-                    style={{ borderRadius: '8px' }} 
-                  />
-                  <datalist id="streets-list">
-                    {(streetsData[cityName] || []).map((s, i) => <option key={i} value={s} />)}
+                  <Form.Label className="small fw-bold">רחוב * {isSearchingStreets && <Spinner size="sm" animation="border" />}</Form.Label>
+                  <Form.Control list="streets-datalist" name="street" placeholder="הקלד שם רחוב..." value={formData.street} onChange={handleChange} style={{ borderRadius: '8px' }} />
+                  <datalist id="streets-datalist">
+                    {streets.map((s, i) => <option key={i} value={s} />)}
                   </datalist>
                 </Form.Group>
               </Col>
-              <Col md={2}><Form.Group className="mb-3"><Form.Label className="small fw-bold">מס' בניין *</Form.Label><Form.Control type="text" name="houseNumber" value={formData.houseNumber} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
-              <Col md={3}><Form.Group className="mb-3"><Form.Label className="small fw-bold">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={2}><Form.Group><Form.Label className="small fw-bold">מס' בניין *</Form.Label><Form.Control type="text" name="houseNumber" value={formData.houseNumber} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group><Form.Label className="small fw-bold">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
             </Row>
 
             <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">פרטי התקשרות</h6>
             <Row className="mb-4">
-              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 1 *</Form.Label><Form.Control type="text" name="phone1" required value={formData.phone1} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={formData.phone2} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
-              <Col md={4}><Form.Group className="mb-3"><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> אימייל</Form.Label><Form.Control type="email" name="email" value={formData.email} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 1 *</Form.Label><Form.Control type="text" name="phone1" required value={formData.phone1} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={formData.phone2} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/> אימייל</Form.Label><Form.Control type="email" name="email" value={formData.email} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
             </Row>
 
             <div className="mt-4 p-3 bg-light rounded-3 border">
@@ -408,7 +412,7 @@ function Students() {
 
             <div className="d-flex justify-content-end pt-4 mt-3 border-top">
               <Button variant="light" onClick={handleClose} className="me-3 rounded-pill fw-bold px-4">ביטול</Button>
-              <Button variant="primary" type="submit" className="rounded-pill shadow-sm fw-bold px-4">שמור תלמיד במערכת</Button>
+              <Button variant="primary" type="submit" className="rounded-pill shadow-sm fw-bold px-4">שמור תלמיד</Button>
             </div>
           </Form>
         </Modal.Body>
