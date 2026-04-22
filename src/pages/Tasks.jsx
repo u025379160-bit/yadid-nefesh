@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Modal, Form, Row, Col, Badge, Spinner, InputGroup } from 'react-bootstrap';
-import { FiPlus, FiMessageSquare, FiLock, FiEdit2, FiCheckCircle, FiCircle, FiTrash2, FiMessageCircle, FiSend, FiAtSign } from 'react-icons/fi';
+import { FiPlus, FiMessageSquare, FiLock, FiEdit2, FiCheckCircle, FiCircle, FiTrash2, FiMessageCircle, FiSend, FiAlertCircle } from 'react-icons/fi';
 
 function Tasks({ currentUser }) {
   const [tasks, setTasks] = useState([]);
@@ -15,7 +15,6 @@ function Tasks({ currentUser }) {
   const [showModal, setShowModal] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null); 
   
-  // === סטייטים עבור מערכת התגובות ===
   const [showRepliesModal, setShowRepliesModal] = useState(false);
   const [selectedTaskForReplies, setSelectedTaskForReplies] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -34,12 +33,12 @@ function Tasks({ currentUser }) {
     sendEmailAlert: false
   });
 
-  const taskTypes = ['תיעוד פעילות', 'בקשת עזרה', 'עדכון סטטוס', 'אחר'];
+  const taskTypes = ['תיעוד פעילות', 'בקשת עזרה', 'עדכון סטטוס', 'הדרכה', 'אחר'];
 
   useEffect(() => {
     fetchTasks();
     fetchAssociatedData();
-  }, [currentUser]); // הוספנו את currentUser לתלויות כדי שיטען מחדש אם המשתמש מתחלף
+  }, [currentUser]);
 
   const fetchTasks = async () => {
     setIsLoading(true);
@@ -48,20 +47,15 @@ function Tasks({ currentUser }) {
       if (response.ok) {
         const allTasks = await response.json();
         
-        // --- תוספת הסינון החכם להרשאות צפייה ---
         let filteredTasks = allTasks;
         
-        // אם המשתמש הוא לא מנהל, נסנן את המשימות שיוצגו לו
         if (currentUser && currentUser.role !== 'manager') {
           const myName = currentUser.name || currentUser.firstName;
           const myId = currentUser._id;
 
           filteredTasks = allTasks.filter(task => {
-            // האם המשימה משויכת אליי בתור אובייקט?
             const isAssociatedToMe = task.associatedToType === 'tutor' && task.associatedToId === myId;
-            // האם המשימה הוקצתה אליי לטיפול?
-            const isAssignedToMe = task.assignedTo === myName;
-            // האם אני יצרתי את המשימה?
+            const isAssignedToMe = task.assignedTo === myName || task.assignedTo === 'צוות רכזים';
             const isCreatedByMe = task.createdBy === myName;
             
             return isAssociatedToMe || isAssignedToMe || isCreatedByMe;
@@ -189,10 +183,9 @@ function Tasks({ currentUser }) {
     }
   };
 
-  // === פונקציות לניהול התגובות והתיוגים ===
   const handleOpenReplies = (task) => {
     setSelectedTaskForReplies(task);
-    setTaggedUserForReply(''); // איפוס התיוג כשפותחים את החלון
+    setTaggedUserForReply(''); 
     setShowRepliesModal(true);
   };
 
@@ -202,7 +195,6 @@ function Tasks({ currentUser }) {
 
     setIsSavingReply(true);
 
-    // שרשור השם לתיוג בתחילת ההודעה
     let finalReplyText = replyText;
     if (taggedUserForReply) {
       finalReplyText = `[🔔 תיוג: @${taggedUserForReply}]\n${finalReplyText}`;
@@ -243,7 +235,6 @@ function Tasks({ currentUser }) {
 
   return (
     <Container className="mt-5 mb-5" dir="rtl">
-      {/* כותרת מודרנית */}
       <div className="d-flex justify-content-between align-items-center mb-5">
         <div>
           <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1">ניהול משימות ותיעוד</h2>
@@ -254,7 +245,6 @@ function Tasks({ currentUser }) {
         </Button>
       </div>
 
-      {/* כרטיסיית טבלה מרחפת */}
       <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <Card.Body className="p-4">
           <div className="table-responsive">
@@ -274,72 +264,96 @@ function Tasks({ currentUser }) {
                 {isLoading ? (
                   <tr><td colSpan="7" className="text-center py-5"><Spinner animation="border" style={{color: '#2563eb'}} /></td></tr>
                 ) : tasks.length > 0 ? (
-                  tasks.map(task => (
-                    <tr key={task._id} style={{ opacity: task.isCompleted ? 0.6 : 1, transition: 'all 0.2s' }}>
-                      <td style={{ color: '#64748b', padding: '16px 12px' }} className="small">{formatDate(task.createdAt)}</td>
-                      <td style={{ color: '#0f172a', fontWeight: '600', padding: '16px 12px' }}>{task.createdBy || 'מערכת'}</td>
-                      
-                      <td style={{ color: '#2563eb', fontWeight: '700', padding: '16px 12px' }}>{task.assignedTo || 'כללי'}</td>
-                      
-                      <td style={{ padding: '16px 12px' }}>
-                        <span className="rounded-pill d-inline-block text-center" style={{ padding: '4px 12px', fontSize: '0.85rem', fontWeight: '600', backgroundColor: '#e0f2fe', color: '#0284c7' }}>
-                          {task.taskType || task.title || 'משימה'}
-                        </span>
-                      </td>
-                      
-                      <td style={{ maxWidth: '250px', padding: '16px 12px' }}>
-                        {task.isEncrypted && currentUser?.role !== 'manager' && currentUser?.name !== task.createdBy ? (
-                          <span style={{ color: '#ef4444', fontWeight: '600' }}><FiLock className="me-1" /> תוכן מוצפן</span>
-                        ) : (
-                          <span className="text-truncate d-inline-block w-100" style={{ textDecoration: task.isCompleted ? 'line-through' : 'none', color: '#475569' }}>
-                            {task.isEncrypted && <FiLock style={{ color: '#ef4444' }} className="me-1" />}
-                            {task.content || task.description || '-'}
-                          </span>
-                        )}
-                      </td>
-                      
-                      <td className="text-center" style={{ padding: '16px 12px' }}>
-                        <Button 
-                          variant="light" 
-                          size="sm" 
-                          className="rounded-pill shadow-sm"
-                          style={{ 
-                            fontWeight: '600', 
-                            backgroundColor: task.isCompleted ? '#d1fae5' : '#ffffff', 
-                            color: task.isCompleted ? '#059669' : '#64748b',
-                            border: `1px solid ${task.isCompleted ? '#a7f3d0' : '#e2e8f0'}`
-                          }}
-                          onClick={() => handleToggleComplete(task)}
-                        >
-                          {task.isCompleted ? <><FiCheckCircle className="me-1"/> בוצע</> : <><FiCircle className="me-1"/> לטיפול</>}
-                        </Button>
-                      </td>
+                  tasks.map(task => {
+                    const isUrgent = task.title?.includes('🚨') || task.urgency === 'דחוף' || task.createdBy === 'מערכת אוטומטית';
+                    const isCompleted = task.isCompleted;
 
-                      <td className="text-end" style={{ padding: '16px 12px', minWidth: '150px' }}>
-                        <Button 
-                          variant="light" 
-                          size="sm" 
-                          className="me-2 rounded-pill shadow-sm position-relative" 
-                          style={{ color: '#10b981', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0' }} 
-                          onClick={() => handleOpenReplies(task)} 
-                          title="צ'אט / תגובות"
-                        >
-                          <FiMessageCircle />
-                          {task.replies && task.replies.length > 0 && (
-                            <span className="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-success" style={{ fontSize: '0.65rem' }}>
-                              {task.replies.length}
+                    return (
+                      <tr key={task._id} style={{ 
+                        opacity: isCompleted ? 0.6 : 1, 
+                        transition: 'all 0.2s',
+                        backgroundColor: (isUrgent && !isCompleted) ? '#fff1f2' : 'transparent',
+                        borderRight: (isUrgent && !isCompleted) ? '4px solid #ef4444' : 'none'
+                      }}>
+                        <td style={{ color: '#64748b', padding: '16px 12px' }} className="small">{formatDate(task.createdAt)}</td>
+                        <td style={{ color: (isUrgent && !isCompleted) ? '#e11d48' : '#0f172a', fontWeight: '600', padding: '16px 12px' }}>
+                          {task.createdBy || 'מערכת'}
+                        </td>
+                        
+                        <td style={{ color: '#2563eb', fontWeight: '700', padding: '16px 12px' }}>{task.assignedTo || 'כללי'}</td>
+                        
+                        <td style={{ padding: '16px 12px' }}>
+                          <span className="rounded-pill d-inline-block text-center" style={{ 
+                            padding: '4px 12px', 
+                            fontSize: '0.85rem', 
+                            fontWeight: '600', 
+                            backgroundColor: (isUrgent && !isCompleted) ? '#fee2e2' : '#e0f2fe', 
+                            color: (isUrgent && !isCompleted) ? '#ef4444' : '#0284c7' 
+                          }}>
+                            {(isUrgent && !isCompleted) && <FiAlertCircle className="me-1"/>}
+                            {task.taskType || task.title || 'משימה'}
+                          </span>
+                        </td>
+                        
+                        <td style={{ maxWidth: '250px', padding: '16px 12px' }}>
+                          {task.title && (
+                            <div className="fw-bold mb-1" style={{ color: (isUrgent && !isCompleted) ? '#e11d48' : '#334155' }}>
+                              {task.title}
+                            </div>
+                          )}
+                          {task.isEncrypted && currentUser?.role !== 'manager' && currentUser?.name !== task.createdBy ? (
+                            <span style={{ color: '#ef4444', fontWeight: '600' }}><FiLock className="me-1" /> תוכן מוצפן</span>
+                          ) : (
+                            <span className="text-truncate d-inline-block w-100" style={{ textDecoration: isCompleted ? 'line-through' : 'none', color: '#475569' }}>
+                              {task.isEncrypted && <FiLock style={{ color: '#ef4444' }} className="me-1" />}
+                              {task.content || task.description || '-'}
                             </span>
                           )}
-                        </Button>
-                        <Button variant="light" size="sm" className="me-2 rounded-pill shadow-sm" style={{ color: '#0284c7', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }} onClick={() => handleEditTask(task)} title="ערוך משימה">
-                          <FiEdit2 />
-                        </Button>
-                        <Button variant="light" size="sm" className="rounded-pill shadow-sm" style={{ color: '#e11d48', backgroundColor: '#fff1f2', border: '1px solid #fecdd3' }} onClick={() => handleDeleteTask(task._id)} title="מחק משימה">
-                          <FiTrash2 />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        
+                        <td className="text-center" style={{ padding: '16px 12px' }}>
+                          <Button 
+                            variant="light" 
+                            size="sm" 
+                            className="rounded-pill shadow-sm"
+                            style={{ 
+                              fontWeight: '600', 
+                              backgroundColor: isCompleted ? '#d1fae5' : '#ffffff', 
+                              color: isCompleted ? '#059669' : '#64748b',
+                              border: `1px solid ${isCompleted ? '#a7f3d0' : '#e2e8f0'}`
+                            }}
+                            onClick={() => handleToggleComplete(task)}
+                          >
+                            {isCompleted ? <><FiCheckCircle className="me-1"/> בוצע</> : <><FiCircle className="me-1"/> לטיפול</>}
+                          </Button>
+                        </td>
+
+                        <td className="text-end" style={{ padding: '16px 12px', minWidth: '150px' }}>
+                          <Button 
+                            variant="light" 
+                            size="sm" 
+                            className="me-2 rounded-pill shadow-sm position-relative" 
+                            style={{ color: '#10b981', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0' }} 
+                            onClick={() => handleOpenReplies(task)} 
+                            title="צ'אט / תגובות"
+                          >
+                            <FiMessageCircle />
+                            {task.replies && task.replies.length > 0 && (
+                              <span className="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-success" style={{ fontSize: '0.65rem' }}>
+                                {task.replies.length}
+                              </span>
+                            )}
+                          </Button>
+                          <Button variant="light" size="sm" className="me-2 rounded-pill shadow-sm" style={{ color: '#0284c7', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }} onClick={() => handleEditTask(task)} title="ערוך משימה">
+                            <FiEdit2 />
+                          </Button>
+                          <Button variant="light" size="sm" className="rounded-pill shadow-sm" style={{ color: '#e11d48', backgroundColor: '#fff1f2', border: '1px solid #fecdd3' }} onClick={() => handleDeleteTask(task._id)} title="מחק משימה">
+                            <FiTrash2 />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan="7" className="text-center py-5 text-muted">
@@ -354,7 +368,6 @@ function Tasks({ currentUser }) {
         </Card.Body>
       </Card>
 
-      {/* חלון מודל - יצירת משימה */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" dir="rtl" backdrop="static">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>{editingTaskId ? 'עריכת משימה' : 'יצירת משימה / תיעוד חדש'}</Modal.Title>
@@ -439,28 +452,27 @@ function Tasks({ currentUser }) {
         </Modal.Body>
       </Modal>
 
-      {/* חלון מודל - שרשור תגובות (צ'אט) */}
       <Modal show={showRepliesModal} onHide={() => setShowRepliesModal(false)} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>תגובות ועדכונים למשימה</Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-0 d-flex flex-column" style={{ backgroundColor: '#f1f5f9', height: '60vh' }}>
           
-          {/* גוף הצ'אט / תגובות (אזור נגלל) */}
           <div className="p-4 flex-grow-1" style={{ overflowY: 'auto' }}>
-            {/* תוכן המשימה המקורית */}
             <div className="mb-4 p-3 shadow-sm rounded-4" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <Badge bg="light" text="dark" className="border border-secondary">{selectedTaskForReplies?.taskType || 'משימה מקורית'}</Badge>
                 <span className="small text-muted">{formatDate(selectedTaskForReplies?.createdAt)}</span>
               </div>
+              
+              {selectedTaskForReplies?.title && <div className="fw-bold text-danger mb-2">{selectedTaskForReplies.title}</div>}
+              
               <p className="mb-1" style={{ color: '#334155', fontWeight: '500', whiteSpace: 'pre-wrap' }}>{selectedTaskForReplies?.content || selectedTaskForReplies?.description}</p>
               <div className="small text-muted mt-2">נכתב ע"י: <span className="fw-bold">{selectedTaskForReplies?.createdBy || 'מערכת'}</span></div>
             </div>
 
             <hr style={{ borderColor: '#cbd5e1', borderStyle: 'dashed' }} className="my-4" />
 
-            {/* רשימת התגובות */}
             {selectedTaskForReplies?.replies && selectedTaskForReplies.replies.length > 0 ? (
               selectedTaskForReplies.replies.map((reply, idx) => {
                 const isMe = reply.author === currentUserName;
@@ -490,7 +502,6 @@ function Tasks({ currentUser }) {
             )}
           </div>
 
-          {/* אזור הקלדת תגובה חדשה עם אופציה לתיוג */}
           <div className="p-3" style={{ backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
             <Form onSubmit={handleSubmitReply}>
               
