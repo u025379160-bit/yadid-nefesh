@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings, FiLock, FiPlusCircle, FiMinusCircle } from 'react-icons/fi';
+import { FiArrowRight, FiEdit2, FiUser, FiMapPin, FiFileText, FiCheckSquare, FiTrash2, FiCreditCard, FiUserPlus, FiUserCheck, FiSettings, FiLock, FiPlusCircle, FiMinusCircle, FiCalendar } from 'react-icons/fi';
 import Select from 'react-select'; 
 
 function StudentProfile() {
@@ -113,6 +113,60 @@ function StudentProfile() {
     const diffMs = Date.now() - new Date(dob).getTime();
     const ageDt = new Date(diffMs); 
     return Math.abs(ageDt.getUTCFullYear() - 1970);
+  };
+
+  // 👇 פונקציית עזר להמרת מספרים לשנים עבריות 👇
+  const numberToHebrewYear = (year) => {
+    let n = year % 1000;
+    let str = '';
+    if (n >= 400) { str += 'ת'; n -= 400; }
+    if (n >= 400) { str += 'ת'; n -= 400; }
+    if (n >= 300) { str += 'ש'; n -= 300; }
+    if (n >= 200) { str += 'ר'; n -= 200; }
+    if (n >= 100) { str += 'ק'; n -= 100; }
+    
+    if (n === 15) { str += 'טו'; n = 0; }
+    else if (n === 16) { str += 'טז'; n = 0; }
+    else {
+      if (n >= 90) { str += 'צ'; n -= 90; }
+      if (n >= 80) { str += 'פ'; n -= 80; }
+      if (n >= 70) { str += 'ע'; n -= 70; }
+      if (n >= 60) { str += 'ס'; n -= 60; }
+      if (n >= 50) { str += 'נ'; n -= 50; }
+      if (n >= 40) { str += 'מ'; n -= 40; }
+      if (n >= 30) { str += 'ל'; n -= 30; }
+      if (n >= 20) { str += 'כ'; n -= 20; }
+      if (n >= 10) { str += 'י'; n -= 10; }
+    }
+    
+    const units = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+    str += units[n];
+    
+    if (str.length === 1) return str + "'";
+    return str.slice(0, -1) + '"' + str.slice(-1);
+  };
+
+  // 👇 המרת תאריך לועזי לעברי בזמן אמת 👇
+  const getHebrewDate = (gregorianDateStr) => {
+    if (!gregorianDateStr) return '';
+    try {
+      const date = new Date(gregorianDateStr);
+      let formatted = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(date);
+      
+      const yearMatch = formatted.match(/\d{4}/);
+      if (yearMatch) {
+        const numYear = parseInt(yearMatch[0], 10);
+        const hebrewYear = numberToHebrewYear(numYear);
+        formatted = formatted.replace(yearMatch[0], hebrewYear);
+      }
+      return formatted;
+    } catch (error) {
+      return '';
+    }
   };
 
   const handleOpenPayerEdit = () => {
@@ -238,7 +292,6 @@ function StudentProfile() {
   const handleCloseEdit = () => setShowEditModal(false);
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // פונקציות ניהול אנשי קשר (מעודכנות למבנה החדש)
   const handleAddContact = () => {
     setFormData({ ...formData, contacts: [...(formData.contacts || []), { contactType: '', role: '', name: '', phone1: '', phone2: '' }] });
   };
@@ -427,7 +480,6 @@ function StudentProfile() {
 
               </Row>
 
-              {/* טבלת אנשי קשר נוספים מעודכנת */}
               {student.contacts && student.contacts.length > 0 && (
                 <div className="mt-4 pt-3 border-top">
                   <h6 className="fw-bold text-muted mb-3">אנשי קשר וגורמי רווחה</h6>
@@ -483,7 +535,6 @@ function StudentProfile() {
 
       <Row className="g-4">
         
-        {/* אזור שיבוצים קיים נשאר אותו דבר... */}
         <Col lg={7}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
@@ -537,7 +588,6 @@ function StudentProfile() {
           </Card>
         </Col>
 
-        {/* אזור משימות קיים... */}
         <Col lg={5}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Header className="bg-transparent border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
@@ -587,128 +637,153 @@ function StudentProfile() {
         </Col>
       </Row>
 
-      {/* --- חלון עריכת פרטי תלמיד --- */}
-      <Modal show={showEditModal} onHide={handleCloseEdit} size="xl" dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <Modal.Title style={{ fontWeight: '700', color: 'var(--text-main)' }}>עריכת פרטי תלמיד מלאים</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="bg-light p-4" style={{ minHeight: '60vh', overflow: 'visible' }}>
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <Form onSubmit={handleUpdateStudent}>
-                
-                <Row className="mb-3">
-                  <Col md={12}>
-                    <Form.Group className="p-3 bg-white border rounded">
-                      <Form.Label className="fw-bold text-primary small mb-2 d-flex align-items-center gap-2">
-                        <FiUser /> שיוך למשלם קבוע (ארנק חיוב)
-                      </Form.Label>
-                      <Select
-                        options={payerOptions}
-                        value={payerOptions.find(opt => opt.value === formData.payer) || null}
-                        onChange={(selected) => setFormData({ ...formData, payer: selected ? selected.value : '' })}
-                        placeholder="הקלד שם משלם לחיפוש..."
-                        isSearchable isClearable isRtl
-                        menuPortalTarget={document.body}
-                        styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({...base, borderRadius: '8px'}) }}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
+      {/* --- חלון עריכת פרטי תלמיד (משודרג) --- */}
+      <Modal show={showEditModal} onHide={handleCloseEdit} size="xl" dir="rtl" backdrop="static">
+        
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>עריכת פרטי תלמיד מלאים</h4>
+          <button type="button" onClick={handleCloseEdit} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
 
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3">פרטים בסיסיים</h6>
-                <Row className="mb-3">
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-muted">שם פרטי</Form.Label><Form.Control type="text" name="firstName" value={formData.firstName || ''} onChange={handleChange} required /></Form.Group></Col>
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-muted">שם משפחה</Form.Label><Form.Control type="text" name="lastName" value={formData.lastName || ''} onChange={handleChange} required /></Form.Group></Col>
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>תעודת זהות</Form.Label><Form.Control type="text" name="idNumber" value={formData.idNumber || ''} onChange={handleChange} required className="bg-light border-danger" /></Form.Group></Col>
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>תאריך לידה</Form.Label><Form.Control type="date" name="birthDate" value={formData.birthDate || ''} onChange={handleChange} required className="bg-light border-danger"/></Form.Group></Col>
-                </Row>
+        <Modal.Body className="p-4" style={{ backgroundColor: '#ffffff', maxHeight: '75vh', overflowY: 'auto' }}>
+          <Form onSubmit={handleUpdateStudent}>
+            
+            <div className="p-3 mb-4" style={{ backgroundColor: '#f0f9ff', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+              <Form.Group>
+                <Form.Label className="fw-bold small mb-2 d-flex align-items-center gap-2" style={{ color: '#0284c7' }}>
+                  <FiUser /> שיוך למשלם קבוע (הורה/ארגון שאחראי על הגבייה)
+                </Form.Label>
+                <Select
+                  options={payerOptions}
+                  value={payerOptions.find(opt => opt.value === formData.payer) || null}
+                  onChange={(selected) => setFormData({ ...formData, payer: selected ? selected.value : '' })}
+                  placeholder="הקלד שם לחיפוש..."
+                  isSearchable isClearable isRtl
+                  menuPortalTarget={document.body}
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({...base, borderRadius: '8px', borderColor: '#bae6fd'}) }}
+                />
+              </Form.Group>
+            </div>
 
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">הורים ומוסד לימודים</h6>
-                <Row className="mb-3">
-                  <Col md={4}><Form.Group><Form.Label className="small fw-bold text-muted">שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} /></Form.Group></Col>
-                  <Col md={4}><Form.Group><Form.Label className="small fw-bold text-muted">שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName || ''} onChange={handleChange} /></Form.Group></Col>
-                  <Col md={4}>
-                    <Form.Group>
-                      <Form.Label className="small fw-bold text-muted">מוסד לימודי</Form.Label>
-                      <Form.Control type="text" name="institute" value={formData.institute || ''} onChange={handleChange} placeholder="לדוגמה: ישיבת חברון, ישיבת מיר" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-
-                <h6 className="fw-bold text-muted border-bottom pb-2 mb-3 mt-4">דרכי התקשרות (מוצפן)</h6>
-                <Row className="mb-3">
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>טלפון 1</Form.Label><Form.Control type="text" name="phone1" value={formData.phone1 || ''} onChange={handleChange} required className="bg-light border-danger"/></Form.Group></Col>
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={formData.phone2 || ''} onChange={handleChange} className="bg-light border-danger"/></Form.Group></Col>
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>טלפון 3</Form.Label><Form.Control type="text" name="phone3" value={formData.phone3 || ''} onChange={handleChange} className="bg-light border-danger"/></Form.Group></Col>
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-danger"><FiLock className="me-1"/>אימייל</Form.Label><Form.Control type="email" name="email" value={formData.email || ''} onChange={handleChange} className="bg-light border-danger"/></Form.Group></Col>
-                </Row>
-
-                <Row className="mb-4">
-                  <Col md={6}><Form.Group><Form.Label className="small fw-bold text-muted">כתובת מגורים</Form.Label><Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} /></Form.Group></Col>
-                  <Col md={3}>
-                    <Form.Group>
-                      <Form.Label className="small fw-bold text-muted">עיר</Form.Label>
-                      <Form.Select name="city" value={formData.city || ''} onChange={handleChange}>
-                        <option value="507f1f77bcf86cd799439011">ירושלים</option>
-                        <option value="507f1f77bcf86cd799439012">בני ברק</option>
-                        <option value="507f1f77bcf86cd799439013">בית שמש</option>
-                        <option value="507f1f77bcf86cd799439014">אחר</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}><Form.Group><Form.Label className="small fw-bold text-muted">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode || ''} onChange={handleChange} /></Form.Group></Col>
-                </Row>
-
-                {/* טופס עריכה לאנשי קשר מותאם למבנה החדש */}
-                <div className="mt-4 p-3 bg-light rounded border">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h6 className="fw-bold mb-0">אנשי קשר וגורמי רווחה (JSON)</h6>
-                    <Button variant="outline-primary" size="sm" onClick={handleAddContact} className="rounded-pill d-flex align-items-center gap-1">
-                      <FiPlusCircle /> הוסף איש קשר
-                    </Button>
+            <h6 className="fw-bold pb-2 mb-3 mt-2" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>פרטים אישיים</h6>
+            <Row className="align-items-start">
+              <Col md={2}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם פרטי *</Form.Label><Form.Control type="text" name="firstName" required value={formData.firstName || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={2}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger" title="שדה זה יישמר כמוצפן במסד הנתונים"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
+              
+              <Col md={5}>
+                <Form.Label className="fw-bold small text-danger d-block"><FiCalendar className="me-1"/> תאריך לידה *</Form.Label>
+                <div className="d-flex gap-2">
+                  <Form.Control 
+                    type="date" 
+                    name="birthDate" 
+                    required 
+                    value={formData.birthDate || ''} 
+                    onChange={handleChange} 
+                    style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca', flex: 1 }} 
+                  />
+                  <div 
+                    className="d-flex align-items-center justify-content-center px-3" 
+                    style={{ 
+                      borderRadius: '8px', 
+                      backgroundColor: '#f8fafc', 
+                      border: '1px solid #e2e8f0', 
+                      flex: 1,
+                      color: formData.birthDate ? '#0f172a' : '#94a3b8',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {getHebrewDate(formData.birthDate) || 'תאריך עברי'}
                   </div>
-                  
-                  {(!formData.contacts || formData.contacts.length === 0) ? (
-                    <div className="text-muted small text-center py-2">לא הוגדרו אנשי קשר.</div>
-                  ) : (
-                    formData.contacts.map((contact, index) => (
-                      <Row key={index} className="mb-2 align-items-end">
-                        <Col md={2}>
-                          <Form.Label className="small mb-1">סוג קשר</Form.Label>
-                          <Form.Control size="sm" value={contact.contactType || ''} onChange={(e) => handleContactChange(index, 'contactType', e.target.value)} placeholder="הורה, חירום..." />
-                        </Col>
-                        <Col md={2}>
-                          <Form.Label className="small mb-1">שם</Form.Label>
-                          <Form.Control size="sm" value={contact.name || ''} onChange={(e) => handleContactChange(index, 'name', e.target.value)} />
-                        </Col>
-                        <Col md={2}>
-                          <Form.Label className="small mb-1">תפקיד/קרבה</Form.Label>
-                          <Form.Control size="sm" value={contact.role || ''} onChange={(e) => handleContactChange(index, 'role', e.target.value)} placeholder="עו''ס / דוד" />
-                        </Col>
-                        <Col md={2}>
-                          <Form.Label className="small mb-1">טלפון 1</Form.Label>
-                          <Form.Control size="sm" value={contact.phone1 || ''} onChange={(e) => handleContactChange(index, 'phone1', e.target.value)} />
-                        </Col>
-                        <Col md={3}>
-                          <Form.Label className="small mb-1">טלפון 2</Form.Label>
-                          <Form.Control size="sm" value={contact.phone2 || ''} onChange={(e) => handleContactChange(index, 'phone2', e.target.value)} />
-                        </Col>
-                        <Col md={1} className="text-end">
-                          <Button variant="link" className="text-danger p-0 mb-1" onClick={() => handleRemoveContact(index)}><FiMinusCircle size={20} /></Button>
-                        </Col>
-                      </Row>
-                    ))
-                  )}
                 </div>
+              </Col>
+            </Row>
 
-                <div className="d-flex justify-content-end pt-3 border-top mt-4">
-                  <Button variant="light" onClick={handleCloseEdit} className="me-2 border text-muted fw-bold px-4 ms-2">ביטול</Button>
-                  <Button variant="primary" type="submit" className="px-4 fw-bold shadow-sm">שמור שינויים</Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
+            <h6 className="fw-bold pb-2 mb-3 mt-3" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>הורים ומוסד לימודים</h6>
+            <Row>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם האב</Form.Label><Form.Control type="text" name="fatherName" value={formData.fatherName || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={4}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם האם</Form.Label><Form.Control type="text" name="motherName" value={formData.motherName || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold small" style={{ color: '#64748b' }}>מוסד לימודי</Form.Label>
+                  <Form.Control type="text" name="institute" value={formData.institute || ''} onChange={handleChange} placeholder="לדוגמה: ישיבת חברון..." style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <h6 className="fw-bold pb-2 mb-3 mt-3" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>דרכי התקשרות (מוצפן)</h6>
+            <Row>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger"><FiLock className="me-1"/> טלפון 1 (ראשי) *</Form.Label><Form.Control type="text" name="phone1" required value={formData.phone1 || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger"><FiLock className="me-1"/> טלפון 2 (אופציונלי)</Form.Label><Form.Control type="text" name="phone2" value={formData.phone2 || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger"><FiLock className="me-1"/> טלפון 3 (אופציונלי)</Form.Label><Form.Control type="text" name="phone3" value={formData.phone3 || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger"><FiLock className="me-1"/> אימייל (אופציונלי)</Form.Label><Form.Control type="email" name="email" value={formData.email || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
+            </Row>
+
+            <Row>
+              <Col md={6}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>כתובת מגורים</Form.Label><Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={3}>
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold small" style={{ color: '#64748b' }}>עיר</Form.Label>
+                  <Form.Select name="city" value={formData.city || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }}>
+                    <option value="507f1f77bcf86cd799439011">ירושלים</option>
+                    <option value="507f1f77bcf86cd799439012">בני ברק</option>
+                    <option value="507f1f77bcf86cd799439013">בית שמש</option>
+                    <option value="507f1f77bcf86cd799439014">אחר</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+            </Row>
+
+            <div className="mt-4 p-3" style={{ backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h6 className="fw-bold mb-0" style={{ color: '#334155' }}>אנשי קשר וגורמי רווחה (JSON)</h6>
+                <Button variant="outline-primary" size="sm" onClick={handleAddContact} className="rounded-pill d-flex align-items-center gap-1">
+                  <FiPlusCircle /> הוסף איש קשר
+                </Button>
+              </div>
+              
+              {(!formData.contacts || formData.contacts.length === 0) ? (
+                <div className="text-muted small text-center py-2">לא הוגדרו אנשי קשר נוספים.</div>
+              ) : (
+                formData.contacts.map((contact, index) => (
+                  <Row key={index} className="mb-2 align-items-end">
+                    <Col md={2}>
+                      <Form.Label className="small mb-1">סוג קשר</Form.Label>
+                      <Form.Control size="sm" value={contact.contactType || ''} onChange={(e) => handleContactChange(index, 'contactType', e.target.value)} placeholder="הורה, חירום..." />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Label className="small mb-1">שם</Form.Label>
+                      <Form.Control size="sm" value={contact.name || ''} onChange={(e) => handleContactChange(index, 'name', e.target.value)} />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Label className="small mb-1">תפקיד/קרבה</Form.Label>
+                      <Form.Control size="sm" value={contact.role || ''} onChange={(e) => handleContactChange(index, 'role', e.target.value)} placeholder="עו''ס / דוד" />
+                    </Col>
+                    <Col md={2}>
+                      <Form.Label className="small mb-1">טלפון 1</Form.Label>
+                      <Form.Control size="sm" value={contact.phone1 || ''} onChange={(e) => handleContactChange(index, 'phone1', e.target.value)} />
+                    </Col>
+                    <Col md={3}>
+                      <Form.Label className="small mb-1">טלפון 2</Form.Label>
+                      <Form.Control size="sm" value={contact.phone2 || ''} onChange={(e) => handleContactChange(index, 'phone2', e.target.value)} />
+                    </Col>
+                    <Col md={1} className="text-end">
+                      <Button variant="link" className="text-danger p-0 mb-1" onClick={() => handleRemoveContact(index)} title="הסר">
+                        <FiMinusCircle size={20} />
+                      </Button>
+                    </Col>
+                  </Row>
+                ))
+              )}
+            </div>
+
+            <div className="d-flex justify-content-end pt-4 mt-3" style={{ borderTop: '1px solid #e2e8f0' }}>
+              <Button variant="light" onClick={handleCloseEdit} className="me-3 rounded-pill" style={{ fontWeight: '600', color: '#64748b', border: '1px solid #e2e8f0', padding: '8px 24px' }}>ביטול</Button>
+              <Button variant="primary" type="submit" className="rounded-pill shadow-sm" style={{ fontWeight: '600', padding: '8px 24px' }}>שמור שינויים</Button>
+            </div>
+            
+          </Form>
         </Modal.Body>
       </Modal>
 
