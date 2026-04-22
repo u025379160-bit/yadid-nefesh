@@ -74,8 +74,8 @@ app.use('/api/users', usersRouter);
 // --- 🏙️ שליפת ערים ורחובות ישירות מה-CSV ---
 // ==========================================
 
-const CSV_FILE_NAME = '9ad3862c-8391-4b2f-84a4-2d4c68625f4b__2026_04_19_03_30_4_254.csv';
-
+// שנה את השורה הזו ב-server.js לשם המדויק מהתמונה
+const CSV_FILE_NAME = '9ad3862c-8391-4b2f-84a4-2d4c68625f4b__2026_04_19_03_30_4_254.xlsx';
 app.get('/api/geo/cities', (req, res) => {
   const cities = new Set();
   const filePath = path.join(__dirname, 'data', CSV_FILE_NAME);
