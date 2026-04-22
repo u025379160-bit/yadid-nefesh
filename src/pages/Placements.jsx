@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col, Badge, ProgressBar } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiBriefcase, FiTrash2, FiFileText, FiUser, FiInfo, FiDollarSign, FiEdit2, FiCalendar, FiAlertCircle, FiCheckCircle, FiShield } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiBriefcase, FiTrash2, FiFileText, FiUser, FiInfo, FiDollarSign, FiEdit2, FiCalendar, FiAlertCircle, FiCheckCircle, FiShield, FiFilter } from 'react-icons/fi';
 import Select from 'react-select';
+import { useNavigate } from 'react-router-dom'; // 👈 חובה בשביל הקישורים לפרופילים
 
 function Placements() {
+  const navigate = useNavigate();
   const [placements, setPlacements] = useState([]);
   const [students, setStudents] = useState([]); 
   const [tutors, setTutors] = useState([]); 
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all'); // סטייט חדש לסינון פעילים
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlacement, setNewPlacement] = useState({
@@ -22,6 +25,12 @@ function Placements() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedPlacement, setSelectedPlacement] = useState(null);
   const [editMode, setEditMode] = useState(false);
+
+  // סטייטים למודל סיכום הדרכה החדש 🔥
+  const [showGuidanceModal, setShowGuidanceModal] = useState(false);
+  const [guidancePlacement, setGuidancePlacement] = useState(null);
+  const [guidanceSummary, setGuidanceSummary] = useState('');
+  const [isSavingGuidance, setIsSavingGuidance] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -47,10 +56,21 @@ function Placements() {
     }
   };
 
-  const filteredPlacements = placements.filter(placement => {
+  // 🔥 סינון מתקדם + זריקת הלא פעילים למטה 🔥
+  let displayedPlacements = placements.filter(placement => {
     const tutorName = placement.tutor ? `${placement.tutor.firstName} ${placement.tutor.lastName}` : '';
     const studentName = placement.student ? `${placement.student.firstName} ${placement.student.lastName}` : '';
-    return tutorName.includes(searchTerm) || studentName.includes(searchTerm);
+    const matchesSearch = tutorName.includes(searchTerm) || studentName.includes(searchTerm);
+    
+    if (filterStatus === 'all') return matchesSearch;
+    return matchesSearch && placement.status === filterStatus;
+  });
+
+  // מיון - פעילים קודם, לא פעילים בסוף
+  displayedPlacements.sort((a, b) => {
+    if (a.status === 'פעיל' && b.status !== 'פעיל') return -1;
+    if (a.status !== 'פעיל' && b.status === 'פעיל') return 1;
+    return 0;
   });
 
   // חישובי סטטיסטיקות עבור דאשבורד ההדרכות למעלה
@@ -59,21 +79,67 @@ function Placements() {
   const receivedGuidance = activePlacements.filter(p => p.guidanceStatus === 'קיבל הדרכה');
   const percentageCompleted = activePlacements.length === 0 ? 0 : Math.round((receivedGuidance.length / activePlacements.length) * 100);
 
-  // פונקציה לשינוי סטטוס הדרכה בלחיצת כפתור מהטבלה
-  const toggleGuidanceStatus = async (placement) => {
-    const newStatus = placement.guidanceStatus === 'קיבל הדרכה' ? 'ממתין להדרכה' : 'קיבל הדרכה';
+  // פתיחת מודל סיכום הדרכה מתוך הטבלה
+  const handleOpenGuidanceModal = (e, placement) => {
+    e.stopPropagation(); // מונע מהשורה לפתוח את כרטיס השיבוץ הראשי
     
+    // אם כבר קיבל הדרכה ורוצים להחזיר אחורה לממתין - מאפשרים ישר בלי מודל
+    if (placement.guidanceStatus === 'קיבל הדרכה') {
+      toggleGuidanceStatus(placement, 'ממתין להדרכה');
+    } else {
+      setGuidancePlacement(placement);
+      setGuidanceSummary('');
+      setShowGuidanceModal(true);
+    }
+  };
+
+  // שמירת סיכום ההדרכה + שינוי סטטוס
+  const handleSubmitGuidanceSummary = async (e) => {
+    e.preventDefault();
+    if (!guidanceSummary.trim()) return;
+    
+    setIsSavingGuidance(true);
+    try {
+      // 1. קודם ניצור משימה/תיעוד עם הסיכום
+      await fetch(import.meta.env.VITE_API_URL + '/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          associatedToType: 'placement',
+          associatedToId: guidancePlacement._id,
+          taskType: 'הדרכה',
+          content: `סיכום שיחת הדרכה חודשית:\n${guidanceSummary}`,
+          status: 'published',
+          createdBy: 'צוות הדרכה' 
+        })
+      });
+
+      // 2. עכשיו נעדכן את השיבוץ ל"קיבל הדרכה"
+      await fetch(`${import.meta.env.VITE_API_URL}/api/placements/${guidancePlacement._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guidanceStatus: 'קיבל הדרכה' })
+      });
+
+      fetchData(); // ריענון
+      setShowGuidanceModal(false);
+    } catch (error) {
+      alert('שגיאה בשמירת סיכום ההדרכה');
+    } finally {
+      setIsSavingGuidance(false);
+    }
+  };
+
+  // פונקציית עזר לשינוי ישיר (לביטול הדרכה)
+  const toggleGuidanceStatus = async (placement, newStatus) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/placements/${placement._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ guidanceStatus: newStatus })
       });
-
       if (response.ok) {
         setPlacements(placements.map(p => p._id === placement._id ? { ...p, guidanceStatus: newStatus } : p));
-      } else {
-        alert('שגיאה בעדכון הסטטוס');
       }
     } catch (error) {
       alert('שגיאת תקשורת מול השרת');
@@ -178,7 +244,8 @@ function Placements() {
     }
   };
 
-  const handleDelete = async (placementId) => {
+  const handleDelete = async (placementId, e) => {
+    if(e) e.stopPropagation();
     if (!window.confirm('האם אתה בטוח שברצונך למחוק שיבוץ זה?')) return;
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/placements/${placementId}`, { method: 'DELETE' });
@@ -193,15 +260,8 @@ function Placements() {
     }
   };
 
-  const studentOptions = students.map(s => ({
-    value: s._id,
-    label: `${s.firstName} ${s.lastName}`
-  }));
-
-  const tutorOptions = tutors.map(t => ({
-    value: t._id,
-    label: `${t.firstName} ${t.lastName} ${t.city?.name || t.city ? `(${t.city?.name || t.city})` : ''}`
-  }));
+  const studentOptions = students.map(s => ({ value: s._id, label: `${s.firstName} ${s.lastName}` }));
+  const tutorOptions = tutors.map(t => ({ value: t._id, label: `${t.firstName} ${t.lastName} ${t.city?.name || t.city ? `(${t.city?.name || t.city})` : ''}` }));
 
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: '#2563eb'}} /></Container>;
 
@@ -268,8 +328,9 @@ function Placements() {
       <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <Card.Body className="p-4">
           
-          <div className="mb-4" style={{ maxWidth: '400px' }}>
-            <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden' }}>
+          {/* אזור החיפוש והסינון */}
+          <div className="d-flex flex-column flex-md-row gap-3 mb-4" style={{ maxWidth: '650px' }}>
+            <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden', flex: 2 }}>
               <InputGroup.Text style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
                 <FiSearch color="#94a3b8" />
               </InputGroup.Text>
@@ -280,35 +341,76 @@ function Placements() {
                 style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '10px' }}
               />
             </InputGroup>
+            
+            <Form.Select 
+              className="shadow-sm"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', flex: 1, fontWeight: '600', color: '#475569', padding: '10px' }}
+            >
+              <option value="all">הצג הכל (כולל לא פעילים)</option>
+              <option value="פעיל">🟢 פעילים בלבד</option>
+              <option value="לא פעיל">🔴 לא פעילים בלבד</option>
+            </Form.Select>
           </div>
 
-          <div className="table-responsive">
+          {/* טבלה עם גלילה וכותרת נדבקת */}
+          <div className="table-responsive placement-table-container" style={{ maxHeight: '65vh', overflowY: 'auto', borderRadius: '8px' }}>
             <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}><FiBriefcase className="me-2" /> חונך</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}><FiUser className="me-2" /> תלמיד</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }}><FiCalendar className="me-2" /> תאריך התחלה</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', textAlign: 'center' }}>סטטוס שיבוץ</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', textAlign: 'center' }}>סטטוס הדרכה</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px' }} className="text-end">פעולות</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiBriefcase className="me-2" /> חונך</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiUser className="me-2" /> תלמיד</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiCalendar className="me-2" /> תאריך התחלה</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', textAlign: 'center', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}>סטטוס שיבוץ</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', textAlign: 'center', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}>סטטוס הדרכה</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }} className="text-end">פעולות</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredPlacements.length === 0 ? (
-                  <tr><td colSpan="6" className="text-center py-5 text-muted">לא נמצאו שיבוצים.</td></tr>
+                {displayedPlacements.length === 0 ? (
+                  <tr><td colSpan="6" className="text-center py-5 text-muted">לא נמצאו שיבוצים מתאימים.</td></tr>
                 ) : (
-                  filteredPlacements.map((placement) => {
+                  displayedPlacements.map((placement) => {
                     const isWaitingGuidance = placement.guidanceStatus === 'ממתין להדרכה';
                     const isPlacementActive = placement.status === 'פעיל';
 
                     return (
-                      <tr key={placement._id}>
-                        <td className="fw-bold" style={{ color: '#2563eb', padding: '16px 12px' }}>{placement.tutor ? `${placement.tutor.firstName} ${placement.tutor.lastName}` : 'נמחק'}</td>
-                        <td className="fw-bold" style={{ color: '#0f172a', padding: '16px 12px' }}>{placement.student ? `${placement.student.firstName} ${placement.student.lastName}` : 'נמחק'}</td>
-                        <td style={{ color: '#64748b', padding: '16px 12px' }}>{placement.startDate ? new Date(placement.startDate).toLocaleDateString('he-IL') : '-'}</td>
+                      <tr 
+                        key={placement._id} 
+                        onClick={() => handleOpenDetails(placement)}
+                        style={{ cursor: 'pointer', opacity: isPlacementActive ? 1 : 0.6, transition: 'all 0.2s ease' }}
+                        className="placement-row"
+                      >
+                        {/* קישור לפרופיל החונך */}
+                        <td className="fw-bold" style={{ padding: '10px 12px' }}>
+                          {placement.tutor ? (
+                            <span 
+                              className="profile-link" 
+                              style={{ color: '#2563eb' }}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/tutors/${placement.tutor._id}`); }}
+                            >
+                              {placement.tutor.firstName} {placement.tutor.lastName}
+                            </span>
+                          ) : 'נמחק'}
+                        </td>
                         
-                        <td className="text-center" style={{ padding: '16px 12px' }}>
+                        {/* קישור לפרופיל התלמיד */}
+                        <td className="fw-bold" style={{ padding: '10px 12px' }}>
+                          {placement.student ? (
+                            <span 
+                              className="profile-link" 
+                              style={{ color: '#0f172a' }}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/students/${placement.student._id}`); }}
+                            >
+                              {placement.student.firstName} {placement.student.lastName}
+                            </span>
+                          ) : 'נמחק'}
+                        </td>
+
+                        <td style={{ color: '#64748b', padding: '10px 12px' }}>{placement.startDate ? new Date(placement.startDate).toLocaleDateString('he-IL') : '-'}</td>
+                        
+                        <td className="text-center" style={{ padding: '10px 12px' }}>
                           <span className="rounded-pill d-inline-block text-center" 
                                 style={{ 
                                   padding: '4px 12px', fontSize: '0.85rem', fontWeight: '600', 
@@ -320,14 +422,14 @@ function Placements() {
                           </span>
                         </td>
 
-                        {/* --- כפתור סטטוס ההדרכה החדש --- */}
-                        <td className="text-center" style={{ padding: '16px 12px' }}>
+                        {/* --- כפתור סטטוס הדרכה עם המודל החדש --- */}
+                        <td className="text-center" style={{ padding: '10px 12px' }}>
                           {isPlacementActive ? (
                             <Button 
                               variant={isWaitingGuidance ? 'outline-danger' : 'success'} 
                               size="sm"
                               className="rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-1"
-                              onClick={() => toggleGuidanceStatus(placement)}
+                              onClick={(e) => handleOpenGuidanceModal(e, placement)}
                               style={{ width: '135px', justifyContent: 'center', transition: 'all 0.2s ease', borderWidth: '1px' }}
                             >
                               {isWaitingGuidance ? (
@@ -341,13 +443,13 @@ function Placements() {
                           )}
                         </td>
 
-                        <td className="text-end" style={{ padding: '16px 12px', minWidth: '150px' }}>
+                        <td className="text-end" style={{ padding: '10px 12px', minWidth: '150px' }}>
                           <Button 
                               variant="light" 
                               size="sm" 
                               className="me-2 rounded-pill shadow-sm"
                               style={{ color: '#0284c7', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}
-                              onClick={() => handleOpenDetails(placement)}
+                              onClick={(e) => { e.stopPropagation(); handleOpenDetails(placement); }}
                           >
                             <FiFileText className="me-1" /> פרטים
                           </Button>
@@ -356,7 +458,7 @@ function Placements() {
                               size="sm" 
                               className="rounded-pill shadow-sm" 
                               style={{ color: '#e11d48', backgroundColor: '#fff1f2', border: '1px solid #fecdd3' }}
-                              onClick={() => handleDelete(placement._id)}
+                              onClick={(e) => handleDelete(placement._id, e)}
                           >
                             <FiTrash2 className="me-1" /> מחק
                           </Button>
@@ -371,6 +473,39 @@ function Placements() {
           
         </Card.Body>
       </Card>
+
+      {/* ----------------- מודל סיכום הדרכה ----------------- */}
+      <Modal show={showGuidanceModal} onHide={() => setShowGuidanceModal(false)} dir="rtl" backdrop="static">
+        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>סיכום שיחת הדרכה</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          <p style={{ color: '#475569', fontSize: '0.95rem' }} className="mb-4">
+            על מנת לסמן את החונך כ"קיבל הדרכה", אנא הקלד סיכום קצר של השיחה שהתקיימה. הסיכום יישמר אוטומטית ביומן המשימות תחת תיק השיבוץ.
+          </p>
+          <Form onSubmit={handleSubmitGuidanceSummary}>
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold small" style={{ color: '#64748b' }}>תוכן השיחה / נקודות לשימור ושיפור *</Form.Label>
+              <Form.Control 
+                as="textarea" 
+                rows={4} 
+                required
+                placeholder="החונך הגיע לפגישה וסיפר ש..."
+                value={guidanceSummary}
+                onChange={(e) => setGuidanceSummary(e.target.value)}
+                style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }}
+              />
+            </Form.Group>
+            
+            <div className="d-flex justify-content-end">
+              <Button variant="light" onClick={() => setShowGuidanceModal(false)} className="me-2 rounded-pill" style={{ fontWeight: '600' }}>ביטול</Button>
+              <Button variant="success" type="submit" className="rounded-pill shadow-sm" disabled={isSavingGuidance} style={{ fontWeight: '600' }}>
+                {isSavingGuidance ? <Spinner size="sm" /> : 'שמור סיכום ואשר הדרכה ✔️'}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
 
       {/* מודל יצירת שיבוץ */}
       <Modal show={showAddModal} onHide={handleCloseAdd} size="lg" dir="rtl" backdrop="static">
@@ -595,7 +730,7 @@ function Placements() {
                       </Col>
                   </Row>
                   <div className="d-flex justify-content-between pt-4 mt-2" style={{ borderTop: '1px solid #e2e8f0' }}>
-                      <Button variant="light" className="rounded-pill shadow-sm" style={{ color: '#e11d48', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', padding: '8px 20px', fontWeight: '600' }} onClick={() => handleDelete(selectedPlacement._id)}>
+                      <Button variant="light" className="rounded-pill shadow-sm" style={{ color: '#e11d48', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', padding: '8px 20px', fontWeight: '600' }} onClick={(e) => handleDelete(selectedPlacement._id, e)}>
                           <FiTrash2 className="me-2" /> מחק שיבוץ
                       </Button>
                       <Button variant="primary" className="rounded-pill shadow-sm" style={{ padding: '8px 24px', fontWeight: '600' }} onClick={() => setEditMode(true)}>
@@ -608,7 +743,30 @@ function Placements() {
           </Modal.Body>
         )}
       </Modal>
-
+      
+      {/* עיצוב CSS נוסף לקישורים וגלילה עדינה בטבלה */}
+      <style>{`
+        .placement-row:hover {
+          background-color: #f1f5f9;
+        }
+        .profile-link:hover {
+          text-decoration: underline;
+        }
+        .placement-table-container::-webkit-scrollbar {
+          width: 8px;
+        }
+        .placement-table-container::-webkit-scrollbar-track {
+          background: #f1f5f9; 
+          border-radius: 8px;
+        }
+        .placement-table-container::-webkit-scrollbar-thumb {
+          background: #cbd5e1; 
+          border-radius: 8px;
+        }
+        .placement-table-container::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8; 
+        }
+      `}</style>
     </Container>
   );
 }
