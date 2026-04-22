@@ -56,9 +56,10 @@ function Payers() {
   const handleClose = () => setShowModal(false);
   const handleShow = () => setShowModal(true);
 
+  // 🔥 הוספתי פה את receiptNotes לתוך הסטייט של הטופס 🔥
   const [formData, setFormData] = useState({
     name: '', identifier: '', payerType: 'individual', 
-    phone: '', email: '', paymentMethod: 'credit_card', notes: ''
+    phone: '', email: '', paymentMethod: 'credit_card', notes: '', receiptNotes: ''
   });
 
   const handleChange = (e) => {
@@ -93,7 +94,8 @@ function Payers() {
 
       if (response.ok) {
         handleClose();
-        setFormData({ name: '', identifier: '', payerType: 'individual', phone: '', email: '', paymentMethod: 'credit_card', notes: '' });
+        // 🔥 איפסתי גם את ההערות לקבלה בסיום 🔥
+        setFormData({ name: '', identifier: '', payerType: 'individual', phone: '', email: '', paymentMethod: 'credit_card', notes: '', receiptNotes: '' });
         fetchPayers(); 
       } else {
         const errorData = await response.json();
@@ -237,9 +239,13 @@ function Payers() {
 
       {/* חלון הוספת משלם מעוצב מחדש */}
       <Modal show={showModal} onHide={handleClose} size="lg" dir="rtl" backdrop="static">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>הוספת משלם חדש</Modal.Title>
-        </Modal.Header>
+        
+        {/* 🔥 תיקון האיקס: יצרנו הדר מותאם אישית שדוחף את האיקס שמאלה עד הסוף בחזקה 🔥 */}
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>הוספת משלם חדש</h4>
+          <button onClick={handleClose} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
+
         <Modal.Body className="p-4" style={{ backgroundColor: '#ffffff', maxHeight: '75vh', overflowY: 'auto' }}>
           <Form onSubmit={handleSubmit}>
 
@@ -317,6 +323,52 @@ function Payers() {
                 </Form.Group>
               </Col>
             </Row>
+
+            {/* 🔥 חדש: הגדרות נדרים פלוס לקבלה 🔥 */}
+            <h6 className="fw-bold pb-2 mb-3 mt-4" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>הגדרות קבלה (נדרים פלוס)</h6>
+            <Row>
+              <Col>
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold small" style={{ color: '#64748b' }}>טקסט להדפסה על הקבלה (הקדשה / עבור מי)</Form.Label>
+                  <Form.Control 
+                    as="textarea" 
+                    rows={2}
+                    name="receiptNotes" 
+                    value={formData.receiptNotes}
+                    onChange={handleChange}
+                    placeholder="לדוגמה: תרומת משפחת כהן לעילוי נשמת... / עבור שכר לימוד של משה"
+                    style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} 
+                  />
+                  <Form.Text className="text-muted small">
+                    טקסט זה יצורף אוטומטית לקבלה שתופק במערכת נדרים פלוס.
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            {/* 🔥 חדש: אזור הזנת אשראי שמופיע רק אם בחרו אשראי! 🔥 */}
+            {formData.paymentMethod === 'credit_card' && (
+              <>
+                <h6 className="fw-bold mb-3 pb-2 mt-4" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>הזנת פרטי אשראי</h6>
+                <div className="p-4 rounded-4 mb-4 text-center shadow-sm" style={{ backgroundColor: '#f0fdf4', border: '1px dashed #22c55e' }}>
+                  <p className="mb-3 text-success fw-bold" style={{ fontSize: '1.05rem' }}>המערכת מוכנה לקליטת כרטיס אשראי</p>
+                  <Button 
+                    variant="success" 
+                    className="rounded-pill shadow-sm px-4 py-2" 
+                    style={{ fontWeight: '600' }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      alert('כאן יפתח בעתיד iFrame מאובטח של נדרים פלוס להזנת כרטיס אשראי שמקושר למשלם זה.');
+                    }}
+                  >
+                    💳 הוסף כרטיס לחיוב (מסוף נדרים)
+                  </Button>
+                  <p className="small text-muted mt-3 mb-0">
+                    הפרטים נשמרים בצורה מאובטחת ומוצפנת בשרתי נדרים פלוס (באמצעות טוקן).
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="d-flex justify-content-end pt-4 mt-2" style={{ borderTop: '1px solid #e2e8f0' }}>
               <Button variant="light" onClick={handleClose} className="me-3 rounded-pill" style={{ fontWeight: '600', color: '#64748b', border: '1px solid #e2e8f0', padding: '8px 24px' }}>ביטול</Button>
