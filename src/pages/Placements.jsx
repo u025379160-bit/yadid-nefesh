@@ -330,12 +330,12 @@ function Placements() {
               />
             </InputGroup>
             
-            {/* 🔥 הנה התיקון של החץ ב-Select. הוספנו paddingLeft: '35px' כדי שיישאר מקום לחץ! 🔥 */}
+            {/* 🔥 פה התיקון לחץ! הוספתי המחלקה custom-select-arrow שמרווחת אותו ב-CSS למטה 🔥 */}
             <Form.Select 
               className="shadow-sm custom-select-arrow"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '10px', paddingLeft: '35px' }}
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '10px' }}
             >
               <option value="all">כל השיבוצים</option>
               <option value="פעיל">פעילים בלבד</option>
@@ -376,7 +376,6 @@ function Placements() {
                               style={{ color: '#2563eb' }}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                // 🔥 הניווט תוקן ל- /tutors/ ו- /students/ 🔥
                                 navigate(`/tutors/${placement.tutor._id}`); 
                               }}
                             >
@@ -755,9 +754,10 @@ function Placements() {
         .placement-table-container::-webkit-scrollbar-thumb:hover {
           background: #94a3b8; 
         }
-        /* הסתרת החץ של ה-select במידה ורוצים לעצב לבד, למרות שרוב הדפדפנים מסדרים עם padding */
+        /* 🔥 הפקודה שמתקנת את החץ ב-Select 🔥 */
         .custom-select-arrow {
-          background-position: left 0.75rem center !important;
+          background-position: left 15px center !important;
+          padding-left: 50px !important;
         }
       `}</style>
     </Container>
@@ -765,4 +765,3 @@ function Placements() {
 }
 
 export default Placements;
-```</Routes></Route>
