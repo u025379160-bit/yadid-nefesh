@@ -2,11 +2,11 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 require('dotenv').config(); 
 const express = require('express');
-const csv = require('csv-parser');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const fs = require('fs'); // הוספת מודול קבצים
-const path = require('path'); // הוספת מודול נתיבים
+const fs = require('fs'); 
+const path = require('path'); 
+const XLSX = require('xlsx');
 
 const Student = require('./models/Student');
 const Task = require('./models/Task'); 
@@ -25,12 +25,6 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => console.log('🔴 שגיאה בחיבור:', err));
 
 // ==========================================
-// --- 🏙️ שליפת ערים ורחובות מקבצים מקומיים ---
-// ==========================================
-
-
-
-// ==========================================
 // --- חיבור הראוטרים החיצוניים ---
 // ==========================================
 
@@ -44,7 +38,6 @@ app.use('/api/users', usersRouter);
 // --- 🏙️ שליפת ערים ורחובות מקובץ אקסל ---
 // ==========================================
 
-const XLSX = require('xlsx');
 const EXCEL_FILE_NAME = '9ad3862c-8391-4b2f-84a4-2d4c68625f4b__2026_04_19_03_30_4_254.xlsx';
 
 app.get('/api/geo/cities', (req, res) => {
@@ -61,35 +54,6 @@ app.get('/api/geo/cities', (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "שגיאה בטעינת ערים" });
-  }
-});
-app.get('/api/geo/cities', (req, res) => {
-  try {
-    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
-    const workbook = XLSX.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
-    const cities = [...new Set(data.map(row => row['שם_ישוב']?.toString().trim()))].filter(Boolean).sort();
-    res.json(cities);
-  } catch (err) {
-    res.status(500).json({ error: "שגיאה בטעינת ערים" });
-  }
-});
-
-app.get('/api/geo/streets', (req, res) => {
-  const cityName = req.query.city;
-  try {
-    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
-    const workbook = XLSX.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
-    const streets = data
-      .filter(row => row['שם_ישוב']?.toString().trim() === cityName)
-      .map(row => row['שם_רחוב']?.toString().trim())
-      .filter(Boolean).sort();
-    res.json([...new Set(streets)]);
-  } catch (err) {
-    res.status(500).json({ error: "שגיאה בטעינת רחובות" });
   }
 });
 
