@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col, Badge, ProgressBar } from 'react-bootstrap';
 import { FiSearch, FiPlus, FiBriefcase, FiTrash2, FiFileText, FiUser, FiInfo, FiDollarSign, FiEdit2, FiCalendar, FiAlertCircle, FiCheckCircle, FiShield, FiFilter } from 'react-icons/fi';
 import Select from 'react-select';
-import { useNavigate } from 'react-router-dom'; // 👈 חובה בשביל הקישורים לפרופילים
+import { useNavigate } from 'react-router-dom';
 
 function Placements() {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ function Placements() {
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // סטייט חדש לסינון פעילים
+  const [filterStatus, setFilterStatus] = useState('all'); 
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlacement, setNewPlacement] = useState({
@@ -26,7 +26,6 @@ function Placements() {
   const [selectedPlacement, setSelectedPlacement] = useState(null);
   const [editMode, setEditMode] = useState(false);
 
-  // סטייטים למודל סיכום הדרכה החדש 🔥
   const [showGuidanceModal, setShowGuidanceModal] = useState(false);
   const [guidancePlacement, setGuidancePlacement] = useState(null);
   const [guidanceSummary, setGuidanceSummary] = useState('');
@@ -56,7 +55,6 @@ function Placements() {
     }
   };
 
-  // 🔥 סינון מתקדם + זריקת הלא פעילים למטה 🔥
   let displayedPlacements = placements.filter(placement => {
     const tutorName = placement.tutor ? `${placement.tutor.firstName} ${placement.tutor.lastName}` : '';
     const studentName = placement.student ? `${placement.student.firstName} ${placement.student.lastName}` : '';
@@ -66,24 +64,20 @@ function Placements() {
     return matchesSearch && placement.status === filterStatus;
   });
 
-  // מיון - פעילים קודם, לא פעילים בסוף
   displayedPlacements.sort((a, b) => {
     if (a.status === 'פעיל' && b.status !== 'פעיל') return -1;
     if (a.status !== 'פעיל' && b.status === 'פעיל') return 1;
     return 0;
   });
 
-  // חישובי סטטיסטיקות עבור דאשבורד ההדרכות למעלה
   const activePlacements = placements.filter(p => p.status === 'פעיל');
   const waitingForGuidance = activePlacements.filter(p => p.guidanceStatus === 'ממתין להדרכה');
   const receivedGuidance = activePlacements.filter(p => p.guidanceStatus === 'קיבל הדרכה');
   const percentageCompleted = activePlacements.length === 0 ? 0 : Math.round((receivedGuidance.length / activePlacements.length) * 100);
 
-  // פתיחת מודל סיכום הדרכה מתוך הטבלה
   const handleOpenGuidanceModal = (e, placement) => {
-    e.stopPropagation(); // מונע מהשורה לפתוח את כרטיס השיבוץ הראשי
+    e.stopPropagation(); 
     
-    // אם כבר קיבל הדרכה ורוצים להחזיר אחורה לממתין - מאפשרים ישר בלי מודל
     if (placement.guidanceStatus === 'קיבל הדרכה') {
       toggleGuidanceStatus(placement, 'ממתין להדרכה');
     } else {
@@ -93,14 +87,12 @@ function Placements() {
     }
   };
 
-  // שמירת סיכום ההדרכה + שינוי סטטוס
   const handleSubmitGuidanceSummary = async (e) => {
     e.preventDefault();
     if (!guidanceSummary.trim()) return;
     
     setIsSavingGuidance(true);
     try {
-      // 1. קודם ניצור משימה/תיעוד עם הסיכום
       await fetch(import.meta.env.VITE_API_URL + '/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,14 +106,13 @@ function Placements() {
         })
       });
 
-      // 2. עכשיו נעדכן את השיבוץ ל"קיבל הדרכה"
       await fetch(`${import.meta.env.VITE_API_URL}/api/placements/${guidancePlacement._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ guidanceStatus: 'קיבל הדרכה' })
       });
 
-      fetchData(); // ריענון
+      fetchData(); 
       setShowGuidanceModal(false);
     } catch (error) {
       alert('שגיאה בשמירת סיכום ההדרכה');
@@ -130,7 +121,6 @@ function Placements() {
     }
   };
 
-  // פונקציית עזר לשינוי ישיר (לביטול הדרכה)
   const toggleGuidanceStatus = async (placement, newStatus) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/placements/${placement._id}`, {
@@ -266,9 +256,9 @@ function Placements() {
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: '#2563eb'}} /></Container>;
 
   return (
-    <Container className="mt-5 mb-5" dir="rtl">
+    <Container className="pt-4 pb-2" dir="rtl" style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
       
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-shrink-0">
         <div>
           <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1">ניהול שיבוצים</h2>
           <p style={{ color: '#64748b', fontSize: '1.05rem' }} className="mb-0">מעקב, יצירת חיבורים וניהול הדרכות חונכים</p>
@@ -278,8 +268,7 @@ function Placements() {
         </Button>
       </div>
 
-      {/* --- דאשבורד הדרכות --- */}
-      <Row className="mb-4 g-3">
+      <Row className="mb-4 g-3 flex-shrink-0">
         <Col md={4}>
           <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', borderRadius: '16px' }}>
             <Card.Body className="d-flex align-items-center justify-content-between">
@@ -325,20 +314,19 @@ function Placements() {
         </Col>
       </Row>
 
-      <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-        <Card.Body className="p-4">
+      <Card className="border-0 flex-grow-1" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Card.Body className="p-4 d-flex flex-column" style={{ minHeight: 0 }}>
           
-          {/* אזור החיפוש והסינון */}
-          <div className="d-flex flex-column flex-md-row gap-3 mb-4" style={{ maxWidth: '650px' }}>
+          <div className="d-flex flex-column flex-md-row gap-3 mb-4 flex-shrink-0" style={{ maxWidth: '650px' }}>
             <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden', flex: 2 }}>
-              <InputGroup.Text style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
+              <InputGroup.Text style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
                 <FiSearch color="#94a3b8" />
               </InputGroup.Text>
               <Form.Control
                 placeholder="חיפוש לפי שם חונך או תלמיד..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '10px' }}
+                style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '10px' }}
               />
             </InputGroup>
             
@@ -346,16 +334,15 @@ function Placements() {
               className="shadow-sm"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', flex: 1, fontWeight: '600', color: '#475569', padding: '10px' }}
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '10px' }}
             >
-              <option value="all">הצג הכל (כולל לא פעילים)</option>
-              <option value="פעיל">🟢 פעילים בלבד</option>
-              <option value="לא פעיל">🔴 לא פעילים בלבד</option>
+              <option value="all">כל השיבוצים</option>
+              <option value="פעיל">פעילים בלבד</option>
+              <option value="לא פעיל">לא פעילים (היסטוריה)</option>
             </Form.Select>
           </div>
 
-          {/* טבלה עם גלילה וכותרת נדבקת */}
-          <div className="table-responsive placement-table-container" style={{ maxHeight: '65vh', overflowY: 'auto', borderRadius: '8px' }}>
+          <div className="table-responsive placement-table-container flex-grow-1" style={{ overflowY: 'auto', borderRadius: '8px', minHeight: 0 }}>
             <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
@@ -378,39 +365,46 @@ function Placements() {
                     return (
                       <tr 
                         key={placement._id} 
-                        onClick={() => handleOpenDetails(placement)}
-                        style={{ cursor: 'pointer', opacity: isPlacementActive ? 1 : 0.6, transition: 'all 0.2s ease' }}
+                        style={{ opacity: isPlacementActive ? 1 : 0.6, transition: 'all 0.2s ease' }}
                         className="placement-row"
                       >
-                        {/* קישור לפרופיל החונך */}
-                        <td className="fw-bold" style={{ padding: '10px 12px' }}>
+                        <td className="fw-bold" style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
                           {placement.tutor ? (
                             <span 
                               className="profile-link" 
                               style={{ color: '#2563eb' }}
-                              onClick={(e) => { e.stopPropagation(); navigate(`/tutors/${placement.tutor._id}`); }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                // 👈👈👈 שים לב! אם הלחיצה לא עובדת, תשנה כאן את '/tutor-profile/' למה שכתוב אצלך ב App.jsx! 👈👈👈
+                                navigate(`/tutor-profile/${placement.tutor._id}`); 
+                              }}
                             >
                               {placement.tutor.firstName} {placement.tutor.lastName}
                             </span>
                           ) : 'נמחק'}
                         </td>
                         
-                        {/* קישור לפרופיל התלמיד */}
-                        <td className="fw-bold" style={{ padding: '10px 12px' }}>
+                        <td className="fw-bold" style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
                           {placement.student ? (
                             <span 
                               className="profile-link" 
                               style={{ color: '#0f172a' }}
-                              onClick={(e) => { e.stopPropagation(); navigate(`/students/${placement.student._id}`); }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                // 👈👈👈 שים לב! אם הלחיצה לא עובדת, תשנה כאן את '/student-profile/' למה שכתוב אצלך ב App.jsx! 👈👈👈
+                                navigate(`/student-profile/${placement.student._id}`); 
+                              }}
                             >
                               {placement.student.firstName} {placement.student.lastName}
                             </span>
                           ) : 'נמחק'}
                         </td>
 
-                        <td style={{ color: '#64748b', padding: '10px 12px' }}>{placement.startDate ? new Date(placement.startDate).toLocaleDateString('he-IL') : '-'}</td>
+                        <td style={{ color: '#64748b', padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
+                            {placement.startDate ? new Date(placement.startDate).toLocaleDateString('he-IL') : '-'}
+                        </td>
                         
-                        <td className="text-center" style={{ padding: '10px 12px' }}>
+                        <td className="text-center" style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
                           <span className="rounded-pill d-inline-block text-center" 
                                 style={{ 
                                   padding: '4px 12px', fontSize: '0.85rem', fontWeight: '600', 
@@ -422,7 +416,6 @@ function Placements() {
                           </span>
                         </td>
 
-                        {/* --- כפתור סטטוס הדרכה עם המודל החדש --- */}
                         <td className="text-center" style={{ padding: '10px 12px' }}>
                           {isPlacementActive ? (
                             <Button 
@@ -474,7 +467,6 @@ function Placements() {
         </Card.Body>
       </Card>
 
-      {/* ----------------- מודל סיכום הדרכה ----------------- */}
       <Modal show={showGuidanceModal} onHide={() => setShowGuidanceModal(false)} dir="rtl" backdrop="static">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>סיכום שיחת הדרכה</Modal.Title>
@@ -507,7 +499,6 @@ function Placements() {
         </Modal.Body>
       </Modal>
 
-      {/* מודל יצירת שיבוץ */}
       <Modal show={showAddModal} onHide={handleCloseAdd} size="lg" dir="rtl" backdrop="static">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>יצירת שיבוץ חדש</Modal.Title>
@@ -584,7 +575,6 @@ function Placements() {
         </Modal.Body>
       </Modal>
 
-      {/* מודל פרטים / עריכה */}
       <Modal show={showDetailsModal} onHide={handleCloseDetails} size="lg" dir="rtl">
         <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>
@@ -744,7 +734,6 @@ function Placements() {
         )}
       </Modal>
       
-      {/* עיצוב CSS נוסף לקישורים וגלילה עדינה בטבלה */}
       <style>{`
         .placement-row:hover {
           background-color: #f1f5f9;
