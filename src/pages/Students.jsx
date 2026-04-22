@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Table, Button, Form, InputGroup, Modal, Row, Col, Spinner, Badge } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiFilter, FiCalendar } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiUser, FiFileText, FiTrash2, FiLock, FiPlusCircle, FiMinusCircle, FiCalendar } from 'react-icons/fi';
 
 function Students() {
   const navigate = useNavigate();
@@ -106,16 +106,55 @@ function Students() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 👇 פונקציית הקסם להמרת תאריך לועזי לעברי בזמן אמת 👇
+  // 👇 הוספנו פונקציית עזר שהופכת מספר (5786) לאותיות (תשפ"ו) 👇
+  const numberToHebrewYear = (year) => {
+    let n = year % 1000;
+    let str = '';
+    if (n >= 400) { str += 'ת'; n -= 400; }
+    if (n >= 400) { str += 'ת'; n -= 400; }
+    if (n >= 300) { str += 'ש'; n -= 300; }
+    if (n >= 200) { str += 'ר'; n -= 200; }
+    if (n >= 100) { str += 'ק'; n -= 100; }
+    
+    if (n === 15) { str += 'טו'; n = 0; }
+    else if (n === 16) { str += 'טז'; n = 0; }
+    else {
+      if (n >= 90) { str += 'צ'; n -= 90; }
+      if (n >= 80) { str += 'פ'; n -= 80; }
+      if (n >= 70) { str += 'ע'; n -= 70; }
+      if (n >= 60) { str += 'ס'; n -= 60; }
+      if (n >= 50) { str += 'נ'; n -= 50; }
+      if (n >= 40) { str += 'מ'; n -= 40; }
+      if (n >= 30) { str += 'ל'; n -= 30; }
+      if (n >= 20) { str += 'כ'; n -= 20; }
+      if (n >= 10) { str += 'י'; n -= 10; }
+    }
+    
+    const units = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+    str += units[n];
+    
+    if (str.length === 1) return str + "'";
+    return str.slice(0, -1) + '"' + str.slice(-1);
+  };
+
   const getHebrewDate = (gregorianDateStr) => {
     if (!gregorianDateStr) return '';
     try {
       const date = new Date(gregorianDateStr);
-      return new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
+      let formatted = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', {
         day: 'numeric',
         month: 'long',
         year: 'numeric'
       }).format(date);
+      
+      // תופס את המספר (למשל 5786) ומחליף אותו באותיות (תשפ"ו)
+      const yearMatch = formatted.match(/\d{4}/);
+      if (yearMatch) {
+        const numYear = parseInt(yearMatch[0], 10);
+        const hebrewYear = numberToHebrewYear(numYear);
+        formatted = formatted.replace(yearMatch[0], hebrewYear);
+      }
+      return formatted;
     } catch (error) {
       return '';
     }
@@ -316,7 +355,6 @@ function Students() {
               <Col md={2}><Form.Group className="mb-3"><Form.Label className="fw-bold small" style={{ color: '#64748b' }}>שם משפחה *</Form.Label><Form.Control type="text" name="lastName" required value={formData.lastName} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
               <Col md={3}><Form.Group className="mb-3"><Form.Label className="fw-bold small text-danger" title="שדה זה יישמר כמוצפן במסד הנתונים"><FiLock className="me-1"/> תעודת זהות *</Form.Label><Form.Control type="text" name="idNumber" required value={formData.idNumber} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#fff5f5', border: '1px solid #fecaca' }} /></Form.Group></Col>
               
-              {/* 👇 פה הקסם קורה: קובייה לועזית וקובייה עברית צמודות 👇 */}
               <Col md={5}>
                 <Form.Label className="fw-bold small text-danger d-block"><FiCalendar className="me-1"/> תאריך לידה *</Form.Label>
                 <div className="d-flex gap-2">
