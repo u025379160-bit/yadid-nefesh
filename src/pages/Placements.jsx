@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col, Badge, ProgressBar } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiBriefcase, FiTrash2, FiFileText, FiUser, FiInfo, FiDollarSign, FiEdit2, FiCalendar, FiAlertCircle, FiCheckCircle, FiShield, FiFilter } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiBriefcase, FiTrash2, FiFileText, FiUser, FiInfo, FiDollarSign, FiEdit2, FiCalendar, FiAlertCircle, FiCheckCircle, FiShield } from 'react-icons/fi';
 import Select from 'react-select';
 import { useNavigate } from 'react-router-dom';
 
@@ -330,11 +330,12 @@ function Placements() {
               />
             </InputGroup>
             
+            {/* 🔥 הנה התיקון של החץ ב-Select. הוספנו paddingLeft: '35px' כדי שיישאר מקום לחץ! 🔥 */}
             <Form.Select 
-              className="shadow-sm"
+              className="shadow-sm custom-select-arrow"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '10px' }}
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '10px', paddingLeft: '35px' }}
             >
               <option value="all">כל השיבוצים</option>
               <option value="פעיל">פעילים בלבד</option>
@@ -375,8 +376,8 @@ function Placements() {
                               style={{ color: '#2563eb' }}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                // 👈👈👈 שים לב! אם הלחיצה לא עובדת, תשנה כאן את '/tutor-profile/' למה שכתוב אצלך ב App.jsx! 👈👈👈
-                                navigate(`/tutor-profile/${placement.tutor._id}`); 
+                                // 🔥 הניווט תוקן ל- /tutors/ ו- /students/ 🔥
+                                navigate(`/tutors/${placement.tutor._id}`); 
                               }}
                             >
                               {placement.tutor.firstName} {placement.tutor.lastName}
@@ -391,8 +392,7 @@ function Placements() {
                               style={{ color: '#0f172a' }}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                // 👈👈👈 שים לב! אם הלחיצה לא עובדת, תשנה כאן את '/student-profile/' למה שכתוב אצלך ב App.jsx! 👈👈👈
-                                navigate(`/student-profile/${placement.student._id}`); 
+                                navigate(`/students/${placement.student._id}`); 
                               }}
                             >
                               {placement.student.firstName} {placement.student.lastName}
@@ -755,9 +755,14 @@ function Placements() {
         .placement-table-container::-webkit-scrollbar-thumb:hover {
           background: #94a3b8; 
         }
+        /* הסתרת החץ של ה-select במידה ורוצים לעצב לבד, למרות שרוב הדפדפנים מסדרים עם padding */
+        .custom-select-arrow {
+          background-position: left 0.75rem center !important;
+        }
       `}</style>
     </Container>
   );
 }
 
 export default Placements;
+```</Routes></Route>
