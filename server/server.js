@@ -2,8 +2,11 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 require('dotenv').config(); 
 const express = require('express');
+const csv = require('csv-parser');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const fs = require('fs'); // הוספת מודול קבצים
+const path = require('path'); // הוספת מודול נתיבים
 
 const Student = require('./models/Student');
 const Task = require('./models/Task'); 
@@ -22,6 +25,42 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => console.log('🔴 שגיאה בחיבור:', err));
 
 // ==========================================
+// --- 🏙️ שליפת ערים ורחובות מקבצים מקומיים ---
+// ==========================================
+
+// נתיב לשליפת כל הערים מהקובץ שהעלית
+app.get('/api/geo/cities', (req, res) => {
+  try {
+    const citiesPath = path.join(__dirname, 'data', 'cities.json');
+    if (!fs.existsSync(citiesPath)) return res.json(["ירושלים", "בני ברק", "בית שמש"]); // גיבוי אם הקובץ חסר
+    const data = fs.readFileSync(citiesPath, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (err) {
+    res.status(500).json({ error: "שגיאה בטעינת ערים" });
+  }
+});
+
+// נתיב לשליפת רחובות לפי עיר מהקובץ המאוחד
+app.get('/api/geo/streets', (req, res) => {
+  try {
+    const cityName = req.query.city;
+    if (!cityName) return res.status(400).json({ error: "חובה לציין עיר" });
+
+    const streetsPath = path.join(__dirname, 'data', 'streets.json');
+    if (!fs.existsSync(streetsPath)) return res.json([]);
+    
+    const data = fs.readFileSync(streetsPath, 'utf8');
+    const allStreets = JSON.parse(data);
+    
+    // מחזיר את רשימת הרחובות של העיר הספציפית
+    const cityStreets = allStreets[cityName] || [];
+    res.json(cityStreets);
+  } catch (err) {
+    res.status(500).json({ error: "שגיאה בטעינת רחובות" });
+  }
+});
+
+// ==========================================
 // --- חיבור הראוטרים החיצוניים ---
 // ==========================================
 
@@ -30,6 +69,40 @@ app.use('/api/payers', payersRouter);
 
 const usersRouter = require('./routes/users');
 app.use('/api/users', usersRouter);
+
+// ==========================================
+// --- 🏙️ שליפת ערים ורחובות ישירות מה-CSV ---
+// ==========================================
+
+const CSV_FILE_NAME = '9ad3862c-8391-4b2f-84a4-2d4c68625f4b__2026_04_19_03_30_4_254.csv';
+
+app.get('/api/geo/cities', (req, res) => {
+  const cities = new Set();
+  const filePath = path.join(__dirname, 'data', CSV_FILE_NAME);
+  if (!fs.existsSync(filePath)) return res.json(["ירושלים", "בני ברק", "בית שמש"]);
+  
+  fs.createReadStream(filePath)
+    .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
+    .on('data', (row) => { if (row['שם_ישוב']) cities.add(row['שם_ישוב'].trim()); })
+    .on('end', () => res.json(Array.from(cities).sort()))
+    .on('error', () => res.status(500).json({ error: "שגיאה בטעינה" }));
+});
+
+app.get('/api/geo/streets', (req, res) => {
+  const cityName = req.query.city;
+  const streets = new Set();
+  const filePath = path.join(__dirname, 'data', CSV_FILE_NAME);
+  if (!cityName) return res.status(400).json({ error: "עיר חסרה" });
+
+  fs.createReadStream(filePath)
+    .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
+    .on('data', (row) => {
+      if (row['שם_ישוב'] && row['שם_ישוב'].trim() === cityName) {
+        if (row['שם_רחוב']) streets.add(row['שם_רחוב'].trim());
+      }
+    })
+    .on('end', () => res.json(Array.from(streets).sort()));
+});
 
 // ==========================================
 // --- ניהול תלמידים ---
@@ -238,7 +311,6 @@ app.post('/api/placements', async (req, res) => {
     const newPlacement = new Placement(placementData);
     await newPlacement.save();
 
-    // 🔥 הקפצת משימת הדרכה אוטומטית לרכז! (שלב 3) 🔥
     const autoTask = new Task({
       title: '🚨 שיבוץ חדש - ממתין להדרכה!',
       taskType: 'הדרכה',
@@ -302,7 +374,6 @@ app.put('/api/placements/:id', async (req, res) => {
     
     res.json(updatedPlacement);
   } catch (error) {
-    console.error('שגיאה בעדכון השיבוץ:', error);
     res.status(500).json({ message: 'שגיאת שרת בעדכון השיבוץ' });
   }
 });
@@ -327,7 +398,6 @@ app.get('/api/scholarships', async (req, res) => {
 
     res.status(200).json(scholarships);
   } catch (err) {
-    console.error('שגיאה בשליפת מלגות:', err);
     res.status(500).json({ error: 'שגיאה בשליפת המלגות' });
   }
 });
@@ -397,7 +467,6 @@ app.post('/api/scholarships/generate', async (req, res) => {
     res.status(201).json({ message: 'המלגות נוצרו בהצלחה', count: newScholarships.length });
 
   } catch (err) {
-    console.error('שגיאה ביצירת מלגות:', err);
     res.status(500).json({ error: 'שגיאה בתהליך החישוב של המלגות' });
   }
 });
@@ -428,7 +497,7 @@ app.put('/api/scholarships/:id', async (req, res) => {
     const billingExists = await BillingRecord.findOne({ month: scholarshipToUpdate.month });
     if (billingExists) {
       return res.status(403).json({ 
-        error: 'נעול: לא ניתן לשנות מלגה לחודש זה מכיוון שכבר נוצרה עבורו טבלת גבייה. עדכונים יצטרכו לחכות לחודש הבא.' 
+        error: 'נעול: לא ניתן לשנות מלגה לחודש זה מכיוון שכבר נוצרה עבורו טבלת גבייה.' 
       });
     }
 
@@ -440,7 +509,6 @@ app.put('/api/scholarships/:id', async (req, res) => {
     
     res.status(200).json(updatedScholarship);
   } catch (err) {
-    console.error('שגיאה בעדכון מלגה:', err);
     res.status(500).json({ error: 'שגיאה בעדכון המלגה' });
   }
 });
@@ -466,7 +534,6 @@ app.get('/api/billing', async (req, res) => {
 
     res.status(200).json(records);
   } catch (err) {
-    console.error('שגיאה בשליפת חיובים:', err);
     res.status(500).json({ error: 'שגיאה בשליפת נתוני הגבייה' });
   }
 });
@@ -535,7 +602,6 @@ app.post('/api/billing/generate', async (req, res) => {
     res.status(201).json({ message: 'טבלת הגבייה נוצרה בהצלחה', count: newRecords.length });
 
   } catch (err) {
-    console.error('שגיאה ביצירת הגבייה:', err);
     res.status(500).json({ error: 'שגיאה בתהליך יצירת החיובים' });
   }
 });
@@ -569,7 +635,6 @@ app.put('/api/billing/:id', async (req, res) => {
     if (!updatedBilling) return res.status(404).json({ error: 'רשומת חיוב לא נמצאה' });
     res.status(200).json(updatedBilling);
   } catch (err) {
-    console.error('שגיאה בעדכון חיוב:', err);
     res.status(500).json({ error: 'שגיאה בעדכון החיוב' });
   }
 });
@@ -600,7 +665,6 @@ app.post('/api/ivr/auth', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("IVR Auth Error:", error);
     res.status(500).json({ status: "error", message: "Server error" });
   }
 });
@@ -608,29 +672,22 @@ app.post('/api/ivr/auth', async (req, res) => {
 app.post('/api/ivr/report-hours', async (req, res) => {
   try {
     const { tutor_id, date, start_time, end_time } = req.body;
-    
-    console.log(`התקבל דיווח שעות מחונך ${tutor_id}: מ-${start_time} עד ${end_time}`);
-
     return res.json({
       status: "success",
       message: "Hours saved successfully"
     });
   } catch (error) {
-    console.error("IVR Report Error:", error);
     res.status(500).json({ status: "error", message: "Server error" });
   }
 });
 
 app.post('/api/ivr/scholarship-balance', async (req, res) => {
   try {
-    const { tutor_id } = req.body;
-    
     return res.json({
       status: "success",
       balance_to_say: "1500" 
     });
   } catch (error) {
-    console.error("IVR Balance Error:", error);
     res.status(500).json({ status: "error", message: "Server error" });
   }
 });
@@ -640,7 +697,7 @@ app.post('/api/ivr/scholarship-balance', async (req, res) => {
 const Settings = require('./models/Settings');
 const cron = require('node-cron');
 
-// שליפת הגדרות (המערכת תיצור מסמך ברירת מחדל אם אין)
+// שליפת הגדרות
 app.get('/api/settings', async (req, res) => {
   try {
     let settings = await Settings.findOne();
@@ -654,7 +711,7 @@ app.get('/api/settings', async (req, res) => {
   }
 });
 
-// עדכון הגדרות (הוספה/הסרה של תאריכים)
+// עדכון הגדרות
 app.put('/api/settings', async (req, res) => {
   try {
     let settings = await Settings.findOne();
@@ -672,36 +729,26 @@ app.put('/api/settings', async (req, res) => {
 
 // 🔥 משימה מתוזמנת: רצה כל יום ב-08:00 בבוקר 🔥
 cron.schedule('0 8 * * *', async () => {
-  console.log('⏰ בודק אם יש משימות הדרכה להקפיץ היום...');
-  
   try {
     const settings = await Settings.findOne();
     if (!settings || !settings.guidanceAlertDates || settings.guidanceAlertDates.length === 0) return;
 
-    // בודק מה התאריך של היום בפורמט YYYY-MM-DD
     const today = new Date().toISOString().split('T')[0];
 
-    // אם היום נמצא ברשימת התאריכים שהמנהל הגדיר
     if (settings.guidanceAlertDates.includes(today)) {
-      console.log('✅ נמצא תאריך יעד! מייצר משימות אוטומטיות...');
-
-      // שולף את כל השיבוצים הפעילים שדורשים הדרכה חודשית
       const activePlacements = await Placement.find({ 
         status: 'פעיל', 
         requireMonthlyGuidance: true 
       });
 
       for (const placement of activePlacements) {
-        // משנה את הסטטוס חזרה ל"ממתין להדרכה"
         placement.guidanceStatus = 'ממתין להדרכה';
         await placement.save();
 
-        // מייצר את המשימה האדומה לרכז
-        const Task = require('./models/Task');
         const autoTask = new Task({
           title: '🚨 תזכורת חודשית - שיבוץ ממתין להדרכה!',
           taskType: 'הדרכה',
-          content: 'הגיע התאריך החודשי שהוגדר מראש. חובה לבצע שיחת הדרכה עם החונך ולסמן V בסטטוס השיבוץ.',
+          content: 'חובה לבצע שיחת הדרכה עם החונך ולסמן V בסטטוס השיבוץ.',
           urgency: 'דחוף',
           placementId: placement._id,
           studentId: placement.student,
@@ -711,10 +758,9 @@ cron.schedule('0 8 * * *', async () => {
         });
         await autoTask.save();
       }
-      console.log(`נוצרו משימות עבור ${activePlacements.length} שיבוצים.`);
     }
   } catch (err) {
-    console.error('שגיאה בהרצת ה-Cron Job:', err);
+    console.error('שגיאה ב-Cron Job:', err);
   }
 });
 
