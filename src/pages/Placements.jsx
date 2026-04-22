@@ -13,6 +13,7 @@ function Placements() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); 
+  const [filterGuidance, setFilterGuidance] = useState('all'); // 🔥 הסטייט החדש לסינון ההדרכות
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlacement, setNewPlacement] = useState({
@@ -55,13 +56,16 @@ function Placements() {
     }
   };
 
+  // 🔥 כאן הוספנו את החיתוך החדש לפי סטטוס הדרכה
   let displayedPlacements = placements.filter(placement => {
     const tutorName = placement.tutor ? `${placement.tutor.firstName} ${placement.tutor.lastName}` : '';
     const studentName = placement.student ? `${placement.student.firstName} ${placement.student.lastName}` : '';
     const matchesSearch = tutorName.includes(searchTerm) || studentName.includes(searchTerm);
     
-    if (filterStatus === 'all') return matchesSearch;
-    return matchesSearch && placement.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || placement.status === filterStatus;
+    const matchesGuidance = filterGuidance === 'all' || placement.guidanceStatus === filterGuidance;
+
+    return matchesSearch && matchesStatus && matchesGuidance;
   });
 
   displayedPlacements.sort((a, b) => {
@@ -258,56 +262,57 @@ function Placements() {
   return (
     <Container className="pt-4 pb-2" dir="rtl" style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
       
-      <div className="d-flex justify-content-between align-items-center mb-4 flex-shrink-0">
+      <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
         <div>
-          <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1">ניהול שיבוצים</h2>
-          <p style={{ color: '#64748b', fontSize: '1.05rem' }} className="mb-0">מעקב, יצירת חיבורים וניהול הדרכות חונכים</p>
+          <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1 fs-3">ניהול שיבוצים</h2>
+          <p style={{ color: '#64748b', fontSize: '0.95rem' }} className="mb-0">מעקב, יצירת חיבורים וניהול הדרכות</p>
         </div>
         <Button variant="primary" className="d-flex align-items-center gap-2 px-4 py-2 rounded-pill shadow-sm" style={{ fontWeight: '600' }} onClick={handleOpenAdd}>
           <FiPlus size={18} /> שיבוץ חדש
         </Button>
       </div>
 
-      <Row className="mb-4 g-3 flex-shrink-0">
+      {/* 🔥 כאן הקטנו את הכרטיסיות: p-3 במקום p-4, ואייקונים קטנים יותר 🔥 */}
+      <Row className="mb-3 g-3 flex-shrink-0">
         <Col md={4}>
-          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', borderRadius: '16px' }}>
-            <Card.Body className="d-flex align-items-center justify-content-between">
+          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', borderRadius: '12px' }}>
+            <Card.Body className="d-flex align-items-center justify-content-between p-3">
               <div>
-                <p className="text-danger fw-bold mb-1 small">ממתינים להדרכה</p>
-                <h3 className="fw-bold text-danger mb-0">{waitingForGuidance.length} שיבוצים</h3>
+                <p className="text-danger fw-bold mb-0 small">ממתינים להדרכה</p>
+                <h4 className="fw-bold text-danger mb-0 mt-1">{waitingForGuidance.length} שיבוצים</h4>
               </div>
-              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px', backgroundColor: '#fee2e2' }}>
-                <FiAlertCircle size={24} className="text-danger" />
+              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '42px', height: '42px', backgroundColor: '#fee2e2' }}>
+                <FiAlertCircle size={20} className="text-danger" />
               </div>
             </Card.Body>
           </Card>
         </Col>
 
         <Col md={4}>
-          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
-            <Card.Body className="d-flex align-items-center justify-content-between">
+          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px' }}>
+            <Card.Body className="d-flex align-items-center justify-content-between p-3">
               <div>
-                <p className="text-success fw-bold mb-1 small">קיבלו הדרכה החודש</p>
-                <h3 className="fw-bold text-success mb-0">{receivedGuidance.length} חונכים</h3>
+                <p className="text-success fw-bold mb-0 small">קיבלו הדרכה החודש</p>
+                <h4 className="fw-bold text-success mb-0 mt-1">{receivedGuidance.length} חונכים</h4>
               </div>
-              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px', backgroundColor: '#dcfce7' }}>
-                <FiCheckCircle size={24} className="text-success" />
+              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '42px', height: '42px', backgroundColor: '#dcfce7' }}>
+                <FiCheckCircle size={20} className="text-success" />
               </div>
             </Card.Body>
           </Card>
         </Col>
 
         <Col md={4}>
-          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '16px' }}>
-            <Card.Body className="d-flex flex-column justify-content-center">
+          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
+            <Card.Body className="d-flex flex-column justify-content-center p-3">
               <div className="d-flex justify-content-between align-items-end mb-2">
-                <span className="fw-bold text-muted small"><FiShield className="me-1"/> יעד חודשי (הדרכות)</span>
-                <span className="fw-bold fs-5">{percentageCompleted}%</span>
+                <span className="fw-bold text-muted small"><FiShield className="me-1"/> יעד (הדרכות)</span>
+                <span className="fw-bold fs-6">{percentageCompleted}%</span>
               </div>
               <ProgressBar 
                 now={percentageCompleted} 
                 variant={percentageCompleted < 50 ? 'danger' : percentageCompleted < 80 ? 'warning' : 'success'} 
-                style={{ height: '8px', borderRadius: '10px' }} 
+                style={{ height: '6px', borderRadius: '10px' }} 
               />
             </Card.Body>
           </Card>
@@ -315,9 +320,9 @@ function Placements() {
       </Row>
 
       <Card className="border-0 flex-grow-1" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <Card.Body className="p-4 d-flex flex-column" style={{ minHeight: 0 }}>
+        <Card.Body className="p-3 d-flex flex-column" style={{ minHeight: 0 }}>
           
-          <div className="d-flex flex-column flex-md-row gap-3 mb-4 flex-shrink-0" style={{ maxWidth: '650px' }}>
+          <div className="d-flex flex-column flex-md-row gap-2 mb-3 flex-shrink-0" style={{ maxWidth: '850px' }}>
             <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden', flex: 2 }}>
               <InputGroup.Text style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
                 <FiSearch color="#94a3b8" />
@@ -326,20 +331,31 @@ function Placements() {
                 placeholder="חיפוש לפי שם חונך או תלמיד..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '10px' }}
+                style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '8px' }}
               />
             </InputGroup>
             
-            {/* 🔥 פה התיקון לחץ! הוספתי המחלקה custom-select-arrow שמרווחת אותו ב-CSS למטה 🔥 */}
             <Form.Select 
               className="shadow-sm custom-select-arrow"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '10px' }}
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '8px' }}
             >
               <option value="all">כל השיבוצים</option>
               <option value="פעיל">פעילים בלבד</option>
               <option value="לא פעיל">לא פעילים (היסטוריה)</option>
+            </Form.Select>
+
+            {/* 🔥 הוספנו את התיבה החדשה לסינון ההדרכות! 🔥 */}
+            <Form.Select 
+              className="shadow-sm custom-select-arrow"
+              value={filterGuidance}
+              onChange={(e) => setFilterGuidance(e.target.value)}
+              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '8px' }}
+            >
+              <option value="all">כל ההדרכות</option>
+              <option value="ממתין להדרכה">🔴 ממתינים להדרכה</option>
+              <option value="קיבל הדרכה">🟢 קיבלו הדרכה</option>
             </Form.Select>
           </div>
 
@@ -376,7 +392,8 @@ function Placements() {
                               style={{ color: '#2563eb' }}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                navigate(`/tutors/${placement.tutor._id}`); 
+                                // 🔥 הניווט תוקן ל- /tutor/ (יחיד) בהתאם לקובץ הראוטים שלך! 🔥
+                                navigate(`/tutor/${placement.tutor._id}`); 
                               }}
                             >
                               {placement.tutor.firstName} {placement.tutor.lastName}
@@ -391,7 +408,8 @@ function Placements() {
                               style={{ color: '#0f172a' }}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                navigate(`/students/${placement.student._id}`); 
+                                // 🔥 הניווט תוקן ל- /student/ (יחיד) בהתאם לקובץ הראוטים שלך! 🔥
+                                navigate(`/student/${placement.student._id}`); 
                               }}
                             >
                               {placement.student.firstName} {placement.student.lastName}
