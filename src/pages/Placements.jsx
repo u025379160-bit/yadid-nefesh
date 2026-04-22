@@ -13,7 +13,7 @@ function Placements() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); 
-  const [filterGuidance, setFilterGuidance] = useState('all'); // 🔥 הסטייט החדש לסינון ההדרכות
+  const [filterGuidance, setFilterGuidance] = useState('all');
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlacement, setNewPlacement] = useState({
@@ -56,7 +56,6 @@ function Placements() {
     }
   };
 
-  // 🔥 כאן הוספנו את החיתוך החדש לפי סטטוס הדרכה
   let displayedPlacements = placements.filter(placement => {
     const tutorName = placement.tutor ? `${placement.tutor.firstName} ${placement.tutor.lastName}` : '';
     const studentName = placement.student ? `${placement.student.firstName} ${placement.student.lastName}` : '';
@@ -260,115 +259,116 @@ function Placements() {
   if (loading) return <Container className="mt-5 text-center"><Spinner animation="border" style={{color: '#2563eb'}} /></Container>;
 
   return (
-    <Container className="pt-4 pb-2" dir="rtl" style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
+    // 🔥 ביטלנו את ה-Flexbox המורכב שעשה בעיות בגלילה. פשוט פריסה רגילה עם שוליים.
+    <Container className="pt-4 pb-4" dir="rtl">
       
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-1 fs-3">ניהול שיבוצים</h2>
-          <p style={{ color: '#64748b', fontSize: '0.95rem' }} className="mb-0">מעקב, יצירת חיבורים וניהול הדרכות</p>
+          <h2 style={{ color: '#0f172a', fontWeight: '800', letterSpacing: '-0.5px' }} className="mb-0 fs-4">ניהול שיבוצים</h2>
         </div>
-        <Button variant="primary" className="d-flex align-items-center gap-2 px-4 py-2 rounded-pill shadow-sm" style={{ fontWeight: '600' }} onClick={handleOpenAdd}>
-          <FiPlus size={18} /> שיבוץ חדש
+        <Button variant="primary" className="d-flex align-items-center gap-2 px-3 py-1 rounded-pill shadow-sm" style={{ fontWeight: '600', fontSize: '0.9rem' }} onClick={handleOpenAdd}>
+          <FiPlus size={16} /> שיבוץ חדש
         </Button>
       </div>
 
-      {/* 🔥 כאן הקטנו את הכרטיסיות: p-3 במקום p-4, ואייקונים קטנים יותר 🔥 */}
-      <Row className="mb-3 g-3 flex-shrink-0">
+      {/* 🔥 הקטנו את הדאשבורד משמעותית! padding מזערי, אייקונים קטנים יותר, טקסט קומפקטי. */}
+      <Row className="mb-3 g-2">
         <Col md={4}>
-          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', borderRadius: '12px' }}>
-            <Card.Body className="d-flex align-items-center justify-content-between p-3">
+          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#fff5f5', border: '1px solid #fecaca', borderRadius: '10px' }}>
+            <Card.Body className="d-flex align-items-center justify-content-between p-2 px-3">
               <div>
-                <p className="text-danger fw-bold mb-0 small">ממתינים להדרכה</p>
-                <h4 className="fw-bold text-danger mb-0 mt-1">{waitingForGuidance.length} שיבוצים</h4>
+                <p className="text-danger fw-bold mb-0" style={{ fontSize: '0.8rem' }}>ממתינים להדרכה</p>
+                <h5 className="fw-bold text-danger mb-0 mt-1">{waitingForGuidance.length} שיבוצים</h5>
               </div>
-              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '42px', height: '42px', backgroundColor: '#fee2e2' }}>
-                <FiAlertCircle size={20} className="text-danger" />
+              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', backgroundColor: '#fee2e2' }}>
+                <FiAlertCircle size={18} className="text-danger" />
               </div>
             </Card.Body>
           </Card>
         </Col>
 
         <Col md={4}>
-          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px' }}>
-            <Card.Body className="d-flex align-items-center justify-content-between p-3">
+          <Card className="border-0 shadow-sm h-100" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px' }}>
+            <Card.Body className="d-flex align-items-center justify-content-between p-2 px-3">
               <div>
-                <p className="text-success fw-bold mb-0 small">קיבלו הדרכה החודש</p>
-                <h4 className="fw-bold text-success mb-0 mt-1">{receivedGuidance.length} חונכים</h4>
+                <p className="text-success fw-bold mb-0" style={{ fontSize: '0.8rem' }}>קיבלו הדרכה החודש</p>
+                <h5 className="fw-bold text-success mb-0 mt-1">{receivedGuidance.length} חונכים</h5>
               </div>
-              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '42px', height: '42px', backgroundColor: '#dcfce7' }}>
-                <FiCheckCircle size={20} className="text-success" />
+              <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px', backgroundColor: '#dcfce7' }}>
+                <FiCheckCircle size={18} className="text-success" />
               </div>
             </Card.Body>
           </Card>
         </Col>
 
         <Col md={4}>
-          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-            <Card.Body className="d-flex flex-column justify-content-center p-3">
-              <div className="d-flex justify-content-between align-items-end mb-2">
-                <span className="fw-bold text-muted small"><FiShield className="me-1"/> יעד (הדרכות)</span>
-                <span className="fw-bold fs-6">{percentageCompleted}%</span>
+          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '10px' }}>
+            <Card.Body className="d-flex flex-column justify-content-center p-2 px-3">
+              <div className="d-flex justify-content-between align-items-end mb-1">
+                <span className="fw-bold text-muted" style={{ fontSize: '0.8rem' }}><FiShield className="me-1"/> יעד (הדרכות)</span>
+                <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{percentageCompleted}%</span>
               </div>
               <ProgressBar 
                 now={percentageCompleted} 
                 variant={percentageCompleted < 50 ? 'danger' : percentageCompleted < 80 ? 'warning' : 'success'} 
-                style={{ height: '6px', borderRadius: '10px' }} 
+                style={{ height: '5px', borderRadius: '10px' }} 
               />
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      <Card className="border-0 flex-grow-1" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <Card.Body className="p-3 d-flex flex-column" style={{ minHeight: 0 }}>
+      <Card className="border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+        <Card.Body className="p-3">
           
-          <div className="d-flex flex-column flex-md-row gap-2 mb-3 flex-shrink-0" style={{ maxWidth: '850px' }}>
-            <InputGroup className="shadow-sm" style={{ borderRadius: '12px', overflow: 'hidden', flex: 2 }}>
+          {/* 🔥 הוסר האימוג'י, נשאר טקסט נקי ומקצועי. פאנל חיפוש קומפקטי. */}
+          <div className="d-flex flex-column flex-md-row gap-2 mb-3" style={{ maxWidth: '850px' }}>
+            <InputGroup style={{ borderRadius: '10px', overflow: 'hidden', flex: 2 }}>
               <InputGroup.Text style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: 'none' }}>
-                <FiSearch color="#94a3b8" />
+                <FiSearch color="#94a3b8" size={16} />
               </InputGroup.Text>
               <Form.Control
                 placeholder="חיפוש לפי שם חונך או תלמיד..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '8px' }}
+                style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRight: 'none', boxShadow: 'none', padding: '6px' }}
               />
             </InputGroup>
             
             <Form.Select 
-              className="shadow-sm custom-select-arrow"
+              className="custom-select-arrow"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '8px' }}
+              style={{ borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '6px' }}
             >
               <option value="all">כל השיבוצים</option>
               <option value="פעיל">פעילים בלבד</option>
               <option value="לא פעיל">לא פעילים (היסטוריה)</option>
             </Form.Select>
 
-            {/* 🔥 הוספנו את התיבה החדשה לסינון ההדרכות! 🔥 */}
             <Form.Select 
-              className="shadow-sm custom-select-arrow"
+              className="custom-select-arrow"
               value={filterGuidance}
               onChange={(e) => setFilterGuidance(e.target.value)}
-              style={{ borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '8px' }}
+              style={{ borderRadius: '10px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flex: 1, fontWeight: '600', color: '#475569', padding: '6px' }}
             >
               <option value="all">כל ההדרכות</option>
-              <option value="ממתין להדרכה">🔴 ממתינים להדרכה</option>
-              <option value="קיבל הדרכה">🟢 קיבלו הדרכה</option>
+              <option value="ממתין להדרכה">ממתינים להדרכה</option>
+              <option value="קיבל הדרכה">קיבלו הדרכה</option>
             </Form.Select>
           </div>
 
-          <div className="table-responsive placement-table-container flex-grow-1" style={{ overflowY: 'auto', borderRadius: '8px', minHeight: 0 }}>
+          {/* 🔥 הפתרון המוחלט לגלילה! קבענו maxHeight קבוע שמחושב לפי גודל המסך, ככה הטבלה תמיד תגלול כמו שצריך! 🔥 */}
+          <div className="table-responsive placement-table-container" style={{ maxHeight: 'calc(100vh - 320px)', overflowY: 'auto', borderRadius: '8px' }}>
             <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiBriefcase className="me-2" /> חונך</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiUser className="me-2" /> תלמיד</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiCalendar className="me-2" /> תאריך התחלה</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', textAlign: 'center', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}>סטטוס שיבוץ</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', textAlign: 'center', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}>סטטוס הדרכה</th>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '12px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }} className="text-end">פעולות</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiBriefcase className="me-2" /> חונך</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiUser className="me-2" /> תלמיד</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiCalendar className="me-2" /> תאריך התחלה</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', textAlign: 'center', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}>סטטוס שיבוץ</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', textAlign: 'center', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}>סטטוס הדרכה</th>
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }} className="text-end">פעולות</th>
                 </tr>
               </thead>
               <tbody>
@@ -385,14 +385,13 @@ function Placements() {
                         style={{ opacity: isPlacementActive ? 1 : 0.6, transition: 'all 0.2s ease' }}
                         className="placement-row"
                       >
-                        <td className="fw-bold" style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
+                        <td className="fw-bold" style={{ padding: '8px 10px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
                           {placement.tutor ? (
                             <span 
                               className="profile-link" 
                               style={{ color: '#2563eb' }}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                // 🔥 הניווט תוקן ל- /tutor/ (יחיד) בהתאם לקובץ הראוטים שלך! 🔥
                                 navigate(`/tutor/${placement.tutor._id}`); 
                               }}
                             >
@@ -401,14 +400,13 @@ function Placements() {
                           ) : 'נמחק'}
                         </td>
                         
-                        <td className="fw-bold" style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
+                        <td className="fw-bold" style={{ padding: '8px 10px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
                           {placement.student ? (
                             <span 
                               className="profile-link" 
                               style={{ color: '#0f172a' }}
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                // 🔥 הניווט תוקן ל- /student/ (יחיד) בהתאם לקובץ הראוטים שלך! 🔥
                                 navigate(`/student/${placement.student._id}`); 
                               }}
                             >
@@ -417,14 +415,14 @@ function Placements() {
                           ) : 'נמחק'}
                         </td>
 
-                        <td style={{ color: '#64748b', padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
+                        <td style={{ color: '#64748b', padding: '8px 10px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
                             {placement.startDate ? new Date(placement.startDate).toLocaleDateString('he-IL') : '-'}
                         </td>
                         
-                        <td className="text-center" style={{ padding: '10px 12px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
+                        <td className="text-center" style={{ padding: '8px 10px', cursor: 'pointer' }} onClick={() => handleOpenDetails(placement)}>
                           <span className="rounded-pill d-inline-block text-center" 
                                 style={{ 
-                                  padding: '4px 12px', fontSize: '0.85rem', fontWeight: '600', 
+                                  padding: '4px 12px', fontSize: '0.8rem', fontWeight: '600', 
                                   backgroundColor: isPlacementActive ? '#d1fae5' : '#f1f5f9', 
                                   color: isPlacementActive ? '#059669' : '#64748b',
                                   border: `1px solid ${isPlacementActive ? '#a7f3d0' : '#e2e8f0'}`
@@ -433,14 +431,14 @@ function Placements() {
                           </span>
                         </td>
 
-                        <td className="text-center" style={{ padding: '10px 12px' }}>
+                        <td className="text-center" style={{ padding: '8px 10px' }}>
                           {isPlacementActive ? (
                             <Button 
                               variant={isWaitingGuidance ? 'outline-danger' : 'success'} 
                               size="sm"
                               className="rounded-pill fw-bold shadow-sm d-inline-flex align-items-center gap-1"
                               onClick={(e) => handleOpenGuidanceModal(e, placement)}
-                              style={{ width: '135px', justifyContent: 'center', transition: 'all 0.2s ease', borderWidth: '1px' }}
+                              style={{ width: '135px', justifyContent: 'center', transition: 'all 0.2s ease', borderWidth: '1px', fontSize: '0.85rem' }}
                             >
                               {isWaitingGuidance ? (
                                 <><FiAlertCircle size={14} /> דורש הדרכה</>
@@ -453,7 +451,7 @@ function Placements() {
                           )}
                         </td>
 
-                        <td className="text-end" style={{ padding: '10px 12px', minWidth: '150px' }}>
+                        <td className="text-end" style={{ padding: '8px 10px', minWidth: '150px' }}>
                           <Button 
                               variant="light" 
                               size="sm" 
@@ -772,7 +770,6 @@ function Placements() {
         .placement-table-container::-webkit-scrollbar-thumb:hover {
           background: #94a3b8; 
         }
-        /* 🔥 הפקודה שמתקנת את החץ ב-Select 🔥 */
         .custom-select-arrow {
           background-position: left 15px center !important;
           padding-left: 50px !important;
