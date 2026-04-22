@@ -28,37 +28,7 @@ mongoose.connect(process.env.MONGO_URI)
 // --- 🏙️ שליפת ערים ורחובות מקבצים מקומיים ---
 // ==========================================
 
-// נתיב לשליפת כל הערים מהקובץ שהעלית
-app.get('/api/geo/cities', (req, res) => {
-  try {
-    const citiesPath = path.join(__dirname, 'data', 'cities.json');
-    if (!fs.existsSync(citiesPath)) return res.json(["ירושלים", "בני ברק", "בית שמש"]); // גיבוי אם הקובץ חסר
-    const data = fs.readFileSync(citiesPath, 'utf8');
-    res.json(JSON.parse(data));
-  } catch (err) {
-    res.status(500).json({ error: "שגיאה בטעינת ערים" });
-  }
-});
 
-// נתיב לשליפת רחובות לפי עיר מהקובץ המאוחד
-app.get('/api/geo/streets', (req, res) => {
-  try {
-    const cityName = req.query.city;
-    if (!cityName) return res.status(400).json({ error: "חובה לציין עיר" });
-
-    const streetsPath = path.join(__dirname, 'data', 'streets.json');
-    if (!fs.existsSync(streetsPath)) return res.json([]);
-    
-    const data = fs.readFileSync(streetsPath, 'utf8');
-    const allStreets = JSON.parse(data);
-    
-    // מחזיר את רשימת הרחובות של העיר הספציפית
-    const cityStreets = allStreets[cityName] || [];
-    res.json(cityStreets);
-  } catch (err) {
-    res.status(500).json({ error: "שגיאה בטעינת רחובות" });
-  }
-});
 
 // ==========================================
 // --- חיבור הראוטרים החיצוניים ---
@@ -71,37 +41,77 @@ const usersRouter = require('./routes/users');
 app.use('/api/users', usersRouter);
 
 // ==========================================
-// --- 🏙️ שליפת ערים ורחובות ישירות מה-CSV ---
+// --- 🏙️ שליפת ערים ורחובות מקובץ אקסל ---
 // ==========================================
 
-// שנה את השורה הזו ב-server.js לשם המדויק מהתמונה
-const CSV_FILE_NAME = '9ad3862c-8391-4b2f-84a4-2d4c68625f4b__2026_04_19_03_30_4_254.xlsx';
+const XLSX = require('xlsx');
+const EXCEL_FILE_NAME = '9ad3862c-8391-4b2f-84a4-2d4c68625f4b__2026_04_19_03_30_4_254.xlsx';
+
 app.get('/api/geo/cities', (req, res) => {
-  const cities = new Set();
-  const filePath = path.join(__dirname, 'data', CSV_FILE_NAME);
-  if (!fs.existsSync(filePath)) return res.json(["ירושלים", "בני ברק", "בית שמש"]);
-  
-  fs.createReadStream(filePath)
-    .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
-    .on('data', (row) => { if (row['שם_ישוב']) cities.add(row['שם_ישוב'].trim()); })
-    .on('end', () => res.json(Array.from(cities).sort()))
-    .on('error', () => res.status(500).json({ error: "שגיאה בטעינה" }));
+  try {
+    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "קובץ לא נמצא" });
+
+    const workbook = XLSX.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+    
+    const cities = [...new Set(data.map(row => row['שם_ישוב']?.toString().trim()))].filter(Boolean).sort();
+    res.json(cities);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "שגיאה בטעינת ערים" });
+  }
+});
+app.get('/api/geo/cities', (req, res) => {
+  try {
+    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
+    const workbook = XLSX.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+    const cities = [...new Set(data.map(row => row['שם_ישוב']?.toString().trim()))].filter(Boolean).sort();
+    res.json(cities);
+  } catch (err) {
+    res.status(500).json({ error: "שגיאה בטעינת ערים" });
+  }
 });
 
 app.get('/api/geo/streets', (req, res) => {
   const cityName = req.query.city;
-  const streets = new Set();
-  const filePath = path.join(__dirname, 'data', CSV_FILE_NAME);
+  try {
+    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
+    const workbook = XLSX.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+    const streets = data
+      .filter(row => row['שם_ישוב']?.toString().trim() === cityName)
+      .map(row => row['שם_רחוב']?.toString().trim())
+      .filter(Boolean).sort();
+    res.json([...new Set(streets)]);
+  } catch (err) {
+    res.status(500).json({ error: "שגיאה בטעינת רחובות" });
+  }
+});
+
+app.get('/api/geo/streets', (req, res) => {
+  const cityName = req.query.city;
   if (!cityName) return res.status(400).json({ error: "עיר חסרה" });
 
-  fs.createReadStream(filePath)
-    .pipe(csv({ mapHeaders: ({ header }) => header.trim() }))
-    .on('data', (row) => {
-      if (row['שם_ישוב'] && row['שם_ישוב'].trim() === cityName) {
-        if (row['שם_רחוב']) streets.add(row['שם_רחוב'].trim());
-      }
-    })
-    .on('end', () => res.json(Array.from(streets).sort()));
+  try {
+    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
+    const workbook = XLSX.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    const streets = data
+      .filter(row => row['שם_ישוב']?.toString().trim() === cityName)
+      .map(row => row['שם_רחוב']?.toString().trim())
+      .filter(Boolean).sort();
+      
+    res.json([...new Set(streets)]);
+  } catch (err) {
+    res.status(500).json({ error: "שגיאה בטעינת רחובות" });
+  }
 });
 
 // ==========================================
