@@ -10,7 +10,6 @@ import {
   FiLock,
   FiPlusCircle,
   FiMinusCircle,
-  FiFilter,
   FiCalendar,
   FiMapPin
 } from 'react-icons/fi';
@@ -27,24 +26,28 @@ function Students() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // מאגר ערים ורחובות דינמי ממאגר הממשלתי
-  const [cities, setCities] = useState([]);
+  // מאגר ערים ורחובות - התחלה עם רשימה קבועה כדי למנוע דף ריק
+  const [cities, setCities] = useState([
+    "ירושלים", "בני ברק", "בית שמש", "אלעד", "מודיעין עילית", "ביתר עילית", "צפת", "אשדוד", "תל אביב-יפו"
+  ]);
   const [streets, setStreets] = useState([]);
   const [isSearchingStreets, setIsSearchingStreets] = useState(false);
 
   useEffect(() => {
     fetchStudentsAndData();
 
-    // טעינת רשימת כל הערים בישראל בטעינה ראשונה מהמאגר הממשלתי
+    // ניסיון להעשיר את רשימת הערים מהמאגר הממשלתי (בלי לחסום את התצוגה)
     fetch('https://data.gov.il/api/3/action/datastore_search?resource_id=5c78e9f6-323a-4d3b-9864-299f36c4de32&limit=2000')
       .then(res => res.json())
       .then(data => {
-        const sortedCities = data.result.records
-          .map(r => r.שם_ישוב.trim())
-          .sort((a, b) => a.localeCompare(b, 'he'));
-        setCities(sortedCities);
+        if (data.result && data.result.records) {
+          const allCities = data.result.records
+            .map(r => r.שם_ישוב.trim())
+            .sort((a, b) => a.localeCompare(b, 'he'));
+          setCities(allCities);
+        }
       })
-      .catch(err => console.error("שגיאה בטעינת ערים", err));
+      .catch(err => console.error("שגיאה בטעינת ערים חיצונית, משתמש ברשימה מקומית", err));
 
     return () => {
       document.body.classList.remove('modal-open');
@@ -74,7 +77,6 @@ function Students() {
     }
   };
 
-  // פונקציה לשליפת רחובות לפי עיר נבחרת
   const fetchStreets = useCallback((cityName) => {
     if (!cityName) return;
     setIsSearchingStreets(true);
@@ -141,12 +143,14 @@ function Students() {
 
     if (name === 'city') {
       fetchStreets(value);
-      updatedData.street = ''; // איפוס רחוב בעת החלפת עיר
+      updatedData.street = '';
+      // מיקוד אוטומטי בסיסי
+      if (value === "ירושלים") updatedData.zipCode = "91000";
+      if (value === "בני ברק") updatedData.zipCode = "51000";
     }
     setFormData(updatedData);
   };
 
-  // פונקציות עזר לגימטריה ותאריך עברי נשמרות
   const numberToGematria = (num) => {
     let n = num > 1000 ? num % 1000 : num;
     let str = '';
@@ -367,10 +371,10 @@ function Students() {
               <Col md={3}>
                 <Form.Group>
                   <Form.Label className="small fw-bold text-primary"><FiMapPin className="me-1"/>עיר *</Form.Label>
-                  <Form.Control as="select" name="city" value={formData.city} onChange={handleChange} style={{ borderRadius: '8px', border: '2px solid #2563eb' }}>
+                  <Form.Select name="city" value={formData.city} onChange={handleChange} style={{ borderRadius: '8px', border: '2px solid #2563eb' }}>
                     <option value="">-- בחר עיר --</option>
                     {cities.map((city, i) => <option key={i} value={city}>{city}</option>)}
-                  </Form.Control>
+                  </Form.Select>
                 </Form.Group>
               </Col>
               <Col md={4}>
