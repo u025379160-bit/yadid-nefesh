@@ -35,7 +35,7 @@ const usersRouter = require('./routes/users');
 app.use('/api/users', usersRouter);
 
 // ==========================================
-// --- 🏙️ שליפת ערים ורחובות מקובץ אקסל ---
+// --- 🏙️ שליפת ערים ורחובות מקובץ אקסל (הגרסה החסינה) ---
 // ==========================================
 
 const EXCEL_FILE_NAME = 'cities.xlsx';
@@ -50,15 +50,22 @@ app.get('/api/geo/cities', (req, res) => {
         const data = XLSX.utils.sheet_to_json(sheet);
 
         const cities = [...new Set(data.map(row => {
-            const line = Object.values(row)[0] || '';
-            const parts = line.split(',');
-            return parts[1] ? parts[1].replace('(יישוב)', '').trim() : null;
+            try {
+                const firstColumnValue = Object.values(row)[0] || '';
+                const line = String(firstColumnValue);
+                
+                if (line.includes(',')) {
+                    const parts = line.split(',');
+                    return parts[1] ? parts[1].replace('(יישוב)', '').trim() : null;
+                }
+                return row['שם_ישוב'] || row['City'] || null;
+            } catch (e) { return null; }
         }))].filter(Boolean).sort();
 
         res.json(cities);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "שגיאה בטעינת ערים" });
+        console.error("Error in Cities Route:", err);
+        res.status(500).json({ error: "שגיאה פנימית בשרת" });
     }
 });
 
@@ -72,24 +79,34 @@ app.get('/api/geo/streets', (req, res) => {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(sheet);
 
-        const streets = data
-            .map(row => {
-                const line = Object.values(row)[0] || '';
-                const parts = line.split(',');
-                const cityInRow = parts[1] ? parts[1].replace('(יישוב)', '').trim() : '';
-                const streetName = parts[3] ? parts[3].trim() : '';
+        const streets = data.map(row => {
+            try {
+                const firstColumnValue = Object.values(row)[0] || '';
+                const line = String(firstColumnValue);
+                
+                let cityInRow = '';
+                let streetName = '';
+
+                if (line.includes(',')) {
+                    const parts = line.split(',');
+                    cityInRow = parts[1] ? parts[1].replace('(יישוב)', '').trim() : '';
+                    streetName = parts[3] ? parts[3].trim() : '';
+                } else {
+                    cityInRow = (row['שם_ישוב'] || '').replace('(יישוב)', '').trim();
+                    streetName = (row['שם_רחוב'] || '').trim();
+                }
                 
                 return cityInRow === cityName ? streetName : null;
-            })
-            .filter(Boolean)
-            .sort();
+            } catch (e) { return null; }
+        }).filter(Boolean).sort();
 
         res.json([...new Set(streets)]);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "שגיאה בטעינת רחובות" });
+        console.error("Error in Streets Route:", err);
+        res.status(500).json({ error: "שגיאה פנימית" });
     }
 });
+
 // ==========================================
 // --- ניהול תלמידים ---
 // ==========================================
