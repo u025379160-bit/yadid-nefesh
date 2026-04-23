@@ -35,7 +35,7 @@ const usersRouter = require('./routes/users');
 app.use('/api/users', usersRouter);
 
 // ==========================================
-// --- 🏙️ שליפת ערים ורחובות מקובץ אקסל (הגרסה החסינה) ---
+// --- 🏙️ שליפת ערים ורחובות מקובץ אקסל (הגרסה החכמה) ---
 // ==========================================
 
 const EXCEL_FILE_NAME = 'cities.xlsx';
@@ -51,14 +51,18 @@ app.get('/api/geo/cities', (req, res) => {
 
         const cities = [...new Set(data.map(row => {
             try {
-                const firstColumnValue = Object.values(row)[0] || '';
-                const line = String(firstColumnValue);
-                
-                if (line.includes(',')) {
-                    const parts = line.split(',');
+                const values = Object.values(row);
+                if (values.length === 0) return null;
+                const firstVal = String(values[0]);
+
+                // אם זה הקובץ המבולגן עם הפסיקים
+                if (firstVal.includes(',')) {
+                    const parts = firstVal.split(',');
                     return parts[1] ? parts[1].replace('(יישוב)', '').trim() : null;
                 }
-                return row['שם_ישוב'] || row['City'] || null;
+                
+                // אם זה הקובץ הנקי (עמודות נפרדות)
+                return (row['שם_ישוב'] || row['City'] || firstVal).replace('(יישוב)', '').trim();
             } catch (e) { return null; }
         }))].filter(Boolean).sort();
 
@@ -81,19 +85,19 @@ app.get('/api/geo/streets', (req, res) => {
 
         const streets = data.map(row => {
             try {
-                const firstColumnValue = Object.values(row)[0] || '';
-                const line = String(firstColumnValue);
+                const values = Object.values(row);
+                const firstVal = String(values[0]);
                 
                 let cityInRow = '';
                 let streetName = '';
 
-                if (line.includes(',')) {
-                    const parts = line.split(',');
+                if (firstVal.includes(',')) {
+                    const parts = firstVal.split(',');
                     cityInRow = parts[1] ? parts[1].replace('(יישוב)', '').trim() : '';
                     streetName = parts[3] ? parts[3].trim() : '';
                 } else {
-                    cityInRow = (row['שם_ישוב'] || '').replace('(יישוב)', '').trim();
-                    streetName = (row['שם_רחוב'] || '').trim();
+                    cityInRow = String(row['שם_ישוב'] || values[0] || '').replace('(יישוב)', '').trim();
+                    streetName = String(row['שם_רחוב'] || values[1] || '').trim();
                 }
                 
                 return cityInRow === cityName ? streetName : null;
