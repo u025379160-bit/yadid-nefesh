@@ -38,7 +38,7 @@ app.use('/api/users', usersRouter);
 // --- 🏙️ שליפת ערים ורחובות מקובץ אקסל ---
 // ==========================================
 
-const EXCEL_FILE_NAME = '9ad3862c-8391-4b2f-84a4-2d4c68625f4b__2026_04_19_03_30_4_254.xlsx';
+const EXCEL_FILE_NAME = 'cities.xlsx';
 
 app.get('/api/geo/cities', (req, res) => {
   try {
