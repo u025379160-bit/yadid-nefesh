@@ -41,43 +41,55 @@ app.use('/api/users', usersRouter);
 const EXCEL_FILE_NAME = 'cities.xlsx';
 
 app.get('/api/geo/cities', (req, res) => {
-  try {
-    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "קובץ לא נמצא" });
+    try {
+        const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
+        if (!fs.existsSync(filePath)) return res.status(404).json({ error: "קובץ לא נמצא" });
 
-    const workbook = XLSX.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
-    
-    const cities = [...new Set(data.map(row => row['שם_ישוב']?.toString().trim()))].filter(Boolean).sort();
-    res.json(cities);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "שגיאה בטעינת ערים" });
-  }
+        const workbook = XLSX.readFile(filePath);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet);
+
+        const cities = [...new Set(data.map(row => {
+            const line = Object.values(row)[0] || '';
+            const parts = line.split(',');
+            return parts[1] ? parts[1].replace('(יישוב)', '').trim() : null;
+        }))].filter(Boolean).sort();
+
+        res.json(cities);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "שגיאה בטעינת ערים" });
+    }
 });
 
 app.get('/api/geo/streets', (req, res) => {
-  const cityName = req.query.city;
-  if (!cityName) return res.status(400).json({ error: "עיר חסרה" });
+    const cityName = req.query.city;
+    if (!cityName) return res.status(400).json({ error: "חסר שם עיר" });
 
-  try {
-    const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
-    const workbook = XLSX.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
+    try {
+        const filePath = path.join(__dirname, 'data', EXCEL_FILE_NAME);
+        const workbook = XLSX.readFile(filePath);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet);
 
-    const streets = data
-      .filter(row => row['שם_ישוב']?.toString().trim() === cityName)
-      .map(row => row['שם_רחוב']?.toString().trim())
-      .filter(Boolean).sort();
-      
-    res.json([...new Set(streets)]);
-  } catch (err) {
-    res.status(500).json({ error: "שגיאה בטעינת רחובות" });
-  }
+        const streets = data
+            .map(row => {
+                const line = Object.values(row)[0] || '';
+                const parts = line.split(',');
+                const cityInRow = parts[1] ? parts[1].replace('(יישוב)', '').trim() : '';
+                const streetName = parts[3] ? parts[3].trim() : '';
+                
+                return cityInRow === cityName ? streetName : null;
+            })
+            .filter(Boolean)
+            .sort();
+
+        res.json([...new Set(streets)]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "שגיאה בטעינת רחובות" });
+    }
 });
-
 // ==========================================
 // --- ניהול תלמידים ---
 // ==========================================
