@@ -35,7 +35,7 @@ function Students() {
   useEffect(() => {
     fetchStudentsAndData();
 
-    // שליפת רשימת הערים מהשרת שלך (מה-CSV)
+    // שליפת רשימת הערים מהשרת שלך (מה-CSV/Excel)
     fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
       .then(res => res.json())
       .then(data => {
@@ -151,6 +151,22 @@ function Students() {
     }
     setFormData(updatedData);
   };
+
+  // --- הפונקציות החדשות שמונעות הקלדה שגויה (אימות ביציאה מהשדה) ---
+  const handleCityBlur = () => {
+    if (formData.city && !cities.includes(formData.city)) {
+      // אם מה שהוקלד לא קיים במאגר, ננקה את השדה ונכריח אותו לבחור מהרשימה
+      setFormData(prev => ({ ...prev, city: '', street: '', zipCode: '' }));
+    }
+  };
+
+  const handleStreetBlur = () => {
+    if (formData.street && !streets.includes(formData.street)) {
+      // אם מה שהוקלד לא קיים במאגר הרחובות של העיר, ננקה את שדה הרחוב
+      setFormData(prev => ({ ...prev, street: '' }));
+    }
+  };
+  // ------------------------------------------------------------------
 
   const numberToGematria = (num) => {
     let n = num > 1000 ? num % 1000 : num;
@@ -359,6 +375,8 @@ function Students() {
                   <Form.Label className="small fw-bold">מוסד לימודי</Form.Label>
                   <Form.Select name="institute" value={formData.institute} onChange={handleChange} style={{ borderRadius: '8px' }}>
                     <option value="">-- בחר מוסד --</option>
+                    <option value="ישיבת חברון">ישיבת חברון</option>
+                    <option value="ישיבת מיר">ישיבת מיר</option>
                     <option value="אחר">אחר</option>
                   </Form.Select>
                 </Form.Group>
@@ -373,9 +391,11 @@ function Students() {
                   <Form.Control 
                     list="cities-datalist" 
                     name="city" 
-                    placeholder="הקלד שם עיר..." 
+                    placeholder="הקלד ובחר עיר..." 
                     value={formData.city} 
                     onChange={handleChange} 
+                    onBlur={handleCityBlur}
+                    autoComplete="off"
                     style={{ borderRadius: '8px', border: '2px solid #2563eb' }} 
                   />
                   <datalist id="cities-datalist">
@@ -389,9 +409,11 @@ function Students() {
                   <Form.Control 
                     list="streets-datalist" 
                     name="street" 
-                    placeholder="הקלד שם רחוב..." 
+                    placeholder="הקלד ובחר רחוב..." 
                     value={formData.street} 
                     onChange={handleChange} 
+                    onBlur={handleStreetBlur}
+                    autoComplete="off"
                     style={{ borderRadius: '8px' }} 
                     disabled={!formData.city}
                   />
