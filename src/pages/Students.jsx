@@ -359,8 +359,6 @@ function Students() {
                   <Form.Label className="small fw-bold">מוסד לימודי</Form.Label>
                   <Form.Select name="institute" value={formData.institute} onChange={handleChange} style={{ borderRadius: '8px' }}>
                     <option value="">-- בחר מוסד --</option>
-                    <option value="ישיבת חברון">ישיבת חברון</option>
-                    <option value="ישיבת מיר">ישיבת מיר</option>
                     <option value="אחר">אחר</option>
                   </Form.Select>
                 </Form.Group>
@@ -372,10 +370,17 @@ function Students() {
               <Col md={3}>
                 <Form.Group>
                   <Form.Label className="small fw-bold text-primary"><FiMapPin className="me-1"/>עיר *</Form.Label>
-                  <Form.Select name="city" value={formData.city} onChange={handleChange} style={{ borderRadius: '8px', border: '2px solid #2563eb' }}>
-                    <option value="">-- בחר עיר --</option>
-                    {cities.map((city, i) => <option key={i} value={city}>{city}</option>)}
-                  </Form.Select>
+                  <Form.Control 
+                    list="cities-datalist" 
+                    name="city" 
+                    placeholder="הקלד שם עיר..." 
+                    value={formData.city} 
+                    onChange={handleChange} 
+                    style={{ borderRadius: '8px', border: '2px solid #2563eb' }} 
+                  />
+                  <datalist id="cities-datalist">
+                    {cities.map((city, i) => <option key={i} value={city} />)}
+                  </datalist>
                 </Form.Group>
               </Col>
               <Col md={4}>
