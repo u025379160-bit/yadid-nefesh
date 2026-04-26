@@ -97,7 +97,6 @@ function StudentProfile() {
         const studentData = await studentRes.json();
         setStudent(studentData);
 
-        // שליפה מ-API חינמי כדי להמיר תאריך לידה לעברי
         if (studentData.birthDate) {
           const d = new Date(studentData.birthDate);
           fetch(`https://www.hebcal.com/converter?cfg=json&gy=${d.getFullYear()}&gm=${d.getMonth() + 1}&gd=${d.getDate()}&g2h=1`)
@@ -127,7 +126,6 @@ function StudentProfile() {
   useEffect(() => {
     fetchData();
     
-    // שליפת רשימת הערים ברגע פתיחת המסך
     fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
       .then(res => res.json())
       .then(data => {
@@ -136,7 +134,6 @@ function StudentProfile() {
       .catch(err => console.error("שגיאה בטעינת ערים:", err));
   }, [id]);
 
-  // פונקציה לשליפת רחובות
   const fetchStreetsFromServer = useCallback(async (cityName) => {
     if (!cityName) {
       setStreets([]);
@@ -353,28 +350,7 @@ function StudentProfile() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    let updatedData = { ...formData, [name]: value };
-
-    if (name === 'city') {
-      fetchStreetsFromServer(value);
-      updatedData.street = ''; // איפוס הרחוב בעת החלפת עיר
-      if (value.includes("ירושלים")) updatedData.zipCode = "91000";
-      if (value.includes("בני ברק")) updatedData.zipCode = "51000";
-    }
-    setFormData(updatedData);
-  };
-
-  // בדיקות אימות לעיר ורחוב ביציאה מהשדה
-  const handleCityBlur = () => {
-    if (formData.city && !cities.includes(formData.city)) {
-      setFormData(prev => ({ ...prev, city: '', street: '', zipCode: '' }));
-    }
-  };
-
-  const handleStreetBlur = () => {
-    if (formData.street && !streets.includes(formData.street)) {
-      setFormData(prev => ({ ...prev, street: '' }));
-    }
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleAddContact = () => {
@@ -398,7 +374,6 @@ function StudentProfile() {
   const handleUpdateStudent = async (e) => {
     e.preventDefault();
     
-    // יצירת כתובת מלאה ושליחת כל הנתונים, בדומה למסך הקודם
     const fullAddress = `${formData.street || ''} ${formData.houseNumber || ''}`.trim();
     const dataToSend = { ...formData, address: fullAddress };
 
@@ -785,7 +760,6 @@ function StudentProfile() {
         </Col>
       </Row>
 
-      {/* --- חלון עריכת פרטי תלמיד --- */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="xl" dir="rtl" backdrop="static">
         <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
           <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>עריכת פרטי תלמיד מלאים</h4>
@@ -928,38 +902,62 @@ function StudentProfile() {
               <Col md={3}>
                 <Form.Group>
                   <Form.Label className="small fw-bold text-primary"><FiMapPin className="me-1"/>עיר *</Form.Label>
-                  <Form.Control 
-                    list="cities-datalist" 
-                    name="city" 
-                    placeholder="הקלד ובחר עיר..." 
-                    value={formData.city || ''} 
-                    onChange={handleChange} 
-                    onBlur={handleCityBlur}
-                    autoComplete="off"
-                    style={{ borderRadius: '8px', border: '2px solid #2563eb', backgroundColor: '#f8fafc' }} 
+                  <Select
+                    options={cities.map(city => ({ value: city, label: city }))}
+                    value={formData.city ? { value: formData.city, label: formData.city } : null}
+                    onChange={(selected) => {
+                      const cityName = selected ? selected.value : '';
+                      let newZip = formData.zipCode;
+                      
+                      if (cityName === "ירושלים") newZip = "91000";
+                      if (cityName === "בני ברק") newZip = "51000";
+
+                      setFormData(prev => ({ ...prev, city: cityName, street: '', zipCode: newZip }));
+                      
+                      if (cityName) {
+                        fetchStreetsFromServer(cityName);
+                      } else {
+                        setStreets([]);
+                      }
+                    }}
+                    placeholder="חפש עיר..."
+                    isSearchable
+                    isClearable
+                    isRtl
+                    noOptionsMessage={() => "לא נמצאה עיר"}
+                    menuPortalTarget={document.body}
+                    styles={{ 
+                      menuPortal: base => ({ ...base, zIndex: 9999 }), 
+                      control: base => ({ ...base, borderRadius: '8px', border: '2px solid #2563eb', backgroundColor: '#f8fafc' }) 
+                    }}
                   />
-                  <datalist id="cities-datalist">
-                    {cities.map((city, i) => <option key={i} value={city} />)}
-                  </datalist>
                 </Form.Group>
               </Col>
+              
               <Col md={4}>
                 <Form.Group>
-                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>רחוב * {isSearchingStreets && <Spinner size="sm" animation="border" />}</Form.Label>
-                  <Form.Control 
-                    list="streets-datalist" 
-                    name="street" 
-                    placeholder="הקלד ובחר רחוב..." 
-                    value={formData.street || ''} 
-                    onChange={handleChange} 
-                    onBlur={handleStreetBlur}
-                    autoComplete="off"
-                    style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} 
-                    disabled={!formData.city}
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>
+                    רחוב * {isSearchingStreets && <Spinner size="sm" animation="border" className="ms-2" />}
+                  </Form.Label>
+                  <Select
+                    options={streets.map(street => ({ value: street, label: street }))}
+                    value={formData.street ? { value: formData.street, label: formData.street } : null}
+                    onChange={(selected) => {
+                      setFormData(prev => ({ ...prev, street: selected ? selected.value : '' }));
+                    }}
+                    placeholder="חפש רחוב..."
+                    isSearchable
+                    isClearable
+                    isRtl
+                    isDisabled={!formData.city || isSearchingStreets}
+                    isLoading={isSearchingStreets}
+                    noOptionsMessage={() => "לא נמצאו רחובות"}
+                    menuPortalTarget={document.body}
+                    styles={{ 
+                      menuPortal: base => ({ ...base, zIndex: 9999 }), 
+                      control: base => ({ ...base, borderRadius: '8px', backgroundColor: '#f8fafc' }) 
+                    }}
                   />
-                  <datalist id="streets-datalist">
-                    {streets.map((s, i) => <option key={i} value={s} />)}
-                  </datalist>
                 </Form.Group>
               </Col>
               <Col md={2}>
