@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col } from 'react-bootstrap';
 import { FiSearch, FiPlus, FiUserCheck, FiTrash2, FiFileText } from 'react-icons/fi';
+import Select from 'react-select'; // הוספנו את החיפוש החכם
 
 function Tutors() {
   const navigate = useNavigate();
@@ -13,12 +14,18 @@ function Tutors() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   
+  // הוספנו street ו-houseNumber לסטייט ההתחלתי
   const [newTutor, setNewTutor] = useState({
     firstName: '', lastName: '', idNumber: '', birthDate: '', 
-    phone1: '', phone2: '', email: '', address: '', city: '', sector: '',
+    phone1: '', phone2: '', email: '', address: '', city: '', street: '', houseNumber: '', sector: '',
     yeshiva: '', interviewedBy: '', languages: '', recommendations: '', notes: '',
     bankName: '', branch: '', accountNumber: '' 
   });
+
+  // מאגר ערים ורחובות
+  const [cities, setCities] = useState([]);
+  const [streets, setStreets] = useState([]);
+  const [isSearchingStreets, setIsSearchingStreets] = useState(false);
 
   useEffect(() => {
     const fetchTutorsAndPlacements = async () => {
@@ -38,6 +45,34 @@ function Tutors() {
       }
     };
     fetchTutorsAndPlacements();
+
+    // שליפת רשימת הערים
+    fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCities(data);
+      })
+      .catch(err => console.error("שגיאה בטעינת ערים:", err));
+  }, []);
+
+  // פונקציה לשליפת רחובות
+  const fetchStreetsFromServer = useCallback(async (cityName) => {
+    if (!cityName) {
+      setStreets([]);
+      return;
+    }
+    setIsSearchingStreets(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/geo/streets?city=${encodeURIComponent(cityName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStreets(data);
+      }
+    } catch (err) {
+      console.error("שגיאה בטעינת רחובות:", err);
+    } finally {
+      setIsSearchingStreets(false);
+    }
   }, []);
 
   const filteredTutors = tutors.filter(tutor => {
@@ -45,7 +80,6 @@ function Tutors() {
     return fullName.includes(searchTerm) || tutor.idNumber?.includes(searchTerm);
   });
 
-  // החלפנו את ה-Badge הפשוט בעיצוב פסטלי-מודרני
   const getPlacementStatus = (tutorId) => {
     if (!tutorId) return { text: 'פנוי לשיבוץ', style: { backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' } };
 
@@ -68,18 +102,24 @@ function Tutors() {
     setShowAddModal(false);
     setNewTutor({
       firstName: '', lastName: '', idNumber: '', birthDate: '', 
-      phone1: '', phone2: '', email: '', address: '', city: '', sector: '',
+      phone1: '', phone2: '', email: '', address: '', city: '', street: '', houseNumber: '', sector: '',
       yeshiva: '', interviewedBy: '', languages: '', recommendations: '', notes: '',
       bankName: '', branch: '', accountNumber: ''
     });
+    setStreets([]);
   };
   
   const handleAddChange = (e) => setNewTutor({ ...newTutor, [e.target.name]: e.target.value });
 
   const handleAddTutor = async (e) => {
     e.preventDefault();
+    
+    // בניה של הכתובת המלאה מרחוב + מספר
+    const fullAddress = `${newTutor.street || ''} ${newTutor.houseNumber || ''}`.trim() || newTutor.address;
+
     const payload = {
       ...newTutor,
+      address: fullAddress,
       languages: newTutor.languages ? newTutor.languages.split(',').map(lang => lang.trim()) : [],
       bankAccount: { bankName: newTutor.bankName, branch: newTutor.branch, accountNumber: newTutor.accountNumber }
     };
@@ -135,7 +175,6 @@ function Tutors() {
         </Button>
       </div>
 
-      {/* כרטיסיית הטבלה המרחפת */}
       <Card className="border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
         <Card.Body className="p-4">
           
@@ -202,11 +241,12 @@ function Tutors() {
         </Card.Body>
       </Card>
 
-      {/* חלון מודל הוספת חונך משודרג */}
+      {/* --- חלון מודל הוספת חונך משודרג עם כותרת מותאמת אישית (איקס מסודר) --- */}
       <Modal show={showAddModal} onHide={handleCloseAdd} size="lg" dir="rtl" backdrop="static">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>הוספת חונך חדש</Modal.Title>
-        </Modal.Header>
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>הוספת חונך חדש</h4>
+          <button type="button" onClick={handleCloseAdd} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
         <Modal.Body className="p-4" style={{ backgroundColor: '#ffffff', maxHeight: '75vh', overflowY: 'auto' }}>
           <Form onSubmit={handleAddTutor}>
             
@@ -226,10 +266,70 @@ function Tutors() {
               <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>טלפון 2</Form.Label><Form.Control type="text" name="phone2" value={newTutor.phone2} onChange={handleAddChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
               <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>אימייל</Form.Label><Form.Control type="email" name="email" value={newTutor.email} onChange={handleAddChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
             </Row>
+
+            {/* שדות העיר והרחוב החכמים */}
             <Row className="mb-4">
-              <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>עיר *</Form.Label><Form.Control type="text" name="city" value={newTutor.city} onChange={handleAddChange} required style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
-              <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>כתובת *</Form.Label><Form.Control type="text" name="address" value={newTutor.address} onChange={handleAddChange} required style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
-              <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>מגזר</Form.Label><Form.Control type="text" name="sector" value={newTutor.sector} onChange={handleAddChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>עיר *</Form.Label>
+                  <Select
+                    options={cities.map(city => ({ value: city, label: city }))}
+                    value={newTutor.city ? { value: newTutor.city, label: newTutor.city } : null}
+                    onChange={(selected) => {
+                      const cityName = selected ? selected.value : '';
+                      setNewTutor(prev => ({ ...prev, city: cityName, street: '' }));
+                      if (cityName) {
+                        fetchStreetsFromServer(cityName);
+                      } else {
+                        setStreets([]);
+                      }
+                    }}
+                    placeholder="חפש עיר..."
+                    isSearchable
+                    isClearable
+                    isRtl
+                    noOptionsMessage={() => "לא נמצאה עיר"}
+                    menuPortalTarget={document.body}
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({ ...base, borderRadius: '8px', backgroundColor: '#f8fafc' }) }}
+                  />
+                </Form.Group>
+              </Col>
+              
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>
+                    רחוב {isSearchingStreets && <Spinner size="sm" animation="border" className="ms-2" />}
+                  </Form.Label>
+                  <Select
+                    options={streets.map(street => ({ value: street, label: street }))}
+                    value={newTutor.street ? { value: newTutor.street, label: newTutor.street } : null}
+                    onChange={(selected) => setNewTutor(prev => ({ ...prev, street: selected ? selected.value : '' }))}
+                    placeholder="חפש רחוב..."
+                    isSearchable
+                    isClearable
+                    isRtl
+                    isDisabled={!newTutor.city || isSearchingStreets}
+                    isLoading={isSearchingStreets}
+                    noOptionsMessage={() => "לא נמצאו רחובות"}
+                    menuPortalTarget={document.body}
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({ ...base, borderRadius: '8px', backgroundColor: '#f8fafc' }) }}
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col md={2}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>מס' בית</Form.Label>
+                  <Form.Control type="text" name="houseNumber" value={newTutor.houseNumber} onChange={handleAddChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} />
+                </Form.Group>
+              </Col>
+
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>מגזר</Form.Label>
+                  <Form.Control type="text" name="sector" value={newTutor.sector} onChange={handleAddChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} />
+                </Form.Group>
+              </Col>
             </Row>
 
             <h6 className="fw-bold pb-2 mb-3" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>רקע מקצועי</h6>
