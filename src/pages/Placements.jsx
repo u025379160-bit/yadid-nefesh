@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Form, InputGroup, Spinner, Modal, Row, Col, Badge, ProgressBar } from 'react-bootstrap';
-import { FiSearch, FiPlus, FiBriefcase, FiTrash2, FiFileText, FiUser, FiInfo, FiDollarSign, FiEdit2, FiCalendar, FiAlertCircle, FiCheckCircle, FiShield } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiTrash2, FiFileText, FiUser, FiInfo, FiDollarSign, FiEdit2, FiCalendar, FiAlertCircle, FiCheckCircle, FiShield } from 'react-icons/fi';
+import { FaHandshake } from 'react-icons/fa'; // הוספנו את לחיצת הידיים
 import Select from 'react-select';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,6 +11,9 @@ function Placements() {
   const [students, setStudents] = useState([]); 
   const [tutors, setTutors] = useState([]); 
   
+  // מאגר ערים לחיפוש החכם
+  const [cities, setCities] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); 
@@ -34,6 +38,14 @@ function Placements() {
 
   useEffect(() => {
     fetchData();
+
+    // שליפת רשימת הערים מהשרת
+    fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCities(data);
+      })
+      .catch(err => console.error("שגיאה בטעינת ערים:", err));
   }, []);
 
   const fetchData = async () => {
@@ -359,7 +371,8 @@ function Placements() {
             <Table hover className="align-middle border-light mb-0" style={{ color: '#334155' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiBriefcase className="me-2" /> חונך</th>
+                  {/* --- שינוי למזוודה יד לוחצת יד בכותרת --- */}
+                  <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FaHandshake className="me-2" /> חונך</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiUser className="me-2" /> תלמיד</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}><FiCalendar className="me-2" /> תאריך התחלה</th>
                   <th style={{ backgroundColor: '#f8fafc', color: '#64748b', fontWeight: '600', padding: '10px', textAlign: 'center', boxShadow: '0 2px 4px -2px rgba(0,0,0,0.1)' }}>סטטוס שיבוץ</th>
@@ -478,10 +491,12 @@ function Placements() {
         </Card.Body>
       </Card>
 
+      {/* --- חלון סיכום הדרכה עם איקס מסודר --- */}
       <Modal show={showGuidanceModal} onHide={() => setShowGuidanceModal(false)} dir="rtl" backdrop="static">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>סיכום שיחת הדרכה</Modal.Title>
-        </Modal.Header>
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>סיכום שיחת הדרכה</h4>
+          <button type="button" onClick={() => setShowGuidanceModal(false)} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
         <Modal.Body className="p-4">
           <p style={{ color: '#475569', fontSize: '0.95rem' }} className="mb-4">
             על מנת לסמן את החונך כ"קיבל הדרכה", אנא הקלד סיכום קצר של השיחה שהתקיימה. הסיכום יישמר אוטומטית ביומן המשימות תחת תיק השיבוץ.
@@ -510,10 +525,12 @@ function Placements() {
         </Modal.Body>
       </Modal>
 
+      {/* --- חלון יצירת שיבוץ עם איקס מסודר + חיפוש עיר חכם --- */}
       <Modal show={showAddModal} onHide={handleCloseAdd} size="lg" dir="rtl" backdrop="static">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>יצירת שיבוץ חדש</Modal.Title>
-        </Modal.Header>
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>יצירת שיבוץ חדש</h4>
+          <button type="button" onClick={handleCloseAdd} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
         <Modal.Body className="p-4" style={{ backgroundColor: '#ffffff', minHeight: '60vh', overflow: 'visible' }}>
           <Form onSubmit={handleAddPlacement}>
             <h6 className="fw-bold mb-3 pb-2" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>משתתפים (חובה)</h6>
@@ -574,7 +591,24 @@ function Placements() {
               </Col>
             </Row>
             <Row className="mb-4">
-              <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>עיר השיבוץ</Form.Label><Form.Control type="text" name="city" value={newPlacement.city} onChange={handleAddChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+              {/* השדה החדש החכם של העיר */}
+              <Col>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>עיר השיבוץ</Form.Label>
+                  <Select
+                    options={cities.map(city => ({ value: city, label: city }))}
+                    value={newPlacement.city ? { value: newPlacement.city, label: newPlacement.city } : null}
+                    onChange={(selected) => setNewPlacement({ ...newPlacement, city: selected ? selected.value : '' })}
+                    placeholder="חפש עיר..."
+                    isSearchable
+                    isClearable
+                    isRtl
+                    noOptionsMessage={() => "לא נמצאה עיר"}
+                    menuPortalTarget={document.body}
+                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({ ...base, borderRadius: '8px', backgroundColor: '#f8fafc' }) }}
+                  />
+                </Form.Group>
+              </Col>
               <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>ישיבה</Form.Label><Form.Control type="text" name="yeshiva" value={newPlacement.yeshiva} onChange={handleAddChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
             </Row>
 
@@ -586,12 +620,14 @@ function Placements() {
         </Modal.Body>
       </Modal>
 
+      {/* --- חלון פרטי/עריכת שיבוץ עם איקס מסודר + חיפוש עיר חכם --- */}
       <Modal show={showDetailsModal} onHide={handleCloseDetails} size="lg" dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>
             {editMode ? 'עריכת שיבוץ' : 'פרטי שיבוץ'}
-          </Modal.Title>
-        </Modal.Header>
+          </h4>
+          <button type="button" onClick={handleCloseDetails} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
         
         {selectedPlacement && (
           <Modal.Body className="p-4" style={{ backgroundColor: '#ffffff', minHeight: '50vh', overflow: 'visible' }}>
@@ -601,7 +637,8 @@ function Placements() {
                     <div className="d-flex justify-content-center align-items-center gap-3 mb-3">
                         <span className="fw-bold fs-4" style={{ color: '#2563eb' }}>{selectedPlacement.tutor ? `${selectedPlacement.tutor.firstName} ${selectedPlacement.tutor.lastName}` : 'נמחק'}</span>
                         <div className="rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: '40px', height: '40px', backgroundColor: '#ffffff', border: '1px solid #cbd5e1' }}>
-                          <FiBriefcase style={{ color: '#64748b' }} size={20} />
+                          {/* --- שינוי למזוודה יד לוחצת יד באמצע --- */}
+                          <FaHandshake style={{ color: '#64748b' }} size={20} />
                         </div>
                         <span className="fw-bold fs-4" style={{ color: '#0f172a' }}>{selectedPlacement.student ? `${selectedPlacement.student.firstName} ${selectedPlacement.student.lastName}` : 'נמחק'}</span>
                     </div>
@@ -695,7 +732,24 @@ function Placements() {
                     </Col>
                   </Row>
                   <Row className="mb-4">
-                    <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>עיר</Form.Label><Form.Control type="text" name="city" value={selectedPlacement.city || ''} onChange={handleDetailsChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
+                    {/* השדה החדש החכם של העיר - עריכה */}
+                    <Col>
+                      <Form.Group>
+                        <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>עיר</Form.Label>
+                        <Select
+                          options={cities.map(city => ({ value: city, label: city }))}
+                          value={selectedPlacement.city ? { value: selectedPlacement.city, label: selectedPlacement.city } : null}
+                          onChange={(selected) => setSelectedPlacement({ ...selectedPlacement, city: selected ? selected.value : '' })}
+                          placeholder="חפש עיר..."
+                          isSearchable
+                          isClearable
+                          isRtl
+                          noOptionsMessage={() => "לא נמצאה עיר"}
+                          menuPortalTarget={document.body}
+                          styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({ ...base, borderRadius: '8px', backgroundColor: '#f8fafc' }) }}
+                        />
+                      </Form.Group>
+                    </Col>
                     <Col><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>רכז</Form.Label><Form.Control type="text" name="coordinator" value={selectedPlacement.coordinator || ''} onChange={handleDetailsChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} /></Form.Group></Col>
                   </Row>
 
