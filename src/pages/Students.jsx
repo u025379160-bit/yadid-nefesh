@@ -10,10 +10,10 @@ import {
   FiLock,
   FiPlusCircle,
   FiMinusCircle,
-  FiFilter,
   FiCalendar,
   FiMapPin
 } from 'react-icons/fi';
+import Select from 'react-select';
 
 function Students() {
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ function Students() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // מאגר ערים ורחובות - נטען מהשרת המקומי שלך
+  // מאגר ערים ורחובות
   const [cities, setCities] = useState([]);
   const [streets, setStreets] = useState([]);
   const [isSearchingStreets, setIsSearchingStreets] = useState(false);
@@ -35,7 +35,7 @@ function Students() {
   useEffect(() => {
     fetchStudentsAndData();
 
-    // שליפת רשימת הערים מהשרת שלך (מה-CSV/Excel)
+    // שליפת רשימת הערים מהשרת שלך
     fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
       .then(res => res.json())
       .then(data => {
@@ -87,7 +87,7 @@ function Students() {
         setStreets(data);
       }
     } catch (err) {
-      console.error("שגיאה בטעינת רחובות מהשרת:", err);
+      console.error("שגיאה בטעינת רחובות:", err);
     } finally {
       setIsSearchingStreets(false);
     }
@@ -139,34 +139,8 @@ function Students() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    let updatedData = { ...formData, [name]: value };
-
-    if (name === 'city') {
-      fetchStreetsFromServer(value); // קריאה לשרת לשליפת רחובות העיר
-      updatedData.street = ''; // איפוס רחוב כשמחליפים עיר
-      
-      // מיקוד אוטומטי בסיסי לערים נפוצות (אופציונלי)
-      if (value.includes("ירושלים")) updatedData.zipCode = "91000";
-      if (value.includes("בני ברק")) updatedData.zipCode = "51000";
-    }
-    setFormData(updatedData);
+    setFormData({ ...formData, [name]: value });
   };
-
-  // --- הפונקציות החדשות שמונעות הקלדה שגויה (אימות ביציאה מהשדה) ---
-  const handleCityBlur = () => {
-    if (formData.city && !cities.includes(formData.city)) {
-      // אם מה שהוקלד לא קיים במאגר, ננקה את השדה ונכריח אותו לבחור מהרשימה
-      setFormData(prev => ({ ...prev, city: '', street: '', zipCode: '' }));
-    }
-  };
-
-  const handleStreetBlur = () => {
-    if (formData.street && !streets.includes(formData.street)) {
-      // אם מה שהוקלד לא קיים במאגר הרחובות של העיר, ננקה את שדה הרחוב
-      setFormData(prev => ({ ...prev, street: '' }));
-    }
-  };
-  // ------------------------------------------------------------------
 
   const numberToGematria = (num) => {
     let n = num > 1000 ? num % 1000 : num;
@@ -227,7 +201,7 @@ function Students() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const fullAddress = `${formData.street} ${formData.houseNumber}`.trim();
+    const fullAddress = `${formData.street || ''} ${formData.houseNumber || ''}`.trim();
     const dataToSend = { ...formData, address: fullAddress };
     if (!dataToSend.payer || dataToSend.payer === "") delete dataToSend.payer;
 
@@ -255,6 +229,12 @@ function Students() {
   };
 
   const uniqueInstitutesList = [...new Set(students.map(s => s.institute).filter(Boolean))];
+
+  // אפשרויות ל-Select של המשלמים
+  const payerOptions = payers.map(payer => ({
+    value: payer._id,
+    label: `${payer.name} (${payer.identifier})`
+  }));
 
   return (
     <Container className="pt-3 mb-5" dir="rtl">
@@ -344,11 +324,21 @@ function Students() {
         <Modal.Body className="p-4 bg-white" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
           <Form onSubmit={handleSubmit}>
             <div className="p-3 mb-4 rounded-3 border" style={{ backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }}>
-              <Form.Group><Form.Label className="fw-bold small mb-2 d-flex align-items-center gap-2" style={{ color: '#0284c7' }}><FiUser /> שיוך למשלם קבוע</Form.Label>
-                <Form.Select name="payer" value={formData.payer || ''} onChange={handleChange} style={{ borderRadius: '8px' }}>
-                  <option value="">-- ללא משלם קבוע --</option>
-                  {payers.map(payer => (<option key={payer._id} value={payer._id}>{payer.name} ({payer.identifier})</option>))}
-                </Form.Select>
+              <Form.Group>
+                <Form.Label className="fw-bold small mb-2 d-flex align-items-center gap-2" style={{ color: '#0284c7' }}>
+                  <FiUser /> שיוך למשלם קבוע
+                </Form.Label>
+                <Select
+                  options={payerOptions}
+                  value={payerOptions.find(opt => opt.value === formData.payer) || null}
+                  onChange={(selected) => setFormData({ ...formData, payer: selected ? selected.value : '' })}
+                  placeholder="הקלד שם לחיפוש..."
+                  isSearchable
+                  isClearable
+                  isRtl
+                  menuPortalTarget={document.body}
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({ ...base, borderRadius: '8px', borderColor: '#bae6fd' }) }}
+                />
               </Form.Group>
             </div>
 
@@ -388,40 +378,67 @@ function Students() {
               <Col md={3}>
                 <Form.Group>
                   <Form.Label className="small fw-bold text-primary"><FiMapPin className="me-1"/>עיר *</Form.Label>
-                  <Form.Control 
-                    list="cities-datalist" 
-                    name="city" 
-                    placeholder="הקלד ובחר עיר..." 
-                    value={formData.city} 
-                    onChange={handleChange} 
-                    onBlur={handleCityBlur}
-                    autoComplete="off"
-                    style={{ borderRadius: '8px', border: '2px solid #2563eb' }} 
+                  <Select
+                    options={cities.map(city => ({ value: city, label: city }))}
+                    value={formData.city ? { value: formData.city, label: formData.city } : null}
+                    onChange={(selected) => {
+                      const cityName = selected ? selected.value : '';
+                      let newZip = formData.zipCode;
+                      
+                      // השלמת מיקוד לערי מפתח
+                      if (cityName === "ירושלים") newZip = "91000";
+                      if (cityName === "בני ברק") newZip = "51000";
+
+                      // עדכון סטייט
+                      setFormData(prev => ({ ...prev, city: cityName, street: '', zipCode: newZip }));
+                      
+                      if (cityName) {
+                        fetchStreetsFromServer(cityName);
+                      } else {
+                        setStreets([]);
+                      }
+                    }}
+                    placeholder="חפש עיר..."
+                    isSearchable
+                    isClearable
+                    isRtl
+                    noOptionsMessage={() => "לא נמצאה עיר"}
+                    menuPortalTarget={document.body}
+                    styles={{ 
+                      menuPortal: base => ({ ...base, zIndex: 9999 }), 
+                      control: base => ({ ...base, borderRadius: '8px', border: '2px solid #2563eb' }) 
+                    }}
                   />
-                  <datalist id="cities-datalist">
-                    {cities.map((city, i) => <option key={i} value={city} />)}
-                  </datalist>
                 </Form.Group>
               </Col>
+              
               <Col md={4}>
                 <Form.Group>
-                  <Form.Label className="small fw-bold">רחוב * {isSearchingStreets && <Spinner size="sm" animation="border" />}</Form.Label>
-                  <Form.Control 
-                    list="streets-datalist" 
-                    name="street" 
-                    placeholder="הקלד ובחר רחוב..." 
-                    value={formData.street} 
-                    onChange={handleChange} 
-                    onBlur={handleStreetBlur}
-                    autoComplete="off"
-                    style={{ borderRadius: '8px' }} 
-                    disabled={!formData.city}
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>
+                    רחוב * {isSearchingStreets && <Spinner size="sm" animation="border" className="ms-2" />}
+                  </Form.Label>
+                  <Select
+                    options={streets.map(street => ({ value: street, label: street }))}
+                    value={formData.street ? { value: formData.street, label: formData.street } : null}
+                    onChange={(selected) => {
+                      setFormData(prev => ({ ...prev, street: selected ? selected.value : '' }));
+                    }}
+                    placeholder="חפש רחוב..."
+                    isSearchable
+                    isClearable
+                    isRtl
+                    isDisabled={!formData.city || isSearchingStreets}
+                    isLoading={isSearchingStreets}
+                    noOptionsMessage={() => "לא נמצאו רחובות"}
+                    menuPortalTarget={document.body}
+                    styles={{ 
+                      menuPortal: base => ({ ...base, zIndex: 9999 }), 
+                      control: base => ({ ...base, borderRadius: '8px' }) 
+                    }}
                   />
-                  <datalist id="streets-datalist">
-                    {streets.map((s, i) => <option key={i} value={s} />)}
-                  </datalist>
                 </Form.Group>
               </Col>
+              
               <Col md={2}><Form.Group><Form.Label className="small fw-bold">מס' בניין *</Form.Label><Form.Control type="text" name="houseNumber" value={formData.houseNumber} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
               <Col md={3}><Form.Group><Form.Label className="small fw-bold">מיקוד</Form.Label><Form.Control type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} style={{ borderRadius: '8px' }} /></Form.Group></Col>
             </Row>
