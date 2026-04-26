@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
 import {
@@ -30,6 +30,11 @@ function StudentProfile() {
   const [payers, setPayers] = useState([]);
   const [tutors, setTutors] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // מאגר ערים ורחובות
+  const [cities, setCities] = useState([]);
+  const [streets, setStreets] = useState([]);
+  const [isSearchingStreets, setIsSearchingStreets] = useState(false);
 
   // תאריך עברי שמחושב אוטומטית (נשאר לצורך תצוגה כללית אם צריך)
   const [hebrewBirthDate, setHebrewBirthDate] = useState('');
@@ -121,7 +126,35 @@ function StudentProfile() {
 
   useEffect(() => {
     fetchData();
+    
+    // שליפת רשימת הערים ברגע פתיחת המסך
+    fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCities(data);
+      })
+      .catch(err => console.error("שגיאה בטעינת ערים:", err));
   }, [id]);
+
+  // פונקציה לשליפת רחובות
+  const fetchStreetsFromServer = useCallback(async (cityName) => {
+    if (!cityName) {
+      setStreets([]);
+      return;
+    }
+    setIsSearchingStreets(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/geo/streets?city=${encodeURIComponent(cityName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStreets(data);
+      }
+    } catch (err) {
+      console.error("שגיאה בטעינת רחובות:", err);
+    } finally {
+      setIsSearchingStreets(false);
+    }
+  }, []);
 
   const calculateAge = (dob) => {
     if (!dob) return '';
@@ -130,7 +163,6 @@ function StudentProfile() {
     return Math.abs(ageDt.getUTCFullYear() - 1970);
   };
 
-  // 👇 פונקציית הקסם המשודרגת (הופכת גם שנים וגם ימים לאותיות גימטריה) 👇
   const numberToGematria = (num) => {
     let n = num > 1000 ? num % 1000 : num;
     let str = '';
@@ -162,7 +194,6 @@ function StudentProfile() {
     return str.slice(0, -1) + '"' + str.slice(-1);
   };
 
-  // 👇 תרגום מלא כולל יום (18 -> י"ח) ושנה (5786 -> תשפ"ו) 👇
   const getHebrewDate = (gregorianDateStr) => {
     if (!gregorianDateStr) return '';
     try {
@@ -173,14 +204,12 @@ function StudentProfile() {
         year: 'numeric'
       }).format(date);
 
-      // תופס את המספר הראשון (היום, למשל 18) ומחליף אותו באותיות (י"ח)
       const dayMatch = formatted.match(/^\d+/);
       if (dayMatch) {
         const numDay = parseInt(dayMatch[0], 10);
         formatted = formatted.replace(dayMatch[0], numberToGematria(numDay));
       }
 
-      // תופס את המספר בן 4 ספרות (השנה, למשל 5786) ומחליף אותו באותיות (תשפ"ו)
       const yearMatch = formatted.match(/\d{4}/);
       if (yearMatch) {
         const numYear = parseInt(yearMatch[0], 10);
@@ -305,19 +334,47 @@ function StudentProfile() {
       formattedDate = new Date(student.birthDate).toISOString().split('T')[0];
     }
     const payerId = student.payer?._id || student.payer || '';
+    
     setFormData({
       ...student,
       birthDate: formattedDate,
       payer: payerId,
       contacts: student.contacts || []
     });
+
+    if (student.city) {
+      fetchStreetsFromServer(student.city);
+    }
+    
     setShowEditModal(true);
   };
 
   const handleCloseEdit = () => setShowEditModal(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    let updatedData = { ...formData, [name]: value };
+
+    if (name === 'city') {
+      fetchStreetsFromServer(value);
+      updatedData.street = ''; // איפוס הרחוב בעת החלפת עיר
+      if (value.includes("ירושלים")) updatedData.zipCode = "91000";
+      if (value.includes("בני ברק")) updatedData.zipCode = "51000";
+    }
+    setFormData(updatedData);
+  };
+
+  // בדיקות אימות לעיר ורחוב ביציאה מהשדה
+  const handleCityBlur = () => {
+    if (formData.city && !cities.includes(formData.city)) {
+      setFormData(prev => ({ ...prev, city: '', street: '', zipCode: '' }));
+    }
+  };
+
+  const handleStreetBlur = () => {
+    if (formData.street && !streets.includes(formData.street)) {
+      setFormData(prev => ({ ...prev, street: '' }));
+    }
   };
 
   const handleAddContact = () => {
@@ -340,11 +397,16 @@ function StudentProfile() {
 
   const handleUpdateStudent = async (e) => {
     e.preventDefault();
+    
+    // יצירת כתובת מלאה ושליחת כל הנתונים, בדומה למסך הקודם
+    const fullAddress = `${formData.street || ''} ${formData.houseNumber || ''}`.trim();
+    const dataToSend = { ...formData, address: fullAddress };
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
       if (response.ok) {
         setShowEditModal(false);
@@ -861,27 +923,54 @@ function StudentProfile() {
               </Col>
             </Row>
 
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="fw-bold small" style={{ color: '#64748b' }}>כתובת מגורים</Form.Label>
-                  <Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} />
+            <h6 className="fw-bold pb-2 mb-3 mt-3" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>כתובת ומיקום (מהמאגר)</h6>
+            <Row className="mb-3">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold text-primary"><FiMapPin className="me-1"/>עיר *</Form.Label>
+                  <Form.Control 
+                    list="cities-datalist" 
+                    name="city" 
+                    placeholder="הקלד ובחר עיר..." 
+                    value={formData.city || ''} 
+                    onChange={handleChange} 
+                    onBlur={handleCityBlur}
+                    autoComplete="off"
+                    style={{ borderRadius: '8px', border: '2px solid #2563eb', backgroundColor: '#f8fafc' }} 
+                  />
+                  <datalist id="cities-datalist">
+                    {cities.map((city, i) => <option key={i} value={city} />)}
+                  </datalist>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>רחוב * {isSearchingStreets && <Spinner size="sm" animation="border" />}</Form.Label>
+                  <Form.Control 
+                    list="streets-datalist" 
+                    name="street" 
+                    placeholder="הקלד ובחר רחוב..." 
+                    value={formData.street || ''} 
+                    onChange={handleChange} 
+                    onBlur={handleStreetBlur}
+                    autoComplete="off"
+                    style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} 
+                    disabled={!formData.city}
+                  />
+                  <datalist id="streets-datalist">
+                    {streets.map((s, i) => <option key={i} value={s} />)}
+                  </datalist>
+                </Form.Group>
+              </Col>
+              <Col md={2}>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>מס' בניין *</Form.Label>
+                  <Form.Control type="text" name="houseNumber" value={formData.houseNumber || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} />
                 </Form.Group>
               </Col>
               <Col md={3}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="fw-bold small" style={{ color: '#64748b' }}>עיר</Form.Label>
-                  <Form.Select name="city" value={formData.city || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }}>
-                    <option value="507f1f77bcf86cd799439011">ירושלים</option>
-                    <option value="507f1f77bcf86cd799439012">בני ברק</option>
-                    <option value="507f1f77bcf86cd799439013">בית שמש</option>
-                    <option value="507f1f77bcf86cd799439014">אחר</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="fw-bold small" style={{ color: '#64748b' }}>מיקוד</Form.Label>
+                <Form.Group>
+                  <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>מיקוד</Form.Label>
                   <Form.Control type="text" name="zipCode" value={formData.zipCode || ''} onChange={handleChange} style={{ borderRadius: '8px', backgroundColor: '#f8fafc' }} />
                 </Form.Group>
               </Col>
