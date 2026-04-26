@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
-// 1. שליפת כל המשתמשים (לצורך ניהול)
+const SECRET = process.env.JWT_SECRET || 'סודמאובטח123';
+
+// 1. שליפת כל המשתמשים
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find().select('-password'); // מחזיר הכל חוץ מהסיסמה
+    const users = await User.find().select('-password');
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: 'שגיאה בשליפת משתמשים' });
@@ -24,7 +27,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 3. עדכון תפקיד או פרטי משתמש
+// 3. עדכון משתמש
 router.put('/:id', async (req, res) => {
   try {
     const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -44,39 +47,34 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 5. פונקציית ההתחברות שהייתה חסרה לנו! 🔥
-// ==========================================
+// 5. התחברות — מחזיר token
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // מחפשים את המשתמש במסד הנתונים לפי האימייל
     const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ message: 'אימייל או סיסמה שגויים' });
 
-    // אם המשתמש לא קיים
-    if (!user) {
-      return res.status(401).json({ message: 'אימייל או סיסמה שגויים' });
-    }
+    if (user.password !== password) return res.status(401).json({ message: 'אימייל או סיסמה שגויים' });
 
-    // בודקים אם הסיסמה תואמת
-    if (user.password !== password) {
-      return res.status(401).json({ message: 'אימייל או סיסמה שגויים' });
-    }
+    const token = jwt.sign(
+      { id: user._id, role: user.role, name: user.name },
+      SECRET,
+      { expiresIn: '12h' }
+    );
 
-    // הכל תקין! מחזירים אישור ואת התפקיד שלו למערכת
     res.json({
       message: 'התחברת בהצלחה',
+      token: token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role // זה המפתח שיפתח לנו את הדלתות באתר!
+        role: user.role
       }
     });
 
   } catch (err) {
-    console.error('Login Error:', err);
     res.status(500).json({ message: 'שגיאת שרת בתהליך ההתחברות' });
   }
 });
