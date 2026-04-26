@@ -31,7 +31,7 @@ function Login({ onLogin }) {
       const data = await response.json();
 
       if (response.ok) {
-        // 🔥 השינוי כאן: מעבירים את כל אובייקט המשתמש (שם, תפקיד, אידי)
+        localStorage.setItem('token', data.token);
         onLogin(data.user); 
       } else {
         setError(data.message || 'אימייל או סיסמה שגויים');
