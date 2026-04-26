@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Card, Button, Row, Col, Table, Badge, ListGroup, Spinner, Modal, Form } from 'react-bootstrap';
 import { FiArrowRight, FiEdit2, FiUser, FiInfo, FiBriefcase, FiList, FiPhone, FiMail, FiCreditCard, FiUserPlus, FiCheckSquare, FiTrash2, FiLock, FiClock, FiPhoneCall, FiMapPin, FiFileText } from 'react-icons/fi';
+import Select from 'react-select'; // הוספנו את החיפוש החכם
 
 function TutorProfile() {
   const { id } = useParams(); 
@@ -13,6 +14,11 @@ function TutorProfile() {
   const [tasks, setTasks] = useState([]); 
   const [reports, setReports] = useState([]); 
   const [loading, setLoading] = useState(true);
+
+  // --- מאגר ערים ורחובות ---
+  const [cities, setCities] = useState([]);
+  const [streets, setStreets] = useState([]);
+  const [isSearchingStreets, setIsSearchingStreets] = useState(false);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({});
@@ -92,7 +98,35 @@ function TutorProfile() {
 
   useEffect(() => {
     fetchData();
+
+    // שליפת רשימת הערים
+    fetch(import.meta.env.VITE_API_URL + '/api/geo/cities')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCities(data);
+      })
+      .catch(err => console.error("שגיאה בטעינת ערים:", err));
   }, [id]);
+
+  // פונקציה לשליפת רחובות
+  const fetchStreetsFromServer = useCallback(async (cityName) => {
+    if (!cityName) {
+      setStreets([]);
+      return;
+    }
+    setIsSearchingStreets(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/geo/streets?city=${encodeURIComponent(cityName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStreets(data);
+      }
+    } catch (err) {
+      console.error("שגיאה בטעינת רחובות:", err);
+    } finally {
+      setIsSearchingStreets(false);
+    }
+  }, []);
 
   const filteredPlacements = placements.filter(p => {
     if (!p.startDate) return false;
@@ -116,7 +150,18 @@ function TutorProfile() {
   const handleOpenEdit = () => {
     let formattedDate = '';
     if (tutor.birthDate) formattedDate = new Date(tutor.birthDate).toISOString().split('T')[0];
-    setFormData({ ...tutor, birthDate: formattedDate });
+    
+    setFormData({ 
+      ...tutor, 
+      birthDate: formattedDate,
+      street: '', // איפוס רחוב נוכחי (יצטרכו להקליד מחדש אם עורכים כתובת)
+      houseNumber: '' 
+    });
+
+    if (tutor.city) {
+      fetchStreetsFromServer(tutor.city);
+    }
+
     setShowEditModal(true);
   };
   
@@ -124,7 +169,6 @@ function TutorProfile() {
   
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   
-  // פונקציה מיוחדת לעדכון שדות הבנק הפנימיים (אובייקט בתוך הסטייט)
   const handleBankChange = (e) => {
     setFormData({
       ...formData,
@@ -137,11 +181,20 @@ function TutorProfile() {
 
   const handleUpdateTutor = async (e) => {
     e.preventDefault();
+    
+    // בניה של הכתובת המלאה מרחוב + מספר
+    let fullAddress = formData.address; // שומרים כתובת ישנה אם יש
+    if (formData.street || formData.houseNumber) {
+      fullAddress = `${formData.street || ''} ${formData.houseNumber || ''}`.trim();
+    }
+
+    const dataToSend = { ...formData, address: fullAddress };
+
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tutors/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (response.ok) {
@@ -329,7 +382,6 @@ function TutorProfile() {
                   <div className="d-flex flex-column gap-3">
                     <div><small className="d-block mb-1" style={{ color: '#64748b' }}>רואיין על ידי</small><span className="fw-bold" style={{ color: '#0f172a' }}>{tutor.interviewedBy || 'לא צוין'}</span></div>
                     
-                    {/* תצוגת הבנק המופרדת */}
                     <div className="p-3 rounded-4" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                       <small className="fw-bold d-block mb-1" style={{ color: '#166534' }}>פרטי חשבון בנק למלגות</small>
                       <span className="fw-bold" style={{ color: '#15803d', fontSize: '0.95rem' }}>
@@ -554,10 +606,12 @@ function TutorProfile() {
         </Col>
       </Row>
 
+      {/* ---- חלון עריכת חונך (עם ה-X מסודר והרחובות החכמים) ---- */}
       <Modal show={showEditModal} onHide={handleCloseEdit} size="xl" dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>עריכת פרטי חונך מלאים</Modal.Title>
-        </Modal.Header>
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>עריכת פרטי חונך מלאים</h4>
+          <button type="button" onClick={handleCloseEdit} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
         <Modal.Body className="bg-light p-4">
           <Card className="border-0 shadow-sm">
             <Card.Body className="p-4">
@@ -574,20 +628,60 @@ function TutorProfile() {
                 <h6 className="fw-bold mb-3 pb-2 mt-4" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>נתונים אישיים ומגורים</h6>
                 <Row className="mb-3">
                   <Col md={4}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>תאריך לידה</Form.Label><Form.Control type="date" name="birthDate" value={formData.birthDate || ''} onChange={handleChange} style={{ borderRadius: '8px' }}/></Form.Group></Col>
-                  <Col md={4}>
+                  
+                  {/* --- שדות העיר והרחוב החכמים --- */}
+                  <Col md={3}>
                     <Form.Group>
                       <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>עיר מגורים</Form.Label>
-                      <Form.Select name="city" value={formData.city || ''} onChange={handleChange} style={{ borderRadius: '8px' }}>
-                        <option value="">-- בחר עיר --</option>
-                        <option value="ירושלים">ירושלים</option>
-                        <option value="בני ברק">בני ברק</option>
-                        <option value="אשדוד">אשדוד</option>
-                        <option value="בית שמש">בית שמש</option>
-                        <option value="אחר">אחר</option>
-                      </Form.Select>
+                      <Select
+                        options={cities.map(city => ({ value: city, label: city }))}
+                        value={formData.city ? { value: formData.city, label: formData.city } : null}
+                        onChange={(selected) => {
+                          const cityName = selected ? selected.value : '';
+                          setFormData(prev => ({ ...prev, city: cityName, street: '' }));
+                          if (cityName) {
+                            fetchStreetsFromServer(cityName);
+                          } else {
+                            setStreets([]);
+                          }
+                        }}
+                        placeholder="חפש עיר..."
+                        isSearchable
+                        isClearable
+                        isRtl
+                        noOptionsMessage={() => "לא נמצאה עיר"}
+                        menuPortalTarget={document.body}
+                        styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({ ...base, borderRadius: '8px' }) }}
+                      />
                     </Form.Group>
                   </Col>
-                  <Col md={4}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>כתובת מדויקת</Form.Label><Form.Control type="text" name="address" value={formData.address || ''} onChange={handleChange} placeholder="רחוב ומספר בית" style={{ borderRadius: '8px' }}/></Form.Group></Col>
+
+                  <Col md={3}>
+                    <Form.Group>
+                      <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>רחוב {isSearchingStreets && <Spinner size="sm" animation="border" className="ms-2" />}</Form.Label>
+                      <Select
+                        options={streets.map(street => ({ value: street, label: street }))}
+                        value={formData.street ? { value: formData.street, label: formData.street } : null}
+                        onChange={(selected) => setFormData(prev => ({ ...prev, street: selected ? selected.value : '' }))}
+                        placeholder="חפש רחוב..."
+                        isSearchable
+                        isClearable
+                        isRtl
+                        isDisabled={!formData.city || isSearchingStreets}
+                        isLoading={isSearchingStreets}
+                        noOptionsMessage={() => "לא נמצאו רחובות"}
+                        menuPortalTarget={document.body}
+                        styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: base => ({ ...base, borderRadius: '8px' }) }}
+                      />
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={2}>
+                    <Form.Group>
+                      <Form.Label className="small fw-bold" style={{ color: '#64748b' }}>מס' בית</Form.Label>
+                      <Form.Control type="text" name="houseNumber" value={formData.houseNumber || ''} onChange={handleChange} style={{ borderRadius: '8px' }}/>
+                    </Form.Group>
+                  </Col>
                 </Row>
 
                 <Row className="mb-3">
@@ -598,7 +692,6 @@ function TutorProfile() {
 
                 <h6 className="fw-bold mb-3 pb-2 mt-4" style={{ color: '#334155', borderBottom: '2px solid #f1f5f9' }}>מידע פיננסי וראיונות</h6>
                 
-                {/* כאן 3 השדות המופרדים של הבנק בטופס העריכה */}
                 <Row className="mb-3">
                   <Col md={4}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>שם בנק</Form.Label><Form.Control type="text" name="bankName" value={formData.bankAccount?.bankName || ''} onChange={handleBankChange} placeholder="לדוגמה: פועלים" style={{ borderRadius: '8px' }}/></Form.Group></Col>
                   <Col md={4}><Form.Group><Form.Label className="small fw-bold" style={{ color: '#64748b' }}>סניף</Form.Label><Form.Control type="text" name="branch" value={formData.bankAccount?.branch || ''} onChange={handleBankChange} placeholder="מספר סניף" style={{ borderRadius: '8px' }}/></Form.Group></Col>
@@ -643,10 +736,12 @@ function TutorProfile() {
         </Modal.Body>
       </Modal>
 
+      {/* ---- חלון שיבוץ תלמיד לחונך (עם ה-X מסודר) ---- */}
       <Modal show={showPlacementModal} onHide={handleClosePlacement} dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>שיבוץ תלמיד לחונך</Modal.Title>
-        </Modal.Header>
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>שיבוץ תלמיד לחונך</h4>
+          <button type="button" onClick={handleClosePlacement} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
         <Modal.Body className="bg-light p-4">
           <Card className="border-0 shadow-sm">
             <Card.Body>
@@ -688,10 +783,12 @@ function TutorProfile() {
         </Modal.Body>
       </Modal>
 
+      {/* ---- חלון יצירת משימה (עם ה-X מסודר) ---- */}
       <Modal show={showTaskModal} onHide={handleCloseTask} size="lg" dir="rtl">
-        <Modal.Header closeButton style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <Modal.Title style={{ fontWeight: '800', color: '#0f172a' }}>יצירת תיעוד / דיווח לחונך</Modal.Title>
-        </Modal.Header>
+        <div className="d-flex justify-content-between align-items-center p-3" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', borderTopRightRadius: '8px', borderTopLeftRadius: '8px' }}>
+          <h4 style={{ fontWeight: '800', color: '#0f172a', margin: 0 }}>יצירת תיעוד / דיווח לחונך</h4>
+          <button type="button" onClick={handleCloseTask} className="btn-close" aria-label="Close" style={{ margin: 0 }}></button>
+        </div>
         <Modal.Body className="bg-light p-4">
           <Card className="border-0 shadow-sm">
             <Card.Body>
